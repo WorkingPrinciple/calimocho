@@ -2102,3 +2102,34 @@ The frozen public route is not that loader binding. Feature support and
 device creation must be observed, not inferred from this compile result.
 Even a passing clear/readback probe would not exercise wide-line rasterization
 or establish NMS compatibility.
+
+### Port-11b private-Metal native qualification
+
+The separately authorized `69e07d0` diagnostic03 continuation completed all
+five cells with fresh prefixes and prefix-scoped cleanup. Earlier geometry
+refusals remain preserved. A missing diagnostic parent directory stopped the
+first03 invocation before runtime spawn; creating that owned directory fixed
+the preparation error without changing the probe, runtime or safety guards.
+
+The actual Vulkan native PID 89328 loaded the colocated private MoltenVK
+`4b4bc6...` through the unchanged win32u loader route. Its tagged dyld line
+is retained in the receipt. The probe reported wideLines supported, required
+and enabled as 1, successful device creation, 120 successful Presents and
+exact RGBA 51,102,204,255. D3D12 and D3D11 each reached 120 Presents and the
+same exact pixel. HTTPS returned 200 with certificate validation enabled.
+The expired certificate was rejected with API error 12157 and Wine's
+date-invalid diagnostic 12037. Strict Windows error mapping remains unproven.
+
+The native command span was 98.34 seconds. All cells retained unchanged
+foreground, Apple payloads, port10 and private dylib hashes, no residual
+owned process groups and no open prefix files. No activation, input, capture
+or game launch occurred. The public `a5d37...` record remains unchanged.
+
+The existing emitter and recipe exporter accepted one separate local record:
+`calimocho-wine11.20-gptk4b3-tls-vulkan-private.registry.local.json`,
+SHA-256 `fbb6b9cbe1fc6cf35ffcb9378c60344b3b360a730d54ec5123fc0e1f10e87695`.
+It selects the derived installation and private API environment explicitly.
+Full receipt bindings and limitations are in
+[the private qualification evidence](evidence/port11b-private-qualification.json).
+This qualifies the bounded probes, not wide-line rasterization or NMS.
+Admission and any game run remain owned by the parent. No publication occurred.

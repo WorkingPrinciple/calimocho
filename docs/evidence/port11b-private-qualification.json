@@ -1,0 +1,80 @@
+{
+  "status": "native-probes-qualified-not-game-admitted",
+  "engine_name": "calimocho-wine11.20-gptk4b3-tls-vulkan-private",
+  "provider": {"id": "calimocho", "contract_version": 1},
+  "producer_repository": "https://github.com/dragoshont/calimocho.git",
+  "source_build_commit": "92273e4ff2fa2a32d98dfb06f1c67af2e1e0af53",
+  "local_root": "build/winehq-11.20/metal-port-11b-private-binding-01",
+  "local_registry_sha256": "fbb6b9cbe1fc6cf35ffcb9378c60344b3b360a730d54ec5123fc0e1f10e87695",
+  "wine_sha256": "f6d0546fad2d0dafaa09a9fe6cabe75bb070567df6b0933ecd3622dcb6349194",
+  "wineserver_sha256": "e3ec4e7e76cee273f17d5fa3459902642f73d6921e94c576aa74e8cdbdcd7da1",
+  "moltenvk_source_commit": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+  "moltenvk_sha256": "4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385",
+  "moltenvk_build_receipt_sha256": "65a5ff586bafe0d06a0b4627382d416f6fcf6e564f821ad0cb9fe815cfe8c58a",
+  "vulkan_probe_sha256": "dce67d9b539350bdcb6c2eec12d892cff35747cebde385efaebcdf3d593bb916",
+  "environment_additions": {"MVK_CONFIG_USE_METAL_PRIVATE_API": "1"},
+  "diagnostic": "diagnostic-03",
+  "matrix_command_span_seconds": 98.33745813369751,
+  "vulkan": {
+    "attempt": 3,
+    "receipt_sha256": "b9a8d35893edca042c3d4d75aa54c941b2e125b51b8327379573fa182dfcc3ae",
+    "guard_sha256": "d7cb4bb093d8a79967b86d9e27277650ebb502024c8465b190afea05bdd4d781",
+    "actual_loader_owned_pid": 89328,
+    "actual_loader_relative_path": "install/lib/wine/x86_64-unix/libMoltenVK.dylib",
+    "wideLines_supported_required_enabled": [1, 1, 1],
+    "vkCreateDevice": 0,
+    "successful_presents": 120,
+    "readback_rgba": [51, 102, 204, 255]
+  },
+  "d3d12": {
+    "attempt": 4,
+    "receipt_sha256": "17cd28e7f93048b966d859de1ce81138ab1ca324c57dda3b84cd23f0dc2c1e39",
+    "guard_sha256": "80664914da0c01b6a54e58d0cd6f54b87e1be36993a316214814deaa8b564c33",
+    "successful_presents": 120,
+    "readback_rgba": [51, 102, 204, 255]
+  },
+  "d3d11": {
+    "attempt": 5,
+    "receipt_sha256": "0e8b19de3caa56b3678dcdaf13f5e1a6ab9cba268c49f1032edf6d4e65731fc1",
+    "guard_sha256": "ab26340579cc6e8633f9c498eb4af3ad9843ba1101f28ba35ff1a3918df6eef3",
+    "successful_presents": 120,
+    "readback_rgba": [51, 102, 204, 255]
+  },
+  "https": {
+    "attempt": 6,
+    "receipt_sha256": "02711ead48fb20fec6dd9396919d4149ea5ac01cdb79f063186aa089e82fe9b6",
+    "guard_sha256": "b5a7f653b909e9a482161a80a4ebcd55176e0635cb66368b2dfabb92b3e8f9d4",
+    "http_status": 200,
+    "certificate_validation": "enabled"
+  },
+  "https-expired": {
+    "attempt": 7,
+    "receipt_sha256": "c346329ba075679252542a41dfe77f4169d3b9f41b1add5bac87ca82f7f0fc86",
+    "guard_sha256": "010ec82d93a8ebb549b7f9bcd0cd40160bb72794ca540eece08bfc55d6e245c5",
+    "probe_exit": 1,
+    "win32_error": 12157,
+    "wine_certificate_diagnostic": 12037,
+    "limitation": "Expired certificate rejected, but strict Windows date-invalid error mapping is not established."
+  },
+  "safety": {
+    "fresh_prefix_each_cell": true,
+    "foreground_unchanged": true,
+    "graphics_native_window_nonoverlap": true,
+    "residual_process_groups": [],
+    "prefix_open_files": false,
+    "apple_payloads_unchanged": true,
+    "port10_unchanged": true,
+    "private_moltenvk_unchanged": true,
+    "frozen_public_registry_sha256": "a5d37d2909f56abe75f9b6096cf39b4d75c91a7f6aac75154488d4c35b5ff28a"
+  },
+  "prior_stops": [
+    "Attempt01: geometry refusal before runtime spawn.",
+    "Attempt02: changed foreign overlay geometry refusal before runtime spawn.",
+    "Attempt03 preparation: missing diagnostic parent directory, before runtime spawn; immutable refusal d1cdba090f23a5310f62fc3ce969db3876d89290a655d340dea4027c4f3257b3. Corrected same03 continuation authorized by 69e07d0."
+  ],
+  "limitations": [
+    "Feature-enabled device creation and clear/readback do not exercise wide-line rasterization.",
+    "No NMS or other game compatibility is established by these probes.",
+    "No admission-row change, game launch or publication performed."
+  ]
+}

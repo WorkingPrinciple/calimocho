@@ -73,10 +73,23 @@ def observation(path, kind):
             "process_environment": receipt["environment"], "fresh_prefix": receipt["prefix"]}
 
 
-def emit(paths):
+def emit(paths, private_api=False):
     observations = {kind: observation(Path(path), kind) for kind, path in paths.items()}
     if set(observations) != {"vulkan", "d3d11", "d3d12", "https", "https-expired"}:
         raise ValueError("Require Vulkan, both D3D and both HTTPS observations")
+    if private_api:
+        receipt = json.loads(Path(observations["vulkan"]["receipt_path"]).read_text())
+        probe = next(step for step in receipt["commands"] if step["name"] == "create-device")
+        stdout = Path(probe["stdout_log"]).read_text()
+        load = receipt.get("window_capture", {}).get("private_moltenvk_load")
+        if ("wideLines supported=1 required=1 enabled=1" not in stdout
+                or "vkCreateDevice VkResult=0" not in stdout or not load
+                or sha256(Path(load["path"])) != load["sha256"]
+                or receipt["environment"].get("MVK_CONFIG_USE_METAL_PRIVATE_API") != "1"
+                or receipt["environment"].get("WINELOADER") != str(ROOT / "install/bin/wine")
+                or receipt["environment"].get("WINESERVER") != str(ROOT / "install/bin/wineserver")
+                or Path(load["path"]) != ROOT / "install/lib/wine/x86_64-unix/libMoltenVK.dylib"):
+            raise ValueError("Private API requires actual wideLines device and bound dylib load")
     base_path = BASE / "calimocho-wine11.20-gptk4b3-tls.registry.local.json"
     if sha256(base_path) != "13bc00b7f8e1496cd2b02822d75bc00b2b366b37692ff3701db083b45e56c1c4":
         raise ValueError("Frozen port10 record changed")
@@ -85,9 +98,15 @@ def emit(paths):
     engine.update(name=NAME, version="WineHQ 11.20 native-GS port-11 + TLS + MoltenVK1.4.2 + GPTK4.0b3",
                   provider={"id": "calimocho", "contract_version": 1})
     engine["environment"]["MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS"] = "1"
+    if private_api:
+        engine["environment"]["MVK_CONFIG_USE_METAL_PRIVATE_API"] = "1"
+        engine["version"] += " private-Metal diagnostic"
     for dep in engine["dependencies"]:
         dep["sha256"] = sha256(Path(dep["path"]))
     mvk = json.loads((ROOT / "receipt.json").read_text())
+    if private_api and (load["sha256"] != mvk["moltenvk_sha256"]
+                        or load["path"] != mvk["moltenvk"]):
+        raise ValueError("Private API receipt and observed loader binding differ")
     engine["dependencies"].append({
         "name": "source-built MoltenVK", "version": "1.4.2", "path": mvk["moltenvk"],
         "sha256": mvk["moltenvk_sha256"], "source_url": "https://github.com/KhronosGroup/MoltenVK.git",
@@ -129,7 +148,9 @@ def emit(paths):
     engine["integrity"] = {
         "status": "unchanged", "manifest_path": str(ROOT / "base-comparison.json"),
         "manifest_sha256": sha256(ROOT / "base-comparison.json"),
-        "scope": "Exactly eleven declared Vulkan overlay files differ from unchanged port10",
+        "scope": ("Twelve declared overlay files, including colocated private MoltenVK, differ from port10"
+                  if private_api else
+                  "Exactly eleven declared Vulkan overlay files differ from unchanged port10"),
     }
     output = ROOT / f"{NAME}.registry.local.json"
     if output.exists():

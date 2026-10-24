@@ -2,7 +2,9 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
+from tools import emit_vulkan_registry
 from tools.emit_vulkan_registry import observation
 from tools.probe_wine_source import sha256
 from tools.runtime_recipe import export_recipe
@@ -14,6 +16,53 @@ RECORD = LOCAL / "calimocho-wine11.20-gptk4b3-tls-vulkan.registry.local.json"
 
 
 class VulkanRegistryObservationTests(unittest.TestCase):
+    @unittest.skipUnless(
+        (ROOT / "build/winehq-11.20/metal-port-11b-private-binding-01/"
+         "calimocho-wine11.20-gptk4b3-tls-vulkan-private.registry.local.json").is_file(),
+        "Requires actual local private qualification")
+    def test_private_record_matches_actual_matrix_and_loader(self):
+        evidence = json.loads(
+            (ROOT / "docs/evidence/port11b-private-qualification.json").read_text())
+        local = ROOT / evidence["local_root"]
+        record = local / f'{evidence["engine_name"]}.registry.local.json'
+        self.assertEqual(sha256(record), evidence["local_registry_sha256"])
+        engine = export_recipe(record, evidence["engine_name"])["engines"][0]
+        self.assertEqual(engine["environment"]["MVK_CONFIG_USE_METAL_PRIVATE_API"], "1")
+        self.assertEqual(engine["environment"]["WINELOADER"], str(local / "install/bin/wine"))
+        self.assertEqual(engine["environment"]["WINESERVER"], str(local / "install/bin/wineserver"))
+        for kind in ("vulkan", "d3d12", "d3d11", "https", "https-expired"):
+            expected = evidence[kind]
+            wrapper = local / f'{kind}-passive-{expected["attempt"]:02}.json'
+            self.assertEqual(sha256(wrapper), expected["guard_sha256"])
+            actual = observation(wrapper, kind)
+            self.assertEqual(actual["receipt_sha256"], expected["receipt_sha256"])
+            receipt = json.loads(Path(actual["receipt_path"]).read_text())
+            self.assertEqual(receipt["environment"]["MVK_CONFIG_USE_METAL_PRIVATE_API"], "1")
+            if kind == "vulkan":
+                load = receipt["window_capture"]["private_moltenvk_load"]
+                self.assertEqual(load["sha256"], evidence["moltenvk_sha256"])
+                self.assertEqual(sha256(Path(load["path"])), load["sha256"])
+                self.assertTrue(all(line.startswith(f'dyld[{load["owned_pid"]}]:')
+                                    and load["path"] in line for line in load["dyld_lines"]))
+
+    def test_private_emission_refuses_missing_runtime_binding(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            stdout = root / "stdout"
+            stdout.write_text("wideLines supported=1 required=1 enabled=1\nvkCreateDevice VkResult=0\n")
+            receipt = root / "receipt.json"
+            receipt.write_text(json.dumps({
+                "commands": [{"name": "create-device", "stdout_log": str(stdout)}],
+                "environment": {"MVK_CONFIG_USE_METAL_PRIVATE_API": "1"},
+            }))
+            with patch.object(emit_vulkan_registry, "observation",
+                              return_value={"receipt_path": str(receipt)}):
+                with self.assertRaisesRegex(ValueError, "bound dylib"):
+                    emit_vulkan_registry.emit(
+                        {kind: root / kind for kind in
+                         ("vulkan", "d3d11", "d3d12", "https", "https-expired")},
+                        private_api=True)
+
     @unittest.skipUnless(RECORD.is_file(), "Requires actual local qualification")
     def test_frozen_local_record_matches_actual_observations_and_contract(self):
         evidence = json.loads((ROOT / "docs/evidence/req78-vulkan-qualification.json").read_text())
