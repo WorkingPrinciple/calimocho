@@ -62,7 +62,7 @@ class VulkanSourceBuildTests(unittest.TestCase):
 
     def test_wide_lines_option_enables_feature_before_device_creation(self):
         source = (ROOT / "tests/vulkan_present_probe.c").read_text()
-        self.assertIn('!strcmp(argv[1], "--require-wide-lines")', source)
+        self.assertIn('!strcmp(argv[i], "--require-wide-lines")', source)
         self.assertIn("require_wide_lines && !available_features.wideLines", source)
         self.assertIn("features.wideLines = require_wide_lines ? VK_TRUE : VK_FALSE;", source)
         self.assertLess(source.index("vkGetPhysicalDeviceFeatures(physical"),
@@ -83,6 +83,21 @@ class VulkanSourceBuildTests(unittest.TestCase):
         self.assertIn("argument_buffers_env=%s", source)
         self.assertLess(source.index("vkGetPhysicalDeviceProperties(physical"),
                         source.index('printf("descriptor_limits'))
+
+    def test_sampler_fixture_statically_samples_all_seventeen_slots(self):
+        source = (ROOT / "tests/vulkan_sampler17.spvasm").read_text()
+        self.assertEqual(source.count("OpImageSampleExplicitLod"), 17)
+        for slot in range(17):
+            self.assertIn(f"%s{slot} = OpLoad %sampled_image %p{slot}", source)
+            self.assertIn(f"OpStore %r{slot} %v{slot if slot not in (2, 4) else str(slot) + 'out'}",
+                          source)
+        probe = (ROOT / "tests/vulkan_sampler_probe.h").read_text()
+        self.assertIn("#define SAMPLER_COUNT 17", probe)
+        self.assertIn("vkCmdDispatch(command, 1, 1, 1)", probe)
+        self.assertIn("pixels[i * 4 + c] !=", probe)
+        self.assertIn("VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK", probe)
+        self.assertIn("VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE", probe)
+        self.assertIn("maxPerStageDescriptorSamplers < SAMPLER_COUNT", probe)
 
     def test_git_pins_are_full_and_fixed(self):
         self.assertRegex(COMMIT, r"^[a-f0-9]{40}$")

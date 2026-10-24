@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "probe_window_position.h"
+#include "vulkan_sampler_probe.h"
 
 #define WIDTH 320
 #define HEIGHT 240
@@ -67,10 +68,15 @@ int main(int argc, char **argv)
     VkExtent2D extent;
     float priority = 1.0f;
     BOOL require_wide_lines = FALSE;
+    const char *sampler_shader = NULL;
 
     setvbuf(stdout, NULL, _IONBF, 0);
-    if (argc == 2 && !strcmp(argv[1], "--require-wide-lines")) require_wide_lines = TRUE;
-    else if (argc != 1) { printf("ERROR expected optional --require-wide-lines\n"); return 1; }
+    for (int i = 1; i < argc; ++i)
+    {
+        if (!strcmp(argv[i], "--require-wide-lines")) require_wide_lines = TRUE;
+        else if (!strcmp(argv[i], "--sampler-shader") && i + 1 < argc) sampler_shader = argv[++i];
+        else { printf("ERROR expected --require-wide-lines or --sampler-shader PATH\n"); return 1; }
+    }
     if (!probe_window_position(&window_x, &window_y)) return 1;
     cls.lpfnWndProc = window_proc;
     cls.hInstance = GetModuleHandleA(NULL);
@@ -107,7 +113,8 @@ int main(int argc, char **argv)
             VkBool32 supported = VK_FALSE;
             CHECK("vkGetPhysicalDeviceSurfaceSupportKHR",
                   vkGetPhysicalDeviceSurfaceSupportKHR(devices[i], j, surface, &supported));
-            if (supported && (families[j].queueFlags & VK_QUEUE_GRAPHICS_BIT))
+            if (supported && (families[j].queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
+                (!sampler_shader || (families[j].queueFlags & VK_QUEUE_COMPUTE_BIT)))
             {
                 physical = devices[i];
                 family = j;
@@ -153,6 +160,8 @@ int main(int argc, char **argv)
         .enabledExtensionCount = 1, .ppEnabledExtensionNames = device_extensions};
     CHECK("vkCreateDevice", vkCreateDevice(physical, &device_info, NULL, &device));
     vkGetDeviceQueue(device, family, 0, &queue);
+    if (sampler_shader && probe_sampler_capacity(physical, device, queue, family, sampler_shader))
+        goto cleanup;
     CHECK("vkGetPhysicalDeviceSurfaceCapabilitiesKHR",
           vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, surface, &caps));
     CHECK("vkGetPhysicalDeviceSurfaceFormatsKHR(count)",

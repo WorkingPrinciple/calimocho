@@ -1,0 +1,140 @@
+; SPDX-License-Identifier: LGPL-2.1-or-later
+; Seventeen statically used sampler descriptors. Each result has its own slot.
+OpCapability Shader
+OpMemoryModel Logical GLSL450
+OpEntryPoint GLCompute %main "main"
+OpExecutionMode %main LocalSize 1 1 1
+OpDecorate %samples DescriptorSet 0
+OpDecorate %samples Binding 0
+OpDecorate %results DescriptorSet 0
+OpDecorate %results Binding 1
+OpDecorate %result_array ArrayStride 16
+OpMemberDecorate %output 0 Offset 0
+OpDecorate %output BufferBlock
+%void = OpTypeVoid
+%fn = OpTypeFunction %void
+%uint = OpTypeInt 32 0
+%float = OpTypeFloat 32
+%v2 = OpTypeVector %float 2
+%v4 = OpTypeVector %float 4
+%zero = OpConstant %uint 0
+%one = OpConstant %uint 1
+%two = OpConstant %uint 2
+%three = OpConstant %uint 3
+%four = OpConstant %uint 4
+%five = OpConstant %uint 5
+%six = OpConstant %uint 6
+%seven = OpConstant %uint 7
+%eight = OpConstant %uint 8
+%nine = OpConstant %uint 9
+%ten = OpConstant %uint 10
+%eleven = OpConstant %uint 11
+%twelve = OpConstant %uint 12
+%thirteen = OpConstant %uint 13
+%fourteen = OpConstant %uint 14
+%fifteen = OpConstant %uint 15
+%sixteen = OpConstant %uint 16
+%seventeen = OpConstant %uint 17
+%fzero = OpConstant %float 0
+%negative = OpConstant %float -1
+%coord = OpConstantComposite %v2 %negative %negative
+%image = OpTypeImage %float 2D 0 0 0 1 Unknown
+%sampled_image = OpTypeSampledImage %image
+%sampler_array = OpTypeArray %sampled_image %seventeen
+%sampler_array_ptr = OpTypePointer UniformConstant %sampler_array
+%sampler_ptr = OpTypePointer UniformConstant %sampled_image
+%samples = OpVariable %sampler_array_ptr UniformConstant
+%result_array = OpTypeArray %v4 %seventeen
+%output = OpTypeStruct %result_array
+%output_ptr = OpTypePointer Uniform %output
+%result_ptr = OpTypePointer Uniform %v4
+%results = OpVariable %output_ptr Uniform
+%main = OpFunction %void None %fn
+%entry = OpLabel
+%p0 = OpAccessChain %sampler_ptr %samples %zero
+%s0 = OpLoad %sampled_image %p0
+%v0 = OpImageSampleExplicitLod %v4 %s0 %coord Lod %fzero
+%r0 = OpAccessChain %result_ptr %results %zero %zero
+OpStore %r0 %v0
+%p1 = OpAccessChain %sampler_ptr %samples %one
+%s1 = OpLoad %sampled_image %p1
+%v1 = OpImageSampleExplicitLod %v4 %s1 %coord Lod %fzero
+%r1 = OpAccessChain %result_ptr %results %zero %one
+OpStore %r1 %v1
+%p2 = OpAccessChain %sampler_ptr %samples %two
+%s2 = OpLoad %sampled_image %p2
+%v2out = OpImageSampleExplicitLod %v4 %s2 %coord Lod %fzero
+%r2 = OpAccessChain %result_ptr %results %zero %two
+OpStore %r2 %v2out
+%p3 = OpAccessChain %sampler_ptr %samples %three
+%s3 = OpLoad %sampled_image %p3
+%v3 = OpImageSampleExplicitLod %v4 %s3 %coord Lod %fzero
+%r3 = OpAccessChain %result_ptr %results %zero %three
+OpStore %r3 %v3
+%p4 = OpAccessChain %sampler_ptr %samples %four
+%s4 = OpLoad %sampled_image %p4
+%v4out = OpImageSampleExplicitLod %v4 %s4 %coord Lod %fzero
+%r4 = OpAccessChain %result_ptr %results %zero %four
+OpStore %r4 %v4out
+%p5 = OpAccessChain %sampler_ptr %samples %five
+%s5 = OpLoad %sampled_image %p5
+%v5 = OpImageSampleExplicitLod %v4 %s5 %coord Lod %fzero
+%r5 = OpAccessChain %result_ptr %results %zero %five
+OpStore %r5 %v5
+%p6 = OpAccessChain %sampler_ptr %samples %six
+%s6 = OpLoad %sampled_image %p6
+%v6 = OpImageSampleExplicitLod %v4 %s6 %coord Lod %fzero
+%r6 = OpAccessChain %result_ptr %results %zero %six
+OpStore %r6 %v6
+%p7 = OpAccessChain %sampler_ptr %samples %seven
+%s7 = OpLoad %sampled_image %p7
+%v7 = OpImageSampleExplicitLod %v4 %s7 %coord Lod %fzero
+%r7 = OpAccessChain %result_ptr %results %zero %seven
+OpStore %r7 %v7
+%p8 = OpAccessChain %sampler_ptr %samples %eight
+%s8 = OpLoad %sampled_image %p8
+%v8 = OpImageSampleExplicitLod %v4 %s8 %coord Lod %fzero
+%r8 = OpAccessChain %result_ptr %results %zero %eight
+OpStore %r8 %v8
+%p9 = OpAccessChain %sampler_ptr %samples %nine
+%s9 = OpLoad %sampled_image %p9
+%v9 = OpImageSampleExplicitLod %v4 %s9 %coord Lod %fzero
+%r9 = OpAccessChain %result_ptr %results %zero %nine
+OpStore %r9 %v9
+%p10 = OpAccessChain %sampler_ptr %samples %ten
+%s10 = OpLoad %sampled_image %p10
+%v10 = OpImageSampleExplicitLod %v4 %s10 %coord Lod %fzero
+%r10 = OpAccessChain %result_ptr %results %zero %ten
+OpStore %r10 %v10
+%p11 = OpAccessChain %sampler_ptr %samples %eleven
+%s11 = OpLoad %sampled_image %p11
+%v11 = OpImageSampleExplicitLod %v4 %s11 %coord Lod %fzero
+%r11 = OpAccessChain %result_ptr %results %zero %eleven
+OpStore %r11 %v11
+%p12 = OpAccessChain %sampler_ptr %samples %twelve
+%s12 = OpLoad %sampled_image %p12
+%v12 = OpImageSampleExplicitLod %v4 %s12 %coord Lod %fzero
+%r12 = OpAccessChain %result_ptr %results %zero %twelve
+OpStore %r12 %v12
+%p13 = OpAccessChain %sampler_ptr %samples %thirteen
+%s13 = OpLoad %sampled_image %p13
+%v13 = OpImageSampleExplicitLod %v4 %s13 %coord Lod %fzero
+%r13 = OpAccessChain %result_ptr %results %zero %thirteen
+OpStore %r13 %v13
+%p14 = OpAccessChain %sampler_ptr %samples %fourteen
+%s14 = OpLoad %sampled_image %p14
+%v14 = OpImageSampleExplicitLod %v4 %s14 %coord Lod %fzero
+%r14 = OpAccessChain %result_ptr %results %zero %fourteen
+OpStore %r14 %v14
+%p15 = OpAccessChain %sampler_ptr %samples %fifteen
+%s15 = OpLoad %sampled_image %p15
+%v15 = OpImageSampleExplicitLod %v4 %s15 %coord Lod %fzero
+%r15 = OpAccessChain %result_ptr %results %zero %fifteen
+OpStore %r15 %v15
+%p16 = OpAccessChain %sampler_ptr %samples %sixteen
+%s16 = OpLoad %sampled_image %p16
+%v16 = OpImageSampleExplicitLod %v4 %s16 %coord Lod %fzero
+%r16 = OpAccessChain %result_ptr %results %zero %sixteen
+OpStore %r16 %v16
+OpReturn
+OpFunctionEnd

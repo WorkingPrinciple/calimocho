@@ -2198,3 +2198,43 @@ Ten focused checks pass, including warning-free compile-only validation.
 No native query, new engine, AB2 record, admission or current-run change
 occurred. A later headless comparison still needs separately scoped
 preparation and a fresh native slot.
+
+### REQ-N29 real sampler fixture preparation
+
+The existing probe now accepts optional `--sampler-shader PATH`. It creates
+17 combined image/sampler descriptors, dispatches a compute shader with
+17 static sample operations and compares every output slot and channel
+against exact alternating opaque white/black border colors. Insufficient
+advertised capacity is an explicit error. Default presentation behavior and
+the existing wideLines option remain available.
+
+The shader source is `tests/vulkan_sampler17.spvasm`, SHA-256
+`13eba4380e83828db513312ff26efff9cb499b0aef28e1d93b64ffe08bc9d985`.
+An exclusively owned CPU assembler helper linked the existing pinned
+source-built SPIRVTools library and validated it for Vulkan 1.0.
+The resulting shader SHA-256 is
+`6b3033f2ba525af7550bdb2cdc92812b7411876d5f3e867224e77e1dd66c8331`.
+No GPU or Wine execution was involved in assembly/validation.
+
+The warning-free linked probe is
+`build/dependencies/moltenvk-sampler-n29-01/vulkan-sampler-probe.exe`,
+SHA-256 `de2dfddf2f8999ba75b7d76a3f268db5fffb507fc8e199fedefd8a378d582812`.
+The compile used the existing MinGW compiler, pinned Vulkan headers and exact
+accepted Wine Vulkan import archive, not a new dependency. Eleven focused
+checks pass. The initial source check expected the old single-argument parser
+spelling; updating it for the multi-option parser fixed that check.
+The fixture has not run on a GPU and does not yet test push descriptors.
+
+The isolated `MVKDevice.mm` copy is byte-identical to the accepted pinned
+source after rejecting a draft limit change. No capacity change or new
+MoltenVK build remains. Capping all push descriptors to 16 would violate the
+required minimum of 32. Removing only the extension would not remove the
+mandatory Vulkan 1.4 core push capability. See
+[ADR-0031](ADR/0031-test-sampler-capacity-before-advertising-it.md).
+Real push argument buffers require changes to layout selection
+(`MVKDescriptorSet.mm:184-193`), both push writers (lines 1820-1848), command
+encoder CPU-only push storage (`MVKCommandEncoderState.mm:937-953`) and
+pipeline resource encoding (`MVKPipeline.mm:295-323`). A capability-withdrawal
+variant would instead need extension, core-feature and API-version changes
+with explicit compatibility consequences. Neither path is implemented or
+claimed qualified here.
