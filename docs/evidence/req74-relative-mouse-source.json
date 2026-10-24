@@ -1,0 +1,51 @@
+{
+  "requirement": "REQ-74",
+  "status": "source-only-native-execution-not-admitted",
+  "runtime_changed": false,
+  "native_probe_executed": false,
+  "production_fix_selected": false,
+  "sha256": {
+    "tests/raw_mouse_probe.c": "e5c59c8442dda47fd5032db4663ba95c52bf2c65531f964d1ba1082ba173ec12",
+    "tools/check_mouse_probe.py": "502215a101754dce3faf87264f09821b31de5072f95ee0990ff080391f1ac4ae",
+    "tests/test_raw_mouse_probe.py": "a6ca5b16741c100cf9facd2c8a61f9501c3ab19d0c00f91968830b29830d641c",
+    "docs/ADR/0028-owned-relative-mouse-discriminator.md": "bb7efbdf52686a0f4e69b8d5d7d8654699eae5595d45c3faef5ec8cf4d135c24",
+    "build/winehq-11.20/raw-mouse-source-01/raw-mouse-probe.exe": "def775cc71d0e455ca6172766bc309ff4f609636be8e5493aeecc1a9ddd76c51",
+    "build/winehq-11.20/raw-mouse-source-01/checks.log": "ac1509dce83ae3a53356bfce4c3d5b19e8301578e95d3b327c2289e9b546f540"
+  },
+  "build": {
+    "compiler": "x86_64-w64-mingw32-gcc",
+    "compiler_sha256": "79708a2ac50166252c813e9f9cd38ef8c03aa82d68949aabd97cad53224fae80",
+    "command": "x86_64-w64-mingw32-gcc -std=c11 -Wall -Wextra -Werror -O2 tests/raw_mouse_probe.c -Wl,--no-insert-timestamp -o build/winehq-11.20/raw-mouse-source-01/raw-mouse-probe.exe -luser32",
+    "result": "warning-free-PE64-cross-compilation-only"
+  },
+  "checks": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.test_raw_mouse_probe tests.test_d3d12_present_probe tests.test_winehq_registry_evidence -v",
+    "passed": 9,
+    "includes_synthetic_receipts": true,
+    "includes_native_input": false
+  },
+  "independent_review": {
+    "reviewer": "code-review agent raw-mouse-source-review",
+    "scope": "read-only working-source review, no native execution",
+    "verdict": "REVISE",
+    "finding": "Medium: checker did not bind requested clipped/unclipped mode",
+    "resolution": "Required expected_clip argument, structured READY validation and both mismatch-direction synthetic checks added",
+    "final_c_probe_unchanged_after_review": true,
+    "correction_independently_rereviewed": false,
+    "input_admission": false
+  },
+  "cleanup": {
+    "ordinary_exit": "restore saved clip, balance hide/show calls, remove owned raw registration",
+    "focus_loss": "abort then ordinary cleanup",
+    "five_second_deadline": "ordinary cleanup",
+    "partial_initialization": "cleanup only completed stages",
+    "forced_termination_or_crash": "not guaranteed; coordinator must verify host cursor/confinement before lease release"
+  },
+  "smallest_matrix": [
+    "port10, fresh prefix, --run, identical PE and bounded process-directed events",
+    "source-built CW26.3, separate fresh prefix, --run, same PE and event sequence"
+  ],
+  "conditional_matrix": "Repeat both with --unclipped only if clipped comparison differs",
+  "physical_input_caveat": "Synthetic success does not exclude a physical-mouse regression; synthetic failure on both is inconclusive",
+  "next_gate": "UI coordinator owns exclusive lease, native target binding, bounded execution, cleanup verification and production-fix admission"
+}

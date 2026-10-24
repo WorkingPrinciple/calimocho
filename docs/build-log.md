@@ -1876,3 +1876,40 @@ retests and canonical acceptance remain coordinator-owned.
 All 57 deterministic tests pass, including pinned-archive rejection,
 explicit TLS-prefix/SONAME guards, narrow-build target selection,
 warning-free owned PE compilation and registry closure/observation checks.
+
+## 2026-10-24: Relative mouse discriminator prepared, native run held
+
+The owner reports Fallout 4 camera movement missing on port-10, with
+movement previously working but choppy on the Apple GPTK engine.
+This remains a reported comparison, not an isolated runtime regression.
+The Ode coordinator restricted this follow-up to source and synthetic
+checks while the UI/owner holds the desktop input lease.
+
+[ADR-0028](ADR/0028-owned-relative-mouse-discriminator.md) records the
+CW26.3 versus frozen WineHQ input-path differences and the scheduled
+discriminator. The event-tap and confinement implementations are
+substantially identical. Real differences include host clipping on reset,
+fullscreen clipping transitions, server Z-order handling and WineHQ's
+motion accumulation/raw-frame transport. None is yet proven causal.
+
+Added `tests/raw_mouse_probe.c`: a foreground five-second raw mouse
+registration, clipping and hidden-cursor probe, with an unclipped control,
+relative/absolute packet flags, legacy coordinates, focus-loss abort and
+ordinary-exit cleanup. Added `tools/check_mouse_probe.py` and synthetic
+receipt tests. Receipt validity does not authenticate the source of events.
+
+Nine focused tests cover the new probe's warning-free PE64 compilation
+and synthetic receipt checks, existing D3D11/D3D12 probe compilation,
+and frozen registry evidence invariants. No PE or native input probe was
+executed. No runtime, existing prefix, frozen record or game was changed.
+There is no port-11 candidate or fix claim. Reproduction under an exclusive
+input lease is the next gate before selecting any production patch.
+
+An independent read-only source review returned REVISE for one Medium:
+the checker did not bind the expected clipped/unclipped mode. The checker
+now requires that mode and validates it against the structured ready record;
+a focused synthetic test rejects both mismatch directions. This correction
+has not received a second independent review. Neither source checks nor a
+source review grant native input admission. Crash or forced termination
+cannot guarantee clip/cursor cleanup and requires host-state verification
+before returning the input lease.
