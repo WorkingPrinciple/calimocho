@@ -1694,3 +1694,64 @@ clear/presentation/readback parity, not a full conformance pass,
 gameplay, shader/media coverage, engine switching or canonical REQ-74
 closure. No game, shared registry, existing prefix/save or security
 policy was changed.
+
+## 2026-10-24: Owned D3D11 presentation parity and WineHQ registry
+
+The coordinator requested the D3D11 equivalent of the owned D3D12 probe
+and a separate bindable WineHQ record while game-route/lease work remains
+elsewhere. [ADR-0026](ADR/0026-d3d11-smoke-and-explicit-winehq-record.md)
+records this bounded extension.
+
+`tests/d3d11_present_probe.c` creates a hardware feature-level 11_0 device,
+normal non-activating window and two-buffer DXGI flip-discard swapchain.
+It clears an RGBA8 render target to `(0.2,0.4,0.8,1.0)` and requires
+120 successful Presents. Before the final Present, CopyResource captures
+the cleared backbuffer into a staging texture. Map READ synchronizes the
+readback; its RowPitch locates the center pixel. There is no software
+fallback, DXMT integration or retired custom shim.
+
+The same warning-free MinGW PE runs on both unchanged source installs,
+through their existing GPTK D3D11 PE/Unix symlinks and fresh prefixes:
+
+| Observation | WineHQ port-09 | CW26.3 baseline |
+| --- | --- | --- |
+| D3D11 device, swapchain, staging Map HRESULT | 0x00000000 | 0x00000000 |
+| Feature level | 11_0 | 11_0 |
+| Successful Presents | 120 of 120 | 120 of 120 |
+| First/last Present HRESULT | 0x00000000 | 0x00000000 |
+| Exact staging pixel RGBA | 51,102,204,255 | 51,102,204,255 |
+| Probe exit | 0 | 0 |
+| Elapsed seconds, 90-second deadline | 6.923 | 47.409 |
+| Targeted on-screen PNG capture | Exit 0 | Exit 0 |
+
+Elapsed times include diagnostics and startup; they are not a performance
+comparison. Both PNGs are byte-identical, and inspection shows the solid
+blue client area. Their SHA-256 is
+`111135097e904a284f093739afd412ca51c7827e5202e2fbbef9d27dc022087d`.
+The exact PE SHA-256 is
+`06d5a74f6cb1c9eb5965d7913be102c900ef4ae9d3bdaa19425e352ff5f13c04`.
+The [D3D11 evidence](evidence/req74-d3d11-present-parity.json) binds
+source, compiler, runtime, logs, capture, readback and cleanup.
+Raw receipts and images stay local under
+`build/winehq-11.20/d3d11-parity-01`.
+
+Wineboot/version/AeDebug and prefix-specific shutdown all exit zero.
+There are no residual owned process groups or prefix handles.
+Apple payload before/after hashes match and no Vulkan/vkd3d selection
+is observed. No input or focus request was sent.
+
+The new [sanitized WineHQ registry](evidence/calimocho-wine11.20-gptk4b3.registry.json)
+is named `calimocho-wine11.20-gptk4b3`. Its executable local counterpart is
+`build/winehq-11.20/metal-port-09/calimocho-wine11.20-gptk4b3.registry.local.json`.
+The record binds the pinned WineHQ commit, donor archive, source receipt,
+FreeType, launcher/server, actual Unix loader, ntdll/macdrv, native-GS time
+helper and GPTK symlink map. The helper remains a required
+`LC_LOAD_DYLIB @loader_path/libnative-gs-localtime.dylib`, not an injected
+environment variable. A freshly frozen and rehashed 3912-file install
+manifest matches. The existing read-only Ode verifier and Calimocho recipe
+exporter accept the local record. No shared registry was changed.
+
+All 49 deterministic tests pass, including warning-free PE64 builds for
+both presentation probes and the public WineHQ identity/threshold checks.
+This is bounded DX11/DX12 smoke and a bindable local record, not game
+rendering, full conformance, engine-switch or distribution acceptance.

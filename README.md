@@ -132,6 +132,16 @@ No game was launched.
 Game admission remains coordinator-owned and additionally requires the
 canonical route, save-preservation, disk and input-lease checks.
 
+The equivalent owned **D3D11** probe now also completes 120 Presents on
+both runtimes, reads back the same exact pixel and captures the blue window.
+It uses the already-linked GPTK D3D11 modules, not DXMT or the retired shim.
+See [DX11 evidence](docs/evidence/req74-d3d11-present-parity.json).
+The separate [WineHQ engine record](docs/evidence/calimocho-wine11.20-gptk4b3.registry.json)
+is named `calimocho-wine11.20-gptk4b3` and binds the required loader/helper
+alongside the renderer. Like the baseline record, its public placeholders
+are not executable configuration. The matching verified local artifact is
+under `build/winehq-11.20/metal-port-09/`.
+
 ## Local Ode/Exodus runtime reference
 
 The exporter does not make Calimocho a distinct engine to select in Ode. This local source

@@ -1,0 +1,490 @@
+{
+  "schema_version": 1,
+  "host_architecture": "arm64",
+  "engines": [
+    {
+      "name": "calimocho-wine11.20-gptk4b3",
+      "kind": "free",
+      "version": "WineHQ 11.20 native-GS port-09 + GPTK 4.0b3",
+      "install_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install",
+      "wine": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+      "wineserver": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wineserver",
+      "sha256": "f6d0546fad2d0dafaa09a9fe6cabe75bb070567df6b0933ecd3622dcb6349194",
+      "wineserver_sha256": "e3ec4e7e76cee273f17d5fa3459902642f73d6921e94c576aa74e8cdbdcd7da1",
+      "source_url": "https://gitlab.winehq.org/wine/wine.git",
+      "source_archive_sha256": "e1c03ea242c8f00419324a17e23d2e729d6431f02e10344b817635683056457b",
+      "source_patches": [
+        {
+          "path": "$CALIMOCHO_WORKTREE/tools/port_d3dmetal.py",
+          "sha256": "bce04a3b54691cb007401e7af7d71aca2343de9dc40e59fff778d192030c0cde",
+          "role": "Current source transformer; exact compiled source bytes bound separately"
+        },
+        {
+          "path": "$CALIMOCHO_WORKTREE/tools/trace_d3dmetal.py",
+          "sha256": "0f54361f01836f3f6e76466efdda423c69ec1dcff6fc2aa9274adc7f93f398b7",
+          "role": "Optional Wine-side instrumentation compiled in this install"
+        }
+      ],
+      "environment": {
+        "WINELOADER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+        "WINESERVER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wineserver",
+        "WINEDLLOVERRIDES": "mscoree,mshtml=",
+        "WINEDEBUG": "+loaddll,+seh,+macdrv_d3dmtl,+unixlib",
+        "DYLD_PRINT_LIBRARIES": "1",
+        "DYLD_FALLBACK_LIBRARY_PATH": "$CALIMOCHO_WORKTREE/build/dependencies/freetype-2.13.3-x86_64-02/prefix/lib:/usr/lib",
+        "CX_APPLEGPTK_LIBD3DSHARED_PATH": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+      },
+      "dependencies": [
+        {
+          "name": "source-built FreeType",
+          "version": "2.13.3",
+          "path": "$CALIMOCHO_WORKTREE/build/dependencies/freetype-2.13.3-x86_64-02/prefix/lib/libfreetype.6.dylib",
+          "sha256": "0232db652042c84271e1f07d463e9c93ffb5a758fdb32042a328d4eacf872d05",
+          "source_url": "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz",
+          "archive_sha256": "0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289"
+        },
+        {
+          "name": "source-built native-GS time-slot helper",
+          "version": "localtime + ctime, loader-linked port-09",
+          "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-unix/libnative-gs-localtime.dylib",
+          "sha256": "e0558c03cda020c388612cd31c2ba1b82eca1b3066a08fa3d2cb56331a4de87f",
+          "source_path": "$CALIMOCHO_WORKTREE/tools/native_gs_localtime.c",
+          "source_sha256": "1b65141217eada405b855689b75a2518dfd3adafd600cec15b65fce6aa695331",
+          "load_command": "LC_LOAD_DYLIB",
+          "install_name": "@loader_path/libnative-gs-localtime.dylib"
+        }
+      ],
+      "renderer": "apple-4.0b3",
+      "local_only": true,
+      "license_note": "Local source-built Wine with read-only links to the owner's installed Apple GPTK payload. No Apple payload is copied. No distribution-rights or game-compatibility conclusion.",
+      "prefix_overlays": [],
+      "prefix_registry_imports": [],
+      "profile_assets": {
+        "files": [
+          {
+            "path": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib",
+            "sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1"
+          },
+          {
+            "path": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/D3DMetal.framework/Versions/Current/D3DMetal",
+            "sha256": "b16aab78127dcf6dbbaba4cfaf8120b96c90ee7b31a48be8599847932a4931e1"
+          },
+          {
+            "path": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d10.so",
+            "sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1"
+          },
+          {
+            "path": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d11.so",
+            "sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1"
+          },
+          {
+            "path": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d12.so",
+            "sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1"
+          },
+          {
+            "path": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d12core.so",
+            "sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1"
+          },
+          {
+            "path": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/dxgi.so",
+            "sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1"
+          },
+          {
+            "path": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d10.dll",
+            "sha256": "8509cd61f4e25e20fa6c4444b3dea062f026d672f441e82402702fa1faf6676b"
+          },
+          {
+            "path": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d11.dll",
+            "sha256": "a5de9738b3f89f1d8cdfb9103e82f9231ae543ce3c46134ed761c146a2f2d3e1"
+          },
+          {
+            "path": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d12.dll",
+            "sha256": "02aa673497ff8694b41f976e194a920468e54897f3546ed1cd4c1b3a97179735"
+          },
+          {
+            "path": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d12core.dll",
+            "sha256": "1034f5989c8c69496add15f79c04e56ae47cdf2a861098e8b4323bc8835b9e29"
+          },
+          {
+            "path": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/dxgi.dll",
+            "sha256": "124015390b8527033bcd6e65af6376fde8fb3923450b63a9dbe0bbef05e63f10"
+          },
+          {
+            "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-unix/wine",
+            "sha256": "fcece4269212aac2f1515c760b20e2173200e8f6983d277fcb29e6f11116286e"
+          },
+          {
+            "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-unix/ntdll.so",
+            "sha256": "44fac088ab22c9bd438d0908d1ab5dad5944fd9a279378209b0e78b360ec224a"
+          },
+          {
+            "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-unix/winemac.so",
+            "sha256": "dc2b113eb01be5b8efa1dbcd53bcced2093037fc908c67174c71226ccf992ef0"
+          },
+          {
+            "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-windows/ntdll.dll",
+            "sha256": "f246362cde0e51518e1218d188db112ba96a35c6c838c4d422d169da5389a10b"
+          },
+          {
+            "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/i386-windows/ntdll.dll",
+            "sha256": "c302ccb05c91be70eeb83d958727f86c62c6cb71524871ef7daa584461b03ba2"
+          }
+        ]
+      },
+      "gptk_symlink_map": [
+        {
+          "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-windows/d3d10.dll",
+          "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d10.dll",
+          "target_sha256": "8509cd61f4e25e20fa6c4444b3dea062f026d672f441e82402702fa1faf6676b",
+          "resolved_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d10.dll"
+        },
+        {
+          "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-windows/d3d11.dll",
+          "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d11.dll",
+          "target_sha256": "a5de9738b3f89f1d8cdfb9103e82f9231ae543ce3c46134ed761c146a2f2d3e1",
+          "resolved_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d11.dll"
+        },
+        {
+          "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-windows/d3d12.dll",
+          "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d12.dll",
+          "target_sha256": "02aa673497ff8694b41f976e194a920468e54897f3546ed1cd4c1b3a97179735",
+          "resolved_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d12.dll"
+        },
+        {
+          "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-windows/d3d12core.dll",
+          "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d12core.dll",
+          "target_sha256": "1034f5989c8c69496add15f79c04e56ae47cdf2a861098e8b4323bc8835b9e29",
+          "resolved_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d12core.dll"
+        },
+        {
+          "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-windows/dxgi.dll",
+          "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/dxgi.dll",
+          "target_sha256": "124015390b8527033bcd6e65af6376fde8fb3923450b63a9dbe0bbef05e63f10",
+          "resolved_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/dxgi.dll"
+        },
+        {
+          "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-unix/d3d10.so",
+          "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d10.so",
+          "target_sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+          "resolved_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+        },
+        {
+          "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-unix/d3d11.so",
+          "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d11.so",
+          "target_sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+          "resolved_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+        },
+        {
+          "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-unix/d3d12.so",
+          "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d12.so",
+          "target_sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+          "resolved_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+        },
+        {
+          "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-unix/d3d12core.so",
+          "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d12core.so",
+          "target_sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+          "resolved_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+        },
+        {
+          "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/wine/x86_64-unix/dxgi.so",
+          "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/dxgi.so",
+          "target_sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+          "resolved_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+        }
+      ],
+      "gptk_external_symlink": {
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/lib/external",
+        "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external"
+      },
+      "smoke_test": {
+        "status": "pass",
+        "tested_at": "2026-10-24T07:29:04.007467+00:00",
+        "source_commit": "7f8b07303438cbb13a5278e6667e9e461ad27180",
+        "wine_sha256": "f6d0546fad2d0dafaa09a9fe6cabe75bb070567df6b0933ecd3622dcb6349194",
+        "probe_sha256": "06d5a74f6cb1c9eb5965d7913be102c900ef4ae9d3bdaa19425e352ff5f13c04",
+        "fresh_prefix": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/prefix",
+        "commands": [
+          [
+            "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wineboot",
+            "--init"
+          ],
+          [
+            "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+            "reg",
+            "add",
+            "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug",
+            "/v",
+            "Debugger",
+            "/t",
+            "REG_SZ",
+            "/d",
+            "winedbg --auto %ld %ld",
+            "/f"
+          ],
+          [
+            "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+            "reg",
+            "add",
+            "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug",
+            "/v",
+            "Auto",
+            "/t",
+            "REG_SZ",
+            "/d",
+            "1",
+            "/f"
+          ],
+          [
+            "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+            "reg",
+            "query",
+            "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug"
+          ],
+          [
+            "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+            "cmd",
+            "/c",
+            "ver"
+          ],
+          [
+            "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+            "reg",
+            "query",
+            "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion",
+            "/v",
+            "CurrentVersion"
+          ],
+          [
+            "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+            "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/app/d3d11-present-probe.exe"
+          ],
+          [
+            "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wineserver",
+            "-k"
+          ],
+          [
+            "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wineserver",
+            "-w"
+          ]
+        ],
+        "exit_codes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "environment": {
+          "WINELOADER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+          "WINESERVER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wineserver",
+          "WINEDLLOVERRIDES": "mscoree,mshtml=",
+          "WINEDEBUG": "+loaddll,+seh,+macdrv_d3dmtl,+unixlib",
+          "DYLD_PRINT_LIBRARIES": "1",
+          "DYLD_FALLBACK_LIBRARY_PATH": "$CALIMOCHO_WORKTREE/build/dependencies/freetype-2.13.3-x86_64-02/prefix/lib:/usr/lib",
+          "CX_APPLEGPTK_LIBD3DSHARED_PATH": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+        },
+        "process_environment": {
+          "PATH": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "HOME": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/home",
+          "TEMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/tmp",
+          "TMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/tmp",
+          "TMPDIR": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/tmp",
+          "WINEARCH": "win64",
+          "WINEPREFIX": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/prefix",
+          "WINELOADER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+          "WINESERVER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wineserver",
+          "WINEDLLOVERRIDES": "mscoree,mshtml=",
+          "WINEDEBUG": "+loaddll,+seh,+macdrv_d3dmtl,+unixlib",
+          "DYLD_PRINT_LIBRARIES": "1",
+          "DYLD_FALLBACK_LIBRARY_PATH": "$CALIMOCHO_WORKTREE/build/dependencies/freetype-2.13.3-x86_64-02/prefix/lib:/usr/lib",
+          "CX_APPLEGPTK_LIBD3DSHARED_PATH": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+        },
+        "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/create-device.stdout.log",
+        "log_sha256": "c80fc47b711c12cb2e6b5dc7f080ddc0aa9c3de82237f54ac5b84d1a89ec1349",
+        "command_logs": [
+          {
+            "command": [
+              "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wineboot",
+              "--init"
+            ],
+            "exit_code": 0,
+            "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/wineboot.stderr.log",
+            "log_sha256": "cea426dfc70db6b12342f29b14e6a99f6976586cff3fd1eda2904ad8f7f4d944",
+            "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/wineboot.stdout.log",
+            "stdout_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "command": [
+              "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+              "reg",
+              "add",
+              "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug",
+              "/v",
+              "Debugger",
+              "/t",
+              "REG_SZ",
+              "/d",
+              "winedbg --auto %ld %ld",
+              "/f"
+            ],
+            "exit_code": 0,
+            "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/set-debugger.stderr.log",
+            "log_sha256": "478fe80d5f6736c579b9f87944c5be4e942eb674d43ea9ad63180931c4d67e00",
+            "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/set-debugger.stdout.log",
+            "stdout_log_sha256": "76883419a4c93e1b79835eccdb18fc278ad67ab36c535b384031b73958d487df"
+          },
+          {
+            "command": [
+              "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+              "reg",
+              "add",
+              "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug",
+              "/v",
+              "Auto",
+              "/t",
+              "REG_SZ",
+              "/d",
+              "1",
+              "/f"
+            ],
+            "exit_code": 0,
+            "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/set-debugger-auto.stderr.log",
+            "log_sha256": "c9c6c4af8c5d56831d86405c9477fdeea3192d69bb514c9dda638890a14b3afd",
+            "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/set-debugger-auto.stdout.log",
+            "stdout_log_sha256": "76883419a4c93e1b79835eccdb18fc278ad67ab36c535b384031b73958d487df"
+          },
+          {
+            "command": [
+              "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+              "reg",
+              "query",
+              "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug"
+            ],
+            "exit_code": 0,
+            "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/verify-debugger.stderr.log",
+            "log_sha256": "2529ef161babba7cd3cb710e36f75f2174f8bbafa7eb947bc0bd6118401fdadb",
+            "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/verify-debugger.stdout.log",
+            "stdout_log_sha256": "9bb80e3b6671454918044bb9f731b1688913037e544bcc2a9b2dfa2e5a214530"
+          },
+          {
+            "command": [
+              "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+              "cmd",
+              "/c",
+              "ver"
+            ],
+            "exit_code": 0,
+            "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/cmd-ver.stderr.log",
+            "log_sha256": "a23778ab050f2b2b37622eddfb7888f6ef5aa435b88f539bc46e9650280b3380",
+            "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/cmd-ver.stdout.log",
+            "stdout_log_sha256": "07496cbba7bef678e6732b1552fda0cc41494da42c30c49400c7a502499a9b3e"
+          },
+          {
+            "command": [
+              "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+              "reg",
+              "query",
+              "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion",
+              "/v",
+              "CurrentVersion"
+            ],
+            "exit_code": 0,
+            "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/registry-version.stderr.log",
+            "log_sha256": "e149448a775be05b5b83456c5808452e8d48df3619c67ed9b919d0073572fe7d",
+            "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/registry-version.stdout.log",
+            "stdout_log_sha256": "c7f9e2e888b34b5b7f94623f12c1f3e8fae23a88466ec7d12298032e2346a8b7"
+          },
+          {
+            "command": [
+              "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+              "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/app/d3d11-present-probe.exe"
+            ],
+            "exit_code": 0,
+            "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/create-device.stderr.log",
+            "log_sha256": "61531e946111c0ea2bb455030f8f374f244e79abc7c61eb43e36584e0f23b642",
+            "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/create-device.stdout.log",
+            "stdout_log_sha256": "c80fc47b711c12cb2e6b5dc7f080ddc0aa9c3de82237f54ac5b84d1a89ec1349"
+          },
+          {
+            "command": [
+              "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wineserver",
+              "-k"
+            ],
+            "exit_code": 0,
+            "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/wineserver-k.stderr.log",
+            "log_sha256": "f7ce418c38eb728669eec3f16bcd458381e13117f4e23d2e94b6256c48dffd71",
+            "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/wineserver-k.stdout.log",
+            "stdout_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "command": [
+              "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wineserver",
+              "-w"
+            ],
+            "exit_code": 0,
+            "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/wineserver-w.stderr.log",
+            "log_sha256": "ba4867fa1bb59f11cd05112766327600ec3c6edfb6dce63b64aa854a21bb8a64",
+            "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/wineserver-w.stdout.log",
+            "stdout_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "receipt_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/receipt.json",
+        "receipt_sha256": "6cb239f9639190391dfc185d9cdb604cfe014ae29250ad11bf2de33f685a6770",
+        "first_hresult": "0x00000000",
+        "present_count": 120,
+        "readback_pixel_rgba": [
+          51,
+          102,
+          204,
+          255
+        ],
+        "capture_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/d3d11-parity-01/gfx-candidate-01/logs/probe-window.png",
+        "capture_sha256": "111135097e904a284f093739afd412ca51c7827e5202e2fbbef9d27dc022087d",
+        "apple_payload_hashes_unchanged": true,
+        "residual_process_groups": [],
+        "prefix_open_files_check": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": ""
+        },
+        "game_launched": false,
+        "qualification": "Builtin startup plus owned normal-window D3D11 120-Present/staging-readback and separate D3D12 presentation smoke. No game, engine-switch or full-conformance qualification."
+      },
+      "integrity": {
+        "status": "unchanged",
+        "manifest_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/winehq-registry-files.json",
+        "manifest_sha256": "7dfa37108b107371f017328e04878410917edbcd74f5c0418931f38a2fd12ad0",
+        "compared_files": 3912,
+        "changed_files": [],
+        "scope": "Post-smoke full install manifest, immediately rehashed; not a binary archive comparison"
+      },
+      "build_evidence": {
+        "source_receipt_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-08/source-receipt.json",
+        "source_receipt_sha256": "c96fd2926da8aa8e2d7f2611ac1de3e525a121c6d678fedb3553eb6138dad8a5",
+        "loader_link_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/loader-link.log",
+        "loader_link_log_sha256": "8f6772a3fed602ceb3c70afe81d89dec0bd485de6ef9e0ea7d51201df9edc95f",
+        "d3d12_present_evidence_path": "$CALIMOCHO_WORKTREE/docs/evidence/req74-d3d12-present-parity.json",
+        "d3d12_present_evidence_sha256": "4921396e766bdd9cb20be40834d50c59517367f4cd0209bcf04115f88df22449",
+        "d3d11_present_evidence_path": "$CALIMOCHO_WORKTREE/docs/evidence/req74-d3d11-present-parity.json",
+        "d3d11_present_evidence_sha256": "8bb39d1dd919b73754d96091833589d08d7e51c964961ccc327bf020df955285",
+        "configuration_limitations": [
+          "No gnutls/schannel, libusb or Vulkan loader; no full conformance/game qualification"
+        ]
+      },
+      "source_commit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+      "compiled_source_evidence": {
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-08/source-receipt.json",
+        "sha256": "c96fd2926da8aa8e2d7f2611ac1de3e525a121c6d678fedb3553eb6138dad8a5",
+        "cw_donor_archive_sha256": "ac99c8ca4b3848f3e81784135f023df266b61c2345726ea55a50b3e030dd6872",
+        "native_gs_followup_source_commit": "33b91738023f6a82e9ee58e51104a5775187d0c1"
+      }
+    }
+  ],
+  "blocked": [],
+  "binding_note": "Sanitized evidence, not executable configuration. Bind $CALIMOCHO_WORKTREE and $APPLEGPTK_ENGINE to verified local roots or use the matching local artifact. Local-only runtime; no prefix selection or hidden fallback."
+}

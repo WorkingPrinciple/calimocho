@@ -6,18 +6,22 @@ import unittest
 
 
 COMPILER = shutil.which("x86_64-w64-mingw32-gcc")
-SOURCE = Path(__file__).with_name("d3d12_present_probe.c")
 
 
 @unittest.skipUnless(COMPILER, "Requires the installed MinGW x86_64 PE compiler")
 class PresentProbeBuildTests(unittest.TestCase):
     def test_owned_present_probe_compiles_warning_free_as_pe64(self):
+        for api in ("d3d12", "d3d11"):
+            with self.subTest(api=api):
+                self.compile_probe(api)
+
+    def compile_probe(self, api):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "probe.exe"
             subprocess.run(
                 [COMPILER, "-std=c11", "-Wall", "-Wextra", "-Werror", "-O2",
-                 str(SOURCE), "-o", str(output),
-                 "-ld3d12", "-ldxgi", "-ldxguid", "-lole32", "-luuid", "-lgdi32"],
+                 str(Path(__file__).with_name(f"{api}_present_probe.c")), "-o", str(output),
+                 f"-l{api}", "-ldxgi", "-ldxguid", "-lole32", "-luuid", "-lgdi32"],
                 check=True, capture_output=True, text=True, timeout=60,
             )
             data = output.read_bytes()
