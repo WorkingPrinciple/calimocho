@@ -87,8 +87,11 @@ An isolated built-in startup self-check was attempted for the WineHQ 11.20
 port in a new research-owned prefix. It timed out during `wineboot --init`;
 the logs and partial prefix are retained. A second fresh-prefix attempt added
 the isolated x86_64 FreeType directory to `DYLD_FALLBACK_LIBRARY_PATH`.
-That removed the FreeType lookup diagnostic but also timed out during
-`wineboot --init`, so neither attempt satisfies startup acceptance. The
-receipts and partial prefixes remain local. Further runtime or game
-execution remains subject to parent coordination. REQ-71 route admission
-and REQ-38 human consent are separate prerequisites to any game attempt.
+That removed the FreeType lookup diagnostic but also timed out. A later
+fresh-prefix attempt with the same path and explicit Mono/Gecko overrides
+completed `wineboot --init`, `cmd /c ver`, and a built-in registry query.
+This establishes an isolated startup self-check, not graphics or game
+compatibility. Receipts and partial prefixes remain local. Further runtime
+or game execution remains subject to parent coordination. REQ-71 route
+admission and REQ-38 human consent are separate prerequisites to any game
+attempt.

@@ -92,8 +92,8 @@ been built or qualified here. Keep any future DX11 build and registry
 record distinct from the current-Wine DX12 candidate.
 
 Current source/build findings are in [the build log](docs/build-log.md).
-Two isolated Wine startup self-checks were attempted with fresh local
-prefixes, but neither completed; no game was launched. Game runs
+The override-enabled isolated Wine startup self-check passed in a fresh
+local prefix after two timed-out checks; no game was launched. Game runs
 additionally require the canonical route, save-preservation, disk and
 input-lease checks.
 Subnautica 2's human legal/privacy hold remains unchanged.
@@ -118,6 +118,9 @@ registry and a separate output file. No default engine or hidden fallback is
 chosen. A successful export is a schema-version-1 registry with the selected
 record unchanged. It retains the exact Wine/wineserver paths, environment,
 renderer assets, dependencies, overlays, registry imports, and receipts.
+Keep runtime lookup paths such as `DYLD_FALLBACK_LIBRARY_PATH` in that
+selected record's `environment`; the exporter does not merge ambient shell
+values into the recipe.
 The additional `calimocho_recipe` metadata records the input and full-record
 digests and observed file hashes. It does not change the engine's name.
 

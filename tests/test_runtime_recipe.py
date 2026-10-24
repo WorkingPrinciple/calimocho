@@ -70,9 +70,13 @@ class RuntimeRecipeTests(unittest.TestCase):
         original = copy.deepcopy(self.entry)
         with patch.dict("os.environ", {
                 "WINEDLLOVERRIDES": "d3d11,dxgi=b",
+                "DYLD_FALLBACK_LIBRARY_PATH": "/ambient/global/path",
                 "CX_APPLEGPTK_LIBD3DSHARED_PATH": "/retired/shim"}):
             exported = self.export()
         self.assertEqual(exported["engines"], [original])
+        self.assertEqual(
+            exported["engines"][0]["environment"]["DYLD_FALLBACK_LIBRARY_PATH"],
+            original["environment"]["DYLD_FALLBACK_LIBRARY_PATH"])
         self.assertEqual(self.entry, original)
         self.assertNotIn("CX_APPLEGPTK_LIBD3DSHARED_PATH",
                          exported["engines"][0]["environment"])

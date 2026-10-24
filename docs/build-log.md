@@ -166,7 +166,7 @@ new log reports that Wine was built without Vulkan support; subsequent
 errors report COM/RpcSs startup failures and setupapi `copy error 1812`
 copying `wineusb.inf`. The command did create `system.reg` with
 `#arch=win64`. Since initialization timed out, `cmd /c ver` and the
-registry query were not run. No further retry was made.
+registry query were not run.
 
 The timed-out wineboot process was terminated within its tracked process
 group. The exact build wineserver was then invoked with `-k` and the new
@@ -194,9 +194,48 @@ the ignored local receipt SHA-256 is
 The local receipt records the exact environment, executable and FreeType
 hashes, command result, prefix files, and cleanup result. This retry
 confirms the missing FreeType lookup diagnostic is addressed by the
-explicit isolated search path, but it does not establish a successful
-runtime or the root cause of the remaining startup timeout. No
-runtime-recipe change is made from this failed check.
+explicit isolated search path, but does not establish successful startup.
+
+A preliminary third harness attempt started `wineboot` in a separate new
+prefix but was interrupted by a harness polling error before its configured
+300-second deadline; it is not counted as a startup result. The wineserver
+was stopped for that prefix, and its partial prefix and logs remain in the
+ignored build tree. The receipt marks this as `harness-aborted`.
+
+The next fresh-prefix attempt used
+`build/winehq-11.20/metal-port-06/startup-self-check-04/prefix` and the same
+isolated x86_64 FreeType search path, with
+`WINEDLLOVERRIDES=mscoree,mshtml=` to suppress Mono/Gecko installer
+overrides. `wineboot --init` exited 0 in 7.645 seconds. The `ps` snapshot
+at 60 seconds for its tracked process group was empty because initialization
+had already exited. The follow-up `cmd /c ver` and built-in registry query
+also exited 0, reporting `Microsoft Windows 10.0.19045` and registry
+`CurrentVersion` `6.3`. `system.reg` contains `#arch=win64`. The Wineboot
+log still contains Vulkan-unavailable, COM/RpcSs, setupapi, and
+winegstreamer diagnostics; these did not prevent this built-in check from
+completing and do not establish graphics or game support. Prefix-scoped
+`wineserver -k` exited 0 and no residual build processes remained.
+
+| Evidence | Result |
+|---|---|
+| FreeType architecture | x86_64 |
+| wineboot | exit 0 in 7.645 seconds |
+| `cmd /c ver` | exit 0; `Microsoft Windows 10.0.19045` |
+| registry query | exit 0; `CurrentVersion` is `6.3` |
+| process group at 60 seconds | empty |
+| `wineserver -k` | exit 0 |
+| residual build processes | none |
+| Wineboot stderr SHA-256 | `ee83e022a47470ca1e490e098026e8a85f09eb7f7641feea917fb0010b2d3950` |
+| `cmd /c ver` stdout SHA-256 | `07496cbba7bef678e6732b1552fda0cc41494da42c30c49400c7a502499a9b3e` |
+| registry stdout SHA-256 | `c7f9e2e888b34b5b7f94623f12c1f3e8fae23a88466ec7d12298032e2346a8b7` |
+| local self-check receipt SHA-256 | `6ee189bcd1b7f57ea6ae27f6d55776c31026294537ae42c72c268961312b98be` |
+
+The passing receipt records the exact FreeType path/hash and environment.
+The runtime recipe uses the selected registry record's
+`DYLD_FALLBACK_LIBRARY_PATH`; the exporter preserves that value and does
+not take it from the ambient shell environment. A regression test covers
+this boundary. This is startup evidence only, not a graphics or game
+qualification.
 
 Known unresolved features include GnuTLS/schannel, Vulkan/MoltenVK and
 GStreamer. Wine was executed only for the isolated startup check above.
