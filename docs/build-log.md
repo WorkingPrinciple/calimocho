@@ -239,10 +239,68 @@ qualification.
 
 Known unresolved features include GnuTLS/schannel, Vulkan/MoltenVK and
 GStreamer. Wine was executed only for the isolated startup check above.
-No Apple payload was executed or copied, and no existing runtime, prefix,
-save or account was modified. Current-Wine integration, Apple ABI
+At the time of that self-check, no Apple payload had been executed or copied.
+The later read-only GPTK PE probe is recorded below. No existing runtime,
+prefix, save or account was modified. Current-Wine integration, Apple ABI
 compatibility, isolated runtime startup and actual Xbox DX12 gameplay remain
 open.
+
+## 2026-10-24: GPTK D3D12 device probe (REQ-69)
+
+The first graphics attempt loaded Wine's `d3d12.dll` and `dxgi.dll` from
+`C:\windows\system32`; it did not exercise the installed GPTK PE files.
+`WINEDLLPATH` supplies Wine's Unix/builtin search paths. In this Wine source,
+`WINEDLLDIR0` is consulted by the builtin fallback search, not the native
+load-order search. Both attempts and their logs remain in the ignored build
+tree.
+
+A third fresh prefix,
+`build/winehq-11.20/metal-port-06/startup-gfx-03/prefix`, used a private
+application directory containing copies of only the Wine-built test
+executables and symlinks to the installed GPTK `d3d12.dll`, `dxgi.dll`, and
+`d3d12core.dll`.
+The Apple files were not copied or modified. The Wine loader mapped the
+`d3d12.dll` and `dxgi.dll` files from those app-local links; its `loaddll`
+trace labels them `builtin`, consistent with the Wine-built PE metadata in
+the GPTK files. Their mapped paths and hashes match the installed redist.
+`d3d12core.dll` was not observed loading. Wine also loaded
+`libd3dshared.dylib` and reported support for non-native code regions.
+The environment used `WINEARCH=win64`, the isolated FreeType fallback,
+`WINEDLLPATH` for the candidate's builtin modules,
+`WINEDLLOVERRIDES=mscoree,mshtml=;d3d12,dxgi,d3d12core=n,b`, and
+`CX_APPLEGPTK_LIBD3DSHARED_PATH` pointing at the installed bridge. The
+ignored local receipt records the complete environment.
+
+The isolated first call to `D3D12CreateDevice` returned `0x80004005`
+(`E_FAIL`). Wine's conformance executable exited 0, but executed only 3
+tests and skipped 9 device-dependent tests because device creation failed;
+this is not a graphics pass. The 192-byte `macdrv_functions_t` assertion
+was present in the compiled object, but the runtime callback path was not
+independently exercised. No game was launched.
+
+| Evidence | Result |
+|---|---|
+| Wine source commit / patched tree SHA-256 | `7298a818b79446bae153b8d5aa27235ab3703bf9` / `72ee65e26bfa957b8217c5c20bc66542b591d19b82be750bfeba011505293960` |
+| Wineboot | exit 0 in 5.648 seconds |
+| Wineboot stderr SHA-256 | `482de9ac74aeebabb5041c3c76a504bd102c4bd4726765d32c0e5892984c0579` |
+| First `D3D12CreateDevice` call | `0x80004005` (`E_FAIL`); probe exit 1 |
+| Direct probe stdout / stderr SHA-256 | `f978a10864383f32b30a7f703874dd07846a5a65e5e0721d0b2b282944e65aec` / `00f2077bf9a12ab51d2016444425eb32adb6eacd2e04debb8e13c1fa773b43eb` |
+| GPTK `d3d12.dll` SHA-256 | `02aa673497ff8694b41f976e194a920468e54897f3546ed1cd4c1b3a97179735` |
+| GPTK `dxgi.dll` SHA-256 | `124015390b8527033bcd6e65af6376fde8fb3923450b63a9dbe0bbef05e63f10` |
+| GPTK `d3d12core.dll` SHA-256 | `1034f5989c8c69496add15f79c04e56ae47cdf2a861098e8b4323bc8835b9e29` |
+| `libd3dshared.dylib` SHA-256 / signature | `e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1`; verification passed |
+| 192-byte callback ABI object SHA-256 | `d7d793f4424c2a4fc9f6d45a8a6aa958c9dcbe8c161ceeb60d5e09935241c1f8` |
+| D3D12 conformance | exit 0; 3 executed, 9 skipped, 0 assertion failures; device-dependent coverage not reached |
+| Test stdout / stderr SHA-256 | `71386958820b0080d02aabc7670b1e2c73d3c90e5d6068af818d66441f976ced` / `044dab1be79e2835bbbc51c77bc0e4d350336edcff218b7e2fab4ed0caf76985` |
+| Prefix-scoped `wineserver -k` / residual processes | exit 0 / none |
+| GPTK payload hashes before and after | unchanged |
+| Local receipt SHA-256 | `9eb9479cdf279efeabf3c61a8a0458d69616277c75aa19c2c1c7fe5b43b60613` |
+| Local receipt | `build/winehq-11.20/metal-port-06/startup-gfx-03/receipt.json` (ignored) |
+
+The receipt records the isolated environment, exact command results, output
+hashes and prefix. The E_FAIL is the current blocker; this result does not
+establish whether the limitation is Wine's renderer integration, adapter
+creation, or game compatibility.
 
 ## 2026-05-31 — Session 1: discovery + planning
 
