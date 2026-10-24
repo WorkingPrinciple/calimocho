@@ -1978,6 +1978,16 @@ Execution stopped without Wine, prefix creation or another retry, and
 quiescence was returned to the UI owner. This is a desktop-resource blocker,
 not a Vulkan failure or success.
 
+A subsequent read-only discriminator bound the full-main window to the system
+Dock executable, but reported alpha 1 and on-screen status. A relative
+above-Ode query also included it. These metadata do not prove its pixel
+coverage, so no Dock exception or native-ordering workaround was added.
+The helper now requires explicit valid alpha and on-screen fields rather
+than assuming visibility metadata. All 73 checks still pass. The coordinator
+then stopped geometry investigation because S3 acquired the runtime/input
+lease for a separate Subnautica 2 run. Calimocho remains quiescent until that
+lease is released and a concrete workspace boundary is resolved.
+
 At this checkpoint no Wine or graphics probe has run on the candidate.
 Actual execution still requires a supported current geometry boundary.
 No usable port-11 record, Vulkan/NMS success, mouse correction, release or

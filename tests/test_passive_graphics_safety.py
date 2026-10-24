@@ -10,7 +10,7 @@ from tools.passive_graphics_safety import validate_geometry, free_position, obst
 SNAPSHOT = {
     "foreground_pid": 12, "observed_at": 100,
     "displays": [{"id": 1, "x": 0, "y": 0, "width": 1000, "height": 800}],
-    "windows": [{"id": 2, "pid": 12, "layer": 0, "probe_title": "",
+    "windows": [{"id": 2, "pid": 12, "layer": 0, "alpha": 1, "on_screen": True, "probe_title": "",
                  "bounds": {"X": 0, "Y": 0, "Width": 400, "Height": 600}}],
 }
 
@@ -44,6 +44,10 @@ class PassiveGeometryTests(unittest.TestCase):
             ("windows", [dict(SNAPSHOT["windows"][0], bounds={})]),
             ("windows", [dict(SNAPSHOT["windows"][0], pid=0)]),
             ("windows", [dict(SNAPSHOT["windows"][0], layer=None)]),
+            ("windows", [dict(SNAPSHOT["windows"][0], alpha=None)]),
+            ("windows", [dict(SNAPSHOT["windows"][0], alpha=1.1)]),
+            ("windows", [dict(SNAPSHOT["windows"][0], on_screen=None)]),
+            ("windows", [dict(SNAPSHOT["windows"][0], on_screen=1)]),
             ("windows", [dict(SNAPSHOT["windows"][0], bounds={
                 "X": 0, "Y": 0, "Width": float("nan"), "Height": 1})]),
             ("windows", SNAPSHOT["windows"] * 2),

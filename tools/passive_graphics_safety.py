@@ -67,6 +67,9 @@ def validate_geometry(snapshot, now=None):
             raise ValueError("Malformed native window")
         for field in ("id", "pid", "layer"):
             number(window.get(field), positive=field != "layer", integer=True)
+        number(window.get("alpha"))
+        if not 0 <= window["alpha"] <= 1 or window.get("on_screen") is not True:
+            raise ValueError("Unknown native window visibility")
         if window["id"] in ids:
             raise ValueError("Duplicate native window identity")
         ids.add(window["id"])

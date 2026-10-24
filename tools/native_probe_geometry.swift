@@ -35,10 +35,15 @@ func visibleWindows(_ raw: Any?) throws -> [[String: Any]] {
               let rect = window[kCGWindowBounds as String] as? [String: Any],
               let x = numeric(rect["X"]), let y = numeric(rect["Y"]),
               let width = numeric(rect["Width"], positive: true),
-              let height = numeric(rect["Height"], positive: true)
+              let height = numeric(rect["Height"], positive: true),
+              let alpha = numeric(window[kCGWindowAlpha as String]),
+              (0...1).contains(alpha.doubleValue),
+              let onScreen = window[kCGWindowIsOnscreen as String] as? NSNumber,
+              CFGetTypeID(onScreen) == CFBooleanGetTypeID(), onScreen.boolValue
         else { throw InvalidGeometry() }
         let title = window[kCGWindowName as String] as? String ?? ""
-        return ["id": number, "pid": pid, "layer": layer,
+        return ["id": number, "pid": pid, "layer": layer, "alpha": alpha,
+                "on_screen": onScreen,
                 "bounds": ["X": x, "Y": y, "Width": width, "Height": height],
                 "probe_title": allowedTitles.contains(title) ? title : ""]
     }
@@ -46,7 +51,8 @@ func visibleWindows(_ raw: Any?) throws -> [[String: Any]] {
 
 if CommandLine.arguments.dropFirst() == ["--self-test"] {
     let valid: [[String: Any]] = [[kCGWindowNumber as String: 1, kCGWindowOwnerPID as String: 1,
-        kCGWindowLayer as String: 0, kCGWindowBounds as String:
+        kCGWindowLayer as String: 0, kCGWindowAlpha as String: 1.0,
+        kCGWindowIsOnscreen as String: true, kCGWindowBounds as String:
             ["X": 0, "Y": 0, "Width": 20, "Height": 20]]]
     guard try visibleWindows(valid).count == 1, try foreground(1) == 1 else {
         fatalError("Valid geometry fixture rejected")
@@ -60,7 +66,8 @@ if CommandLine.arguments.dropFirst() == ["--self-test"] {
             fatalError("Invalid window fixture accepted")
         } catch is InvalidGeometry {}
     }
-    for key in [kCGWindowNumber, kCGWindowOwnerPID, kCGWindowLayer, kCGWindowBounds] {
+    for key in [kCGWindowNumber, kCGWindowOwnerPID, kCGWindowLayer, kCGWindowBounds,
+                kCGWindowAlpha, kCGWindowIsOnscreen] {
         var fixture = valid[0]
         fixture.removeValue(forKey: key as String)
         do {
