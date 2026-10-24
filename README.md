@@ -92,7 +92,8 @@ been built or qualified here. Keep any future DX11 build and registry
 record distinct from the current-Wine DX12 candidate.
 
 Current source/build findings are in [the build log](docs/build-log.md).
-Runtime startup is still held in this lane; game runs additionally require
+An isolated Wine startup self-check was attempted with a fresh local prefix
+but did not complete; no game was launched. Game runs additionally require
 the canonical route, save-preservation, disk and input-lease checks.
 Subnautica 2's human legal/privacy hold remains unchanged.
 

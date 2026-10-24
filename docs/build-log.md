@@ -139,11 +139,48 @@ linkage and artifact identities. DX11 and DX12 may have separate runtime
 records. The 11.20 port does not depend on DX11 parity or on the retired
 D3D11 override shim.
 
+An isolated built-in startup self-check then used a fresh prefix at
+`build/winehq-11.20/metal-port-06/startup-self-check/prefix`. The build-tree
+Wine frontend ran the built x86_64 `wineboot.exe --init` with a 180-second
+timeout. The only injected Wine variables selected this build's prefix,
+loader, server and DLL directory; `HOME` and temporary files were redirected
+under the same private build output. No D3DMetal or `DYLD_*` variable and no
+Apple payload were supplied. `wineboot` created `system.reg` with
+`#arch=win64`, but did not exit before timeout. The subsequent `cmd /c ver`
+and registry query were therefore not run.
+
+The first diagnostic was `Wine cannot find the FreeType font library`.
+Configure had found `libfreetype.6.dylib`, but this run did not provide a
+runtime search path for the isolated FreeType prefix. This points to a
+missing runtime dependency lookup path; the exact dynamic-loader failure
+was not independently established. The log next reports that Wine was
+built without Vulkan, followed by COM/RpcSs startup failures and a setupapi
+`copy error 1812` for `wineusb.inf`; the last message is
+`SYSLINK_SetFont Failed to create link font!`. No retry was made.
+
+The timed-out wineboot process was terminated within its tracked process
+group. The exact build wineserver was then invoked with `-k` and the new
+`WINEPREFIX`; it exited 0. The local receipt reports no residual PIDs.
+The partial prefix and logs remain in the ignored build tree for diagnosis:
+
+| Evidence | Result |
+|---|---|
+| wineboot | timed out after 180 seconds; process exit `-15` after targeted termination |
+| wineserver `-k` | exit 0 |
+| residual tracked processes | none |
+| wineboot stderr SHA-256 | `d5745579d420b864904a6f4371221b5e115873d274a0510607ba15071d42fc47` |
+| wineboot stdout SHA-256 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| local self-check receipt SHA-256 | `5f03516fc381bf87831f1a58dd91c142a7f8ead5cbad09e93b0444d2a271c133` |
+
+This is a failed startup self-check, not a usable-runtime result. No game
+was launched and no existing prefix or save was touched.
+
 Known unresolved features include GnuTLS/schannel, Vulkan/MoltenVK and
-GStreamer. No Wine process or Apple payload has been executed, no Apple
-payload copied, and no existing runtime, prefix, save or account modified.
-Current-Wine integration, Apple ABI compatibility, isolated runtime
-startup and actual Xbox DX12 gameplay remain open.
+GStreamer. Wine was executed only for the isolated startup check above.
+No Apple payload was executed or copied, and no existing runtime, prefix,
+save or account was modified. Current-Wine integration, Apple ABI
+compatibility, isolated runtime startup and actual Xbox DX12 gameplay remain
+open.
 
 ## 2026-05-31 — Session 1: discovery + planning
 

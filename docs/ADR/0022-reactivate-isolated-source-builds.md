@@ -83,6 +83,9 @@ switch/save-reload result, or distribution rights clearance. REQ-33/43
 remain open and REQ-53 remains Program-owned. The program has one canonical
 requirements document, `dragos-core projects/ode-to-x/SPEC.md`.
 
-An eventual startup/self-check is part of REQ-69 acceptance, but this lane's
-current execution hold still forbids launching Wine. REQ-71 route admission
-and REQ-38 human consent are separate prerequisites to any game attempt.
+An isolated built-in startup self-check was attempted for the WineHQ 11.20
+port in a new research-owned prefix. It timed out during `wineboot --init`;
+the logs and partial prefix are retained, and this does not satisfy startup
+acceptance. Further runtime or game execution remains subject to parent
+coordination. REQ-71 route admission and REQ-38 human consent are separate
+prerequisites to any game attempt.
