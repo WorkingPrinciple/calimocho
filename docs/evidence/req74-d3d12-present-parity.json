@@ -1,0 +1,193 @@
+{
+  "requirements": [
+    "REQ-69",
+    "REQ-74"
+  ],
+  "scope": "Owned normal-window D3D12 clear, 120 Presents and GPU texture readback parity; no game or input",
+  "predecessor_commit": "33b91738023f6a82e9ee58e51104a5775187d0c1",
+  "winehq_commit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+  "source": {
+    "path": "tests/d3d12_present_probe.c",
+    "sha256": "9c5b5181f5d2b869a0f2ab7155e550e6d15dd4d986ef8875d4f939b64d3485d3",
+    "build_test_sha256": "db89aeddf1e879a2c981ce57acc8d0fb77db842e464fa0703a2c5a43e428e595"
+  },
+  "build": {
+    "compiler_sha256": "79708a2ac50166252c813e9f9cd38ef8c03aa82d68949aabd97cad53224fae80",
+    "compiler_version": "x86_64-w64-mingw32-gcc (GCC) 16.2.0",
+    "command": [
+      "x86_64-w64-mingw32-gcc",
+      "-std=c11",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-O2",
+      "tests/d3d12_present_probe.c",
+      "-o",
+      "$OUTPUT/d3d12-present-probe.exe",
+      "-ld3d12",
+      "-ldxgi",
+      "-ldxguid",
+      "-lole32",
+      "-luuid",
+      "-lgdi32"
+    ],
+    "exit_code": 0,
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pe_sha256": "a3c229641de95940e9c11a38b4d8f4e886be0295be25f436293c4d3dfc19efdb"
+  },
+  "probe_contract": {
+    "window": "Normal 320x240 overlapped window with WS_EX_NOACTIVATE and SW_SHOWNOACTIVATE",
+    "swapchain": "Two-buffer flip-discard RGBA8 UNORM",
+    "clear_float_rgba": [
+      0.2,
+      0.4,
+      0.8,
+      1.0
+    ],
+    "frames": 120,
+    "readback": "Final pre-Present backbuffer copied through CopyTextureRegion into a READBACK heap buffer; queue fence completed before Map",
+    "pixel": "Center pixel, actual GetCopyableFootprints row pitch/offset, exact RGBA bytes",
+    "synchronization": "Fence Signal/SetEventOnCompletion for allocator reuse and readback; 10s bounded wait",
+    "capture": "On-screen window lookup at Present 60; 4s hold; screencapture -x -o -l WINDOW_ID",
+    "input_sent": false,
+    "focus_requested": false
+  },
+  "capture_tools": {
+    "finder_source_sha256": "092eb99effbf751e4e1782ec0e6f77cb4e57c476d3f28383a925aa972044d51f",
+    "finder_binary_sha256": "b59075fd2e27bdd5c7d542a81510c7ee52736704360c4625cc3b5e4469c1ea16",
+    "screencapture_sha256": "c844d3c42f140a738c3fe77c1f5d2d366f069691a0433699ae83e9db42ac354d"
+  },
+  "runs": [
+    {
+      "engine": "winehq-11.20-metal-port-09",
+      "receipt_sha256": "4d30b2979d620838bae1a1076f53705d4240515d40491be2cf1a67974d2d3219",
+      "runtime_artifacts": {
+        "bin/wine": "f6d0546fad2d0dafaa09a9fe6cabe75bb070567df6b0933ecd3622dcb6349194",
+        "bin/wineserver": "e3ec4e7e76cee273f17d5fa3459902642f73d6921e94c576aa74e8cdbdcd7da1",
+        "lib/wine/x86_64-unix/ntdll.so": "44fac088ab22c9bd438d0908d1ab5dad5944fd9a279378209b0e78b360ec224a",
+        "lib/wine/x86_64-unix/winemac.so": "dc2b113eb01be5b8efa1dbcd53bcced2093037fc908c67174c71226ccf992ef0",
+        "lib/wine/x86_64-unix/wine": "fcece4269212aac2f1515c760b20e2173200e8f6983d277fcb29e6f11116286e",
+        "lib/wine/x86_64-unix/libnative-gs-localtime.dylib": "e0558c03cda020c388612cd31c2ba1b82eca1b3066a08fa3d2cb56331a4de87f"
+      },
+      "probe_sha256": "a3c229641de95940e9c11a38b4d8f4e886be0295be25f436293c4d3dfc19efdb",
+      "hresults": {
+        "CreateDXGIFactory": "0x00000000",
+        "D3D12CreateDevice": "0x00000000",
+        "CreateCommandQueue": "0x00000000",
+        "CreateSwapChainForHwnd": "0x00000000",
+        "ReadbackMap": "0x00000000"
+      },
+      "present_first_hresult": "0x00000000",
+      "present_last_hresult": "0x00000000",
+      "present_count": 120,
+      "target_frames": 120,
+      "readback_pixel_rgba": [
+        51,
+        102,
+        204,
+        255
+      ],
+      "expected_pixel_rgba": [
+        51,
+        102,
+        204,
+        255
+      ],
+      "pixel_matches_exactly": true,
+      "probe_exit_code": 0,
+      "timeout_seconds": 90,
+      "elapsed_seconds": 7.163,
+      "stdout_sha256": "f148726669ee38d0fceeef2e401ec6541305e9f55afc1df257a9b4e9bf4ebb3d",
+      "stderr_sha256": "4eb6b25478c3805d036d8110e6d46dd330681bc9370142bd9731515cb66ea075",
+      "capture": {
+        "window_id": 697,
+        "title": "Calimocho D3D12 Present Probe",
+        "on_screen": true,
+        "bounds": {
+          "X": 84,
+          "Height": 272,
+          "Y": 78,
+          "Width": 320
+        },
+        "png_sha256": "ed06bfba1a3fe99b634ab016400a8ffcf4d2749b57b16ebae8c2115a7bf876e4",
+        "png_bytes": 24373,
+        "capture_exit_code": 0,
+        "capture_frame_marker": 60,
+        "scope": "Only the named probe window; no full-screen capture"
+      },
+      "injection_environment_present": false,
+      "apple_payload_hashes_unchanged": true,
+      "vulkan_or_vkd3d_selected": false,
+      "prefix_open_files": false,
+      "residual_process_groups": []
+    },
+    {
+      "engine": "calimocho-cw26.3-gptk4b3",
+      "receipt_sha256": "ae7633231dda1e0e447da9eea125e7753b0a9bc65b5f0d3202553aeca4e505ab",
+      "runtime_artifacts": {
+        "bin/wine": "6772c439dc6ded4f1f9d52cccf154a8ea88ae37771999d7c26dbb0d26921bba3",
+        "bin/wineserver": "232b612bfd3d3bc4ca286dbc8950f4bc6695420e2ca02bca7cff6fe23f7930c0",
+        "lib/wine/x86_64-unix/ntdll.so": "47f8c3083225d97dd0fd4a6bfea83d9c0853aa339b77a9f29ecd72ce95fa32e0",
+        "lib/wine/x86_64-unix/winemac.so": "9b04588f045ee29939484a8bf5c9cdb810dd496d95ca737275b094e2ace47669"
+      },
+      "probe_sha256": "a3c229641de95940e9c11a38b4d8f4e886be0295be25f436293c4d3dfc19efdb",
+      "hresults": {
+        "CreateDXGIFactory": "0x00000000",
+        "D3D12CreateDevice": "0x00000000",
+        "CreateCommandQueue": "0x00000000",
+        "CreateSwapChainForHwnd": "0x00000000",
+        "ReadbackMap": "0x00000000"
+      },
+      "present_first_hresult": "0x00000000",
+      "present_last_hresult": "0x00000000",
+      "present_count": 120,
+      "target_frames": 120,
+      "readback_pixel_rgba": [
+        51,
+        102,
+        204,
+        255
+      ],
+      "expected_pixel_rgba": [
+        51,
+        102,
+        204,
+        255
+      ],
+      "pixel_matches_exactly": true,
+      "probe_exit_code": 0,
+      "timeout_seconds": 90,
+      "elapsed_seconds": 47.346,
+      "stdout_sha256": "c19dbb3a4cb753003ad4471942eeb26d34e9c942dbcfc886db812d346740eb68",
+      "stderr_sha256": "873af0550010abc560d69b074fd30b1d5451208975b1802d6522fe63404fbdad",
+      "capture": {
+        "window_id": 708,
+        "title": "Calimocho D3D12 Present Probe",
+        "on_screen": true,
+        "bounds": {
+          "X": 84,
+          "Height": 272,
+          "Y": 78,
+          "Width": 320
+        },
+        "png_sha256": "ed06bfba1a3fe99b634ab016400a8ffcf4d2749b57b16ebae8c2115a7bf876e4",
+        "png_bytes": 24373,
+        "capture_exit_code": 0,
+        "capture_frame_marker": 60,
+        "scope": "Only the named probe window; no full-screen capture"
+      },
+      "injection_environment_present": false,
+      "apple_payload_hashes_unchanged": true,
+      "vulkan_or_vkd3d_selected": false,
+      "prefix_open_files": false,
+      "residual_process_groups": []
+    }
+  ],
+  "capture_pngs_byte_identical": true,
+  "capture_visual_observation": "Inspected named-window PNG: title and solid blue client area, not a black window",
+  "cleanup_verified": true,
+  "game_launched": false,
+  "full_conformance_pass": false,
+  "game_or_engine_switch_qualified": false,
+  "apple_payloads_copied_or_modified": false
+}

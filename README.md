@@ -122,7 +122,13 @@ The identical D3D12 conformance executable fails on both WineHQ and CW
 with the same refcount failures and missing-window-data swapchain error.
 The CW run then times out during exception handling. This shared failure
 does not establish a forward-port regression or passing conformance.
-Device creation is not presentation or gameplay proof. No game was launched.
+A separate owned normal-window probe now completes **120 Presents** on
+both runtimes and reads back exactly RGBA `51,102,204,255`. Targeted
+on-screen captures show the blue window and are byte-identical.
+See [presentation evidence](docs/evidence/req74-d3d12-present-parity.json)
+and [ADR-0025](docs/ADR/0025-owned-normal-window-presentation-probe.md).
+This is bounded presentation smoke, not gameplay or full graphics coverage.
+No game was launched.
 Game admission remains coordinator-owned and additionally requires the
 canonical route, save-preservation, disk and input-lease checks.
 

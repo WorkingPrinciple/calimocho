@@ -1615,3 +1615,82 @@ There is no passing full-conformance summary, independently observed
 presentation, game launch, engine-switch qualification or REQ-74 closure.
 The shared desktop-negative-case behavior must remain distinct from any
 future ordinary-window presentation probe.
+
+## Owned normal-window D3D12 presentation parity (REQ-74)
+
+The coordinator requested a separate normal-window discriminator after
+the shared desktop-negative-case conformance failure. This changes no
+Wine or renderer source. See
+[ADR-0025](ADR/0025-owned-normal-window-presentation-probe.md).
+
+`tests/d3d12_present_probe.c` is an owned C PE probe. It creates a normal
+320 by 240 overlapped window without activation, a D3D12 device/direct
+queue and a two-buffer RGBA8 flip-discard swapchain. Each frame clears
+to `(0.2,0.4,0.8,1.0)`, with explicit resource transitions and fences.
+It copies the final cleared backbuffer through CopyTextureRegion into
+a readback buffer, uses the returned footprint/row pitch, and checks
+the center pixel after GPU completion. It prints actual HRESULTs,
+successful Present count and actual pixel values. Failure is nonzero.
+
+The installed MinGW GCC 16.2.0 compiles it with warnings as errors:
+
+```bash
+x86_64-w64-mingw32-gcc -std=c11 -Wall -Wextra -Werror -O2 \
+  tests/d3d12_present_probe.c -o /owned/output/d3d12-present-probe.exe \
+  -ld3d12 -ldxgi -ldxguid -lole32 -luuid -lgdi32
+```
+
+The exact same final PE bytes ran in fresh prefixes with 90-second
+probe deadlines:
+
+| Observation | WineHQ 11.20 port-09 | CW26.3 source baseline |
+| --- | --- | --- |
+| Device, queue, swapchain HRESULTs | 0x00000000 | 0x00000000 |
+| First and last Present HRESULTs | 0x00000000 | 0x00000000 |
+| Successful Present count | 120 of 120 | 120 of 120 |
+| Readback center RGBA | 51,102,204,255 | 51,102,204,255 |
+| Exact expected pixel | Match | Match |
+| Probe exit | 0 | 0 |
+| Probe elapsed seconds | 7.163 | 47.346 |
+| Targeted on-screen PNG capture | Exit 0 | Exit 0 |
+
+Elapsed time includes launch/teardown and diagnostic output; it is not
+a frame-rate or performance comparison. Neither exceeded its deadline.
+
+At the 60-Present marker, an owned CoreGraphics helper finds only the
+named on-screen probe window. Screencapture records that window, not the
+full desktop. Both 24373-byte PNGs have SHA-256
+`ed06bfba1a3fe99b634ab016400a8ffcf4d2749b57b16ebae8c2115a7bf876e4`.
+The inspected PNG shows the probe title and solid blue client area,
+not a black window. GPU readback and observed display are separate
+evidence; an exact pixel check alone would not prove screen presentation.
+No mouse, keyboard or focus request was sent; the other lane keeps its
+input lease.
+
+The final PE SHA-256 is
+`a3c229641de95940e9c11a38b4d8f4e886be0295be25f436293c4d3dfc19efdb`.
+The source SHA-256 is
+`9c5b5181f5d2b869a0f2ab7155e550e6d15dd4d986ef8875d4f939b64d3485d3`.
+An initial passing probe run is also retained. The final run adds explicit
+first/last Present HRESULT output and reports its result after the final
+fence check; the hashes above bind that final committed source.
+
+The [sanitized presentation evidence](evidence/req74-d3d12-present-parity.json)
+has SHA-256
+`4921396e766bdd9cb20be40834d50c59517367f4cd0209bcf04115f88df22449`.
+It binds compiler, source/PE, runtime, log and screenshot bytes, exact
+thresholds and cleanup. Local receipts, PNGs, capture-helper source/binary
+and `handoff.local.json` remain under
+`build/winehq-11.20/present-parity-01`. No image was uploaded.
+
+Builtin startup/version/registry checks and exact prefix server shutdown
+also pass for both runs. Apple payload hashes are unchanged, no
+Vulkan/vkd3d selection appears, and final checks find no owned process
+groups or prefix handles. No injection environment was needed.
+
+All 47 deterministic tests pass, including a warning-free PE64 build
+of this owned probe. This establishes bounded normal-window
+clear/presentation/readback parity, not a full conformance pass,
+gameplay, shader/media coverage, engine switching or canonical REQ-74
+closure. No game, shared registry, existing prefix/save or security
+policy was changed.
