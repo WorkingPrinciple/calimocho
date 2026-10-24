@@ -396,6 +396,55 @@ graphics probe, but neither a D3D12 device result nor GPTK Unix-module load
 was established. Preserve the crash logs and do not treat conformance exit
 5 as a test pass.
 
+### startup-gfx-06: symbolized WineHQ fault and GPTK control
+
+Both graphics runs used the same probe executable and tracing channels,
+with separate fresh prefixes and no game. The first GPTK-control attempt
+omitted the `mscoree,mshtml=` override. Wineboot reached `mscoree.dll` and
+`appwiz.cpl` before timing out. This is consistent with the Wine Mono/Gecko
+setup path, but the attempt did not reach graphics and is not used as the
+control result. The corrected control added the suppression override and
+completed startup.
+
+The WineHQ 11.20 installed-layout run reached the same D3D12 probe but
+faulted before returning an HRESULT. `atos` maps the faulting instruction
+to `pthread_setname_np + 51` in `libsystem_pthread.dylib`. The exception
+was a null read, with `RDI=0x5`. `RDX` and `R14` point inside
+`libd3dshared.dylib`, but do not identify a caller or symbol. WineDbg
+attached and printed only that it had attached; no call stack was captured.
+The 192-byte `macdrv_functions_t` compile-time assertion passed in the
+build, but runtime callback-table use before the fault is not established.
+
+The corrected GPTK 4.0b3 control returned `S_OK` from
+`D3D12CreateDevice` using the same probe. The loaded GPTK D3D12 PE hash
+matches the installed redist. The runtime `d3d12.so` symlink resolves to
+the mapped `libd3dshared.dylib`, and `D3DMetal.framework` is mapped. The
+graphics probe log contains no Vulkan or vkd3d traces. Wineboot separately
+loaded and unloaded `winevulkan.dll`; those setup messages are not evidence
+that the graphics probe used Vulkan. This validates the probe's control
+path, but device creation alone does not demonstrate rendered output or
+game compatibility. The contrast isolates a WineHQ 11.20 integration
+failure; it does not identify the caller of `pthread_setname_np` or prove
+the exact root cause.
+
+| Evidence | Result |
+|---|---|
+| Attempts / local receipts | `startup-gfx-06` and `startup-gfx-06-control-02`; ignored receipts under `build/winehq-11.20/metal-port-06/` |
+| Wine source commit / patched tree SHA-256 | `7298a818b79446bae153b8d5aa27235ab3703bf9` / `72ee65e26bfa957b8217c5c20bc66542b591d19b82be750bfeba011505293960` |
+| Shared probe SHA-256 | `60267fbfbfd1db1deee301f296036d40cf5d4fd93c5b821583b04023fcbcb363` |
+| WineHQ run A | Wineboot and AeDebug setup succeeded; probe timed out after the fault with no HRESULT |
+| A fault symbol / registers | `libsystem_pthread.dylib: pthread_setname_np + 51`; null read, `RDI=0x5`; `RDX`/`R14` map inside `libd3dshared.dylib` |
+| A probe stdout / stderr SHA-256 | `7240c2ac19c18dae3215461f0e4d3fdf1ebbef87b1a229454e9bdd7350dcfa7b` / `94de99dd84ca119de99ab65cfc1e1e0a3166df9e4a63a545b96c4673b116a5d3` |
+| GPTK control B | Wineboot exit 0 in 4.644 seconds; probe exit 0 in 43.796 seconds; first `D3D12CreateDevice` HRESULT `0x00000000` (`S_OK`) |
+| B probe stdout / stderr SHA-256 | `7aa18ce0f09191e261141580ffc54afc5efecee4f1410440e27306df5bb8521f` / `02b628e22176898f5685303021c991c5af27b849095bb349aa04e0d2a3953afd` |
+| GPTK `d3d12.dll` / `d3d12core.dll` / `dxgi.dll` SHA-256 | `02aa673497ff8694b41f976e194a920468e54897f3546ed1cd4c1b3a97179735` / `1034f5989c8c69496add15f79c04e56ae47cdf2a861098e8b4323bc8835b9e29` / `124015390b8527033bcd6e65af6376fde8fb3923450b63a9dbe0bbef05e63f10` |
+| `libd3dshared.dylib` / D3DMetal binary SHA-256 | `e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1` / `b16aab78127dcf6dbbaba4cfaf8120b96c90ee7b31a48be8599847932a4931e1` |
+| GPTK payloads before and after / cleanup | Hashes unchanged; prefix-scoped `wineserver -k` and `-w` succeeded for B; no residual process matched either fresh prefix |
+| Probe interpretation | The GPTK control proves D3D12 device creation on the control runtime, not a draw/readback or game pass |
+| Local receipt SHA-256 (A / B) | `5c10bb30bb520d56eda4013e386bf6a7f645973c75ccc2dc885692255435e330` / `e35da8a1344fda6661092097805b570b52223e6ed9b7196528d679ffc09e81b3` |
+
+No Apple payload was copied or changed. No game was launched.
+
 ## 2026-05-31 — Session 1: discovery + planning
 
 ### What we learned

@@ -1,7 +1,7 @@
 {
   "requirement": "REQ-70",
   "observedDate": "2026-10-24",
-  "decision": "Latest official Wine is the final target. Use the verified CodeWeavers baseline only as an intermediate integration reference; port the coherent required macOS graphics integration onto the current pinned upstream source and qualify it with installed Xbox games.",
+  "decision": "Latest official Wine (11.20, commit 7298a818) is the target. The CrossOver 26.3 LGPL macOS integration is the bridge donor, forward-ported rather than copied. Apple GPTK 4.0b3 redist is referenced in place under its licence. DX11 may use a separately pinned build (D3DMetal D3D11 or DXMT).",
   "publicPortChecks20261024": {
     "method": "Direct unauthenticated-content GitHub REST reads through gh and vendor-page reads; no downloaded candidate executed.",
     "sikarugirWine": {
@@ -188,5 +188,143 @@
     "No exact attributable public Subnautica 2 Xbox success record was verified in this research pass; absence of found public reports is not incompatibility.",
     "No current native-ARM CrossOver shipping capability or social-report matrix was independently qualified.",
     "Use primary local source/artifact evidence for build decisions; additional community anecdotes cannot substitute for actual candidate testing."
-  ]
+  ],
+  "projectMatrix": [
+    {
+      "project": "WineHQ",
+      "url": "https://gitlab.winehq.org/wine/wine",
+      "pin": "wine-11.20 / 7298a818b79446bae153b8d5aa27235ab3703bf9",
+      "licence": "LGPL-2.1-or-later",
+      "role": "Upstream base",
+      "hostArch": "x86_64 macOS build under Rosetta for the D3DMetal path",
+      "dx": "No D3DMetal bridge; vkd3d needs Vulkan (absent)",
+      "decision": "Final base; port bridge onto it"
+    },
+    {
+      "project": "CodeWeavers CrossOver sources",
+      "url": "https://media.codeweavers.com/pub/crossover/source/crossover-sources-26.3.0.tar.gz",
+      "pin": "sha256 ac99c8ca4b3848f3e81784135f023df266b61c2345726ea55a50b3e030dd6872 (Wine 11.0)",
+      "licence": "Wine parts LGPL-2.1-or-later; paid CrossOver app not redistributable",
+      "role": "macdrv D3DMetal bridge donor",
+      "hostArch": "bridge guarded __x86_64__",
+      "dx": "D3D11/D3D12 via D3DMetal",
+      "decision": "Donor; coherent macdrv/client-surface/loader/ntdll changes, not a 3-file copy"
+    },
+    {
+      "project": "Apple Game Porting Toolkit evaluation environment",
+      "url": "https://developer.apple.com/games/game-porting-toolkit/",
+      "pin": "4.0 beta 3 local image sha256 32ce2065...b393b87b; licence sha256 5abb2d05...118c8",
+      "licence": "Apple proprietary; \u00a72A(iii)/\u00a72C conditional noncommercial distribution",
+      "role": "D3DMetal PE+Unix modules and libd3dshared",
+      "hostArch": "Apple Silicon hardware; payload Mach-O x86_64 (Rosetta)",
+      "dx": "D3D10/11/12",
+      "decision": "Reference in place; never copy/modify/re-sign; OSS noncommercial Ode only after licence-condition review"
+    },
+    {
+      "project": "Gcenx/game-porting-toolkit",
+      "url": "https://github.com/Gcenx/game-porting-toolkit",
+      "pin": "main 2e232b59da4612f2f131bd2f690d70d8fbdf9b87 (VERSION Wine 7.7); release Game-Porting-Toolkit-3.0-3 2026-03-03",
+      "licence": "Wine LGPL; D3DMetal per Apple licence",
+      "role": "Historical Apple-formula Wine source (apple/homebrew-apple@2bc44284, CW 22.1.1)",
+      "hostArch": "Apple Silicon, x86_64 Wine",
+      "dx": "GPTK 3.x",
+      "decision": "Historical reference only; not a modern bridge donor"
+    },
+    {
+      "project": "Gcenx/macOS_Wine_builds",
+      "url": "https://github.com/Gcenx/macOS_Wine_builds",
+      "pin": "release 11.18 2026-09-25",
+      "licence": "LGPL",
+      "role": "Vanilla Wine binaries (tested earlier, CLI builtin pass)",
+      "hostArch": "x86_64",
+      "dx": "No D3DMetal",
+      "decision": "Free baseline for non-DX12 titles; not DX12 path"
+    },
+    {
+      "project": "Sikarugir-App/wine",
+      "url": "https://github.com/Sikarugir-App/wine",
+      "pin": "master 840a939ee526137639665ff5f587224d6a36403f (VERSION 11.20, 20 commits ahead of upstream pin, 0 behind, no macdrv changes)",
+      "licence": "LGPL",
+      "role": "Wrapper Wine fork",
+      "hostArch": "x86_64 (README requires Rosetta on Apple Silicon)",
+      "dx": "No d3dmetal sources at inspected master",
+      "decision": "Not a bridge donor"
+    },
+    {
+      "project": "Sikarugir-App/Engines + Sikarugir wrapper",
+      "url": "https://github.com/Sikarugir-App/Engines",
+      "pin": "Engines 57dca77e1bc74d7f79ae77b64ba45e178d0e5c54; Sikarugir 9bfd1b8292747687266462ab6e2fe1561d14a730",
+      "licence": "Configure.app LGPL; launcher/Creator not LGPL",
+      "role": "Wrapper and prebuilt engines (WS12WineSikarugir11.0_1, WS12WineCX24.0.7_7)",
+      "hostArch": "Rosetta x86_64",
+      "dx": "D3DMetal toggle (D3D11/12), DXMT, DXVK, D9VK",
+      "decision": "Compatibility reference; not linked into Ode"
+    },
+    {
+      "project": "Porting Kit",
+      "url": "https://www.portingkit.com/pub/portingkit_dev/download_latest.php?format=changelog",
+      "pin": "6.7.1 (2025-12-18)",
+      "licence": "Proprietary app",
+      "role": "Wrapper/installer; 6.6.1 Sikarugir engines, 6.3.0 D3DMetal renderer",
+      "hostArch": "6.7.0 native Silicon app build; engines remain wrapped Wine",
+      "dx": "Via engines",
+      "decision": "Prior Steam SN2 success came from Porting Kit/Sikarugir Steam; not Xbox evidence"
+    },
+    {
+      "project": "DXMT",
+      "url": "https://github.com/3Shain/dxmt",
+      "pin": "upstream main a148782d431249405acdb1531dbb0c7e737bbece, release v0.80 2026-04-23; Sikarugir fork 50102f994b406f58f56d5d09f2ad20f9b90390a2",
+      "licence": "NOASSERTION in GitHub metadata; verify LICENSE before reuse",
+      "role": "Open D3D10/11-to-Metal translation",
+      "hostArch": "Wine x86_64 on macOS",
+      "dx": "D3D10/11 only",
+      "decision": "Candidate separate DX11 build; not DX12"
+    },
+    {
+      "project": "Heroic Games Launcher",
+      "url": "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher",
+      "pin": "v2.22.4 (2026-10-15)",
+      "licence": "GPL-3.0",
+      "role": "Game launcher; README: macOS uses CrossOver (and installed runners)",
+      "hostArch": "n/a",
+      "dx": "Delegated to the runner",
+      "decision": "Launcher, not engine provider; model only as a runner-discovery pattern"
+    }
+  ],
+  "intelVsArm": {
+    "verified": [
+      "GPTK evaluation environment requires Apple Silicon (Read Me, Apple page).",
+      "Its libd3dshared/D3D modules are x86_64 Mach-O; CW bridge compiled only on __x86_64__; so D3DMetal runs as x86_64 Wine under Rosetta on Apple Silicon.",
+      "Sikarugir README requires Rosetta 2 on Apple Silicon."
+    ],
+    "notEstablished": [
+      "Intel Mac D3DMetal support.",
+      "Native arm64 macOS Wine with D3DMetal.",
+      "Windows ARM64/ARM64EC execution relevance to DX12 here."
+    ]
+  },
+  "communityEvidence": {
+    "bounded": "Reddit search was behind a bot challenge and was not bypassed; search-engine summaries of SN2 Mac FPS were unverified SEO pages and are excluded.",
+    "result": "No primary, attributable public Subnautica 2 Xbox-on-Mac success record verified. Absence is not incompatibility.",
+    "steamIsNotXbox": true
+  },
+  "candidateTies": [
+    {
+      "finding": "Vanilla 11.20 lacks the bridge and has a changed macdrv client-surface API",
+      "buildChoice": "Port CW bridge with typed aliases + new client-surface mapping (metal-port-06)"
+    },
+    {
+      "finding": "Bare-SONAME FreeType dlopen",
+      "buildChoice": "Isolated pinned FreeType 2.13.3 via recipe search path"
+    },
+    {
+      "finding": "Build-tree builtin precedence hides GPTK modules",
+      "buildChoice": "Isolated make install + in-place symlinks to GPTK redist (startup-gfx-05)"
+    },
+    {
+      "finding": "GPTK payload x86_64",
+      "buildChoice": "x86_64 Wine + i386 PE, Rosetta"
+    }
+  ],
+  "acceptanceState": "Research matrix frozen 2026-10-24. Graphics device creation not yet passing (startup-gfx-05 null-read fault)."
 }
