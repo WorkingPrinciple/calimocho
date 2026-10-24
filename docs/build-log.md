@@ -1293,3 +1293,113 @@ discussion).
 Port-07 has a successful incremental compile and passing source-port tests,
 but remains runtime-unverified. Resume the fresh install and graphics probe
 after the host translation service is available.
+
+## 2026-10-24: Post-reboot CW baseline and Wine 11.20 graphics discriminator
+
+The owner rebooted. The parent verified that newly compiled x86_64 programs
+run again. This slice used fresh research prefixes and did not launch a game.
+REQ-69 baseline evidence and REQ-74 forward-port evidence remain separate.
+
+### Source-built CW26.3 baseline (REQ-69)
+
+The retained CW26.3 source tree matched its recorded SHA-256 before use.
+Completing `make -j4` and an isolated `make install` both returned zero.
+The source archive remains pinned to
+`ac99c8ca4b3848f3e81784135f023df266b61c2345726ea55a50b3e030dd6872`.
+Its source-built FreeType dependency is version 2.13.3.
+
+The research install retains Wine's original graphics modules in
+`research-wine-originals`. D3D10/11/12, D3D12Core and DXGI PE/Unix modules
+are symlinks to the owner's installed GPTK 4.0b3 redist. `lib/external` is
+also a symlink. No Apple file was copied, modified, signed or de-quarantined.
+
+In `gfx-cw-baseline-02`, Wine builtin startup, prefix-local AeDebug setup,
+and the D3D12 create-device probe all returned zero. The probe printed
+`D3D12CreateDevice first HRESULT=0x00000000`. The bridge and D3DMetal
+framework appeared in loader diagnostics; the probe had no Vulkan/vkd3d
+selection. Prefix-scoped `wineserver -k` and `-w` returned zero, with no
+tracked process groups or prefix file handles remaining.
+
+The first baseline harness attempt incorrectly expected a Unix `wineboot`
+wrapper. CW installs the PE entrypoint instead. That attempt did not create
+a prefix. The second used `wine wineboot --init` in a new prefix. Its
+passing result does not erase the retained failed harness logs.
+
+The [sanitized baseline registry](evidence/calimocho-cw26.3-gptk4b3.registry.json)
+uses the existing Ode schema and engine name `calimocho-cw26.3-gptk4b3`.
+It binds loader/server hashes, source and FreeType pins, the tested
+environment, renderer links, smoke command/log hashes and an install manifest.
+Its placeholders must not be passed directly to a launcher. The matching
+local registry is
+`build/winehq-11.20/metal-port-07-reboot-01/calimocho-cw26.3-gptk4b3.registry.local.json`.
+Read-only Ode `engines.verify` and this repository's runtime exporter
+validated the local artifact. No shared engine registry was edited.
+
+Wine service children retain the original `wineboot` stderr descriptor
+after that command exits. Log hashes were therefore finalized after
+prefix-scoped shutdown. Receipts retain the earlier command-exit hashes
+separately, rather than presenting those changing logs as immutable.
+
+### Fresh WineHQ 11.20 port-07 (REQ-74)
+
+A fresh source copy at WineHQ commit
+`7298a818b79446bae153b8d5aa27235ab3703bf9` received the public CW integration
+and TEB TLS change from `f8c56fa`. Configure, full `make -j4`, and isolated
+installation all returned zero. No configured build tree was cloned for
+this post-reboot build.
+
+The port includes PE-region registration, nine native/Windows ABI wrappers,
+client-surface integration, next-drawable dispatch, registry callback
+transport, and the TEB TLS seam. The 192-byte callback-table compile-time
+assertion passed compilation. That is not proof that runtime callback
+registration completed before the fault.
+
+Builtin startup and prefix-local AeDebug setup returned zero. The
+create-device probe still faulted before returning an HRESULT. SEH recorded
+`RIP=0x7ff81aa731e3` and `RDI=5`. The native image map places that instruction
+at `libsystem_pthread.dylib+0x31e3`, matching the earlier
+`pthread_setname_np` fault signature. The exact same probe on a fresh
+installed GPTK control returned `S_OK` with exit zero.
+
+AeDebug launched `winedbg --auto`, which printed only
+`WineDbg attached to pid 0204`; it did not produce backtrace frames before
+the 180-second probe deadline. The Wine D3D12 conformance executable exited
+5 after an access violation, with no test summary. Neither is a passing
+graphics result.
+
+One additional fresh-prefix reproduction used a bounded, native stack-only
+sample of our own probe process. It reproduced the same fault. Sampling
+succeeded but did not recover a trustworthy crashed-thread caller chain:
+the unwinder repeated `ntdll.so!__wine_syscall_dispatcher+405`. This is not
+evidence of actual recursion. No Apple instructions were disassembled, and
+LLDB was not repeated.
+
+Both candidate prefixes shut down through their exact `wineserver -k/-w`.
+Transient child zombies seen before the runner returned were reaped after
+it exited; no tracked groups or prefix file handles remained. Apple payload
+hashes matched before and after every graphics attempt. Probe diagnostics
+contained no Vulkan/vkd3d selection.
+
+The next seam to investigate is the native-thread start/syscall-frame and
+Darwin GS/TEB transition in `signal_start_thread` and
+`__wine_syscall_dispatcher`, not another callback-table expansion. CW and
+WineHQ use different thread-data arrangements there. Instrument Wine-owned
+entry arguments and context first; this is a hypothesis, not a diagnosed
+root cause or permission to copy the old signal implementation wholesale.
+
+Local source/build/install/graphics receipts are retained under
+`build/winehq-11.20/metal-port-07-reboot-01`. The build receipt SHA-256 is
+`ba56be6bbad7dbe2f801c7376bb1d2045fa924f158325bf23bf17d77a5dfb38b`.
+The native stack sample SHA-256 is
+`fd4cb9ab8d18451288179ec32d6d286980513333a0046c0276047badc28bca52`.
+The final `gfx-candidate-01/receipt.json` SHA-256 is
+`e200f03faf546061ec75efe1877043dd5fed8a45a263e578b0e12c1682c9ec1e`.
+The final `gfx-candidate-02/receipt.json` SHA-256 is
+`76119cdc1456ad774f2b96d8cb5f907dacd45802f22e79c26bdd1675d7795735`.
+The `gfx-control-01/receipt.json` SHA-256 is
+`e63cf3e9bdfc52518c088426f0044425537d6a8cb126a791478c867ed8865913`.
+
+The deterministic Python suite passed all 37 tests. This slice establishes
+source-built CW builtin startup and D3D12 device creation, not window
+presentation, DX11 parity, Xbox gameplay, release readiness or distribution
+rights. WineHQ graphics parity remains unresolved.

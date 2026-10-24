@@ -92,11 +92,19 @@ been built or qualified here. Keep any future DX11 build and registry
 record distinct from the current-Wine DX12 candidate.
 
 Current source/build findings are in [the build log](docs/build-log.md).
-The override-enabled isolated Wine startup self-check passed in a fresh
-local prefix after two timed-out checks; no game was launched. Game runs
-additionally require the canonical route, save-preservation, disk and
-input-lease checks.
-Subnautica 2's human legal/privacy hold remains unchanged.
+The source-built CW26.3 baseline now passes isolated builtin startup and
+the D3D12 device-creation probe with the owner's installed GPTK 4.0b3
+payload referenced through read-only symlinks. The
+[sanitized engine record](docs/evidence/calimocho-cw26.3-gptk4b3.registry.json)
+binds its source, loader/server hashes, FreeType path, renderer links and
+smoke logs. Its path placeholders are not executable configuration; use
+the matching local registry artifact to bind the actual host paths.
+
+WineHQ 11.20 port-07 compiles and starts, but still faults before returning
+a D3D12 device-creation result. The known-good GPTK control returns `S_OK`.
+Device creation is not presentation or gameplay proof. No game was launched.
+Game admission remains coordinator-owned and additionally requires the
+canonical route, save-preservation, disk and input-lease checks.
 
 ## Local Ode/Exodus runtime reference
 
