@@ -152,6 +152,18 @@ See [TLS and graphics evidence](docs/evidence/req74-port10-schannel-and-graphics
 and the [port-10 record](docs/evidence/calimocho-wine11.20-gptk4b3-tls.registry.json),
 named `calimocho-wine11.20-gptk4b3-tls`.
 
+The separate local **port-11 Vulkan candidate** adds source-built MoltenVK
+1.4.2 through Wine's supported loader configuration. Its owned Vulkan probe
+creates a device, surface and swapchain, presents 120 frames and reads back
+exact RGBA `51,102,204,255`. D3D11, D3D12 and HTTPS regressions retain their
+qualified outcomes, including the documented expired-certificate error-mapping
+limitation. The exact local record is named
+`calimocho-wine11.20-gptk4b3-tls-vulkan`; its provider declaration is not trust
+or backend admission. This is not a downloadable release, mouse fix or
+No Man's Sky compatibility result.
+See [qualification evidence](docs/evidence/req78-vulkan-qualification.json)
+and [ADR-0029](docs/ADR/0029-source-built-vulkan-candidate.md).
+
 ## Local Ode/Exodus runtime reference
 
 The exporter does not make Calimocho a distinct engine to select in Ode. This local source

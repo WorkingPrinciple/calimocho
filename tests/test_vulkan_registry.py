@@ -5,9 +5,28 @@ import unittest
 
 from tools.emit_vulkan_registry import observation
 from tools.probe_wine_source import sha256
+from tools.runtime_recipe import export_recipe
+
+
+ROOT = Path(__file__).resolve().parents[1]
+LOCAL = ROOT / "build/winehq-11.20/metal-port-11"
+RECORD = LOCAL / "calimocho-wine11.20-gptk4b3-tls-vulkan.registry.local.json"
 
 
 class VulkanRegistryObservationTests(unittest.TestCase):
+    @unittest.skipUnless(RECORD.is_file(), "Requires actual local qualification")
+    def test_frozen_local_record_matches_actual_observations_and_contract(self):
+        evidence = json.loads((ROOT / "docs/evidence/req78-vulkan-qualification.json").read_text())
+        self.assertEqual(sha256(RECORD), evidence["local_registry_sha256"])
+        recipe = export_recipe(RECORD, evidence["engine_name"])
+        self.assertEqual(recipe["engines"][0]["provider"], evidence["provider"])
+        for kind, attempt, key in (
+            ("vulkan", 1, "vulkan"), ("d3d12", 2, "d3d12"), ("d3d11", 3, "d3d11"),
+            ("https", 4, "https"), ("https-expired", 5, "expired_https"),
+        ):
+            actual = observation(LOCAL / f"{kind}-passive-{attempt:02}.json", kind)
+            self.assertEqual(actual["receipt_sha256"], evidence[key]["receipt_sha256"])
+
     def check(self, kind, stdout, stderr="", code=0, **overrides):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

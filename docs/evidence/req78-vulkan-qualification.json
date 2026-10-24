@@ -1,0 +1,65 @@
+{
+  "requirement": "REQ-78",
+  "observed_date": "2026-10-24",
+  "producer_commit": "e6db5a161a787dfad9b4bc1a69ea03c1bfceb147",
+  "wine_source_commit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+  "moltenvk_source_commit": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+  "moltenvk_sha256": "533494b0eef1871d79e6b1d9d5faa59c8417232f7d6ecf00c2850ac40247c6cf",
+  "local_registry_sha256": "a5d37d2909f56abe75f9b6096cf39b4d75c91a7f6aac75154488d4c35b5ff28a",
+  "base_registry_sha256": "13bc00b7f8e1496cd2b02822d75bc00b2b366b37692ff3701db083b45e56c1c4",
+  "engine_name": "calimocho-wine11.20-gptk4b3-tls-vulkan",
+  "provider": {"id": "calimocho", "contract_version": 1},
+  "provider_declaration_is_trust": false,
+  "vulkan": {
+    "device": "Apple M5 Max",
+    "queue_family": 0,
+    "wideLines": false,
+    "successful_presents": 120,
+    "readback_rgba": [51, 102, 204, 255],
+    "exit_code": 0,
+    "receipt_sha256": "0c57ec96d768ea389b4dc70444555164fca40307dee1b1a58cce4c2927e8c55b"
+  },
+  "d3d12": {
+    "successful_presents": 120,
+    "readback_rgba": [51, 102, 204, 255],
+    "exit_code": 0,
+    "receipt_sha256": "99d3dc7b010f4c212d30eb69184470c21958fec8c3c43f3a8b089b929b2e6a06"
+  },
+  "d3d11": {
+    "successful_presents": 120,
+    "readback_rgba": [51, 102, 204, 255],
+    "exit_code": 0,
+    "receipt_sha256": "fa2f49878da256ba3a8906b1187b35a398559697d262615b835e88d455d5d184"
+  },
+  "https": {
+    "status": 200,
+    "certificate_validation": true,
+    "exit_code": 0,
+    "receipt_sha256": "0890c0b6a56b2042bca5c2ce44735db0ab9175881b4b194f8d62baa28bce0e45"
+  },
+  "expired_https": {
+    "exit_code": 1,
+    "wine_certificate_diagnostic": 12037,
+    "windows_api_error": 12157,
+    "strict_windows_error_mapping_passed": false,
+    "receipt_sha256": "ca23d1890544b862594cc4a3e3a605f667a08bd36b294f1b922f8dc6184a5a9d"
+  },
+  "safety": {
+    "fresh_prefix_per_probe": true,
+    "foreground_unchanged": true,
+    "native_graphics_window_bound_to_owned_process_group": true,
+    "native_graphics_frame_nonoverlap": true,
+    "geometry_exemptions_used": false,
+    "input_or_activation_sent": false,
+    "screen_capture_performed": false,
+    "apple_payload_hashes_unchanged": true,
+    "base_install_hashes_unchanged": true,
+    "residual_process_groups": [],
+    "prefix_open_handles": false
+  },
+  "existing_schema1_export_verified": true,
+  "game_compatibility_claim": false,
+  "mouse_fix_claim": false,
+  "compositor_pixel_visibility_claim": false,
+  "distribution_or_backend_admission_claim": false
+}

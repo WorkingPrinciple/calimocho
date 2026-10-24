@@ -1993,3 +1993,42 @@ Actual execution still requires a supported current geometry boundary.
 No usable port-11 record, Vulkan/NMS success, mouse correction, release or
 distribution admission is claimed. Existing prefixes, Apple payloads and
 the frozen port-10 install remain untouched.
+
+### REQ-78 qualification after owner unlock and native allocation
+
+The first post-game preflight still refused while two foreground windows
+covered both displays. The owner later confirmed the Mac was unlocked.
+A single newly admitted unchanged geometry check found a free region.
+After the separate Apple TV benchmark interval released the CPU/GPU lane,
+the coordinator allocated one sequential passive qualification sequence.
+All actual launches rechecked fresh geometry rather than reusing coordinates.
+No Dock, layer or overlap exemption was used.
+
+The source-built MoltenVK candidate enumerated Apple M5 Max, created an
+instance, graphics/presentation device, native surface and swapchain,
+completed 120 successful `vkQueuePresentKHR` calls, and read back exact
+RGBA `51,102,204,255`. The D3D12 and D3D11 regression probes each completed
+120 Presents with the same exact pixel. These are swapchain/backing-content
+checks, not a claim about captured compositor pixels or game compatibility.
+
+Positive WinHTTP HTTPS returned HTTP 200 with certificate validation enabled.
+The expired-certificate probe exited 1 as expected for this negative test:
+Wine reported certificate diagnostic 12037, while the Windows API still
+returned generic 12157 with zero secure-failure flags. Rejection is established;
+the strict Windows error-mapping limitation from port-10 is not fixed.
+
+Every setup and prefix-scoped shutdown command exited 0 without timeout.
+All three graphics windows bound to the owned process group and passed
+actual native-frame non-overlap checks. Foreground stayed unchanged across
+all five runs. No residual process groups or prefix handles remained;
+Apple payload and full port-10 install hashes stayed unchanged.
+
+The emitter produced the new exact local record named
+`calimocho-wine11.20-gptk4b3-tls-vulkan`, SHA-256
+`a5d37d2909f56abe75f9b6096cf39b4d75c91a7f6aac75154488d4c35b5ff28a`.
+The existing schema-1 exporter validated its exact paths, hashes and contract.
+The optional provider declaration is not backend trust or admission.
+The coordinator and S2 received the local path and whole-file hash.
+[Sanitized qualification evidence](evidence/req78-vulkan-qualification.json)
+retains exact receipt identities and limitations. No NMS or other game
+was launched by this qualification slice, and no mouse correction is claimed.
