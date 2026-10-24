@@ -2032,3 +2032,73 @@ The coordinator and S2 received the local path and whole-file hash.
 [Sanitized qualification evidence](evidence/req78-vulkan-qualification.json)
 retains exact receipt identities and limitations. No NMS or other game
 was launched by this qualification slice, and no mouse correction is claimed.
+
+## 2026-10-24: Private Metal opt-in, source/build only
+
+Whiny assigned the bounded source/build diagnostic in commit `926c550`,
+REQ-A01/N13/H03/D08. The parent authenticated the NMS feature-16 failure
+from run `73fb0798-b917-45db-b80b-b1fa57afe68c`; this child did not replay it.
+[ADR-0030](ADR/0030-opt-in-private-metal-source-diagnostic.md) records the
+explicit opt-in and the separate native/admission hold.
+
+The offline invocation was:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 tools/build_moltenvk.py \
+  --output build/dependencies/moltenvk-1.4.2-x86_64-private-01 \
+  --metal-private-api \
+  --local-build-cache build/dependencies/moltenvk-1.4.2-x86_64-01
+```
+
+The builder copied the existing pinned local source and source-built static
+dependencies into the new exclusively owned root, verified clean tracked
+source and all eight Git identities, and skipped dependency fetching.
+The build exited 0 with Xcode 27.1 (`27A9275`) and Apple clang 21.0.0.
+The existing nested four-job limit and 45-minute budget remained in force.
+The actual MoltenVK compiler response files contain
+`-DMVK_USE_METAL_PRIVATE_API=1`; the public default is unchanged.
+Owned configuration SHA-256:
+`bee29f198b8240c79ecfe77218da8a2dcdbc68571cc1c3142826d9954ab6b820`.
+
+The new x86_64 dylib SHA-256 is
+`4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385`.
+Its receipt SHA-256 is
+`65a5ff586bafe0d06a0b4627382d416f6fcf6e564f821ad0cb9fe815cfe8c58a`.
+Its install ID is `@rpath/libMoltenVK.dylib`, with no LC_RPATH and only
+system/framework imports. Read-only `codesign -dv` reported that it is
+unsigned, as expected with signing disabled. No signing identity or
+Keychain access was used. No dylib was loaded.
+
+The existing Vulkan probe now accepts optional `--require-wide-lines`.
+It queries actual feature support, fails if absent, and requests the feature
+at device creation when present. Its default still enables no optional
+features. The exact 120-Present and RGBA criteria remain unchanged.
+The updated PE compiled warning-free, SHA-256
+`dce67d9b539350bdcb6c2eec12d892cff35747cebde385efaebcdf3d593bb916`.
+An initial link attempt used Wine's whole import-library directory and
+accidentally shadowed the compiler's CRT imports. It failed with unresolved
+CRT symbols. Linking the exact `libvulkan-1.a` archive instead succeeded:
+
+```bash
+x86_64-w64-mingw32-gcc -std=c11 -Wall -Wextra -Werror -O2 \
+  -Ibuild/dependencies/moltenvk-1.4.2-x86_64-private-01/source/External/Vulkan-Headers/include \
+  tests/vulkan_present_probe.c \
+  build/winehq-11.20/metal-port-11/install/lib/wine/x86_64-windows/libvulkan-1.a \
+  -lgdi32 \
+  -o build/dependencies/moltenvk-1.4.2-x86_64-private-01/vulkan-present-probe.exe
+```
+
+Nine focused builder/probe checks pass, including actual compiler macro and
+dependency-artifact hash checks. Both frozen install manifests still match
+all 3,913 entries each. The public MoltenVK `533494...` and exact `a5d37...`
+registry bytes remain unchanged. No engine registry, install overlay,
+selection, prefix, native probe, capture, input, game or publication occurred.
+
+A future separately authorized native diagnostic must bind the private
+dylib to an isolated loader route first, then invoke this PE with
+`--require-wide-lines` and `MVK_CONFIG_USE_METAL_PRIVATE_API=1` under the
+existing fresh-prefix, passive-window, 90-second and cleanup guards.
+The frozen public route is not that loader binding. Feature support and
+device creation must be observed, not inferred from this compile result.
+Even a passing clear/readback probe would not exercise wide-line rasterization
+or establish NMS compatibility.

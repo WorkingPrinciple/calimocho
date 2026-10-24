@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import subprocess
 import time
 
@@ -21,12 +22,21 @@ def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def build(output, resume=False):
+def build_configuration(metal_private_api=False):
+    return ("ARCHS = x86_64\nONLY_ACTIVE_ARCH = NO\n"
+            "CODE_SIGNING_ALLOWED = NO\nCODE_SIGNING_REQUIRED = NO\n"
+            + ("GCC_PREPROCESSOR_DEFINITIONS = $(inherited) "
+               "MVK_USE_METAL_PRIVATE_API=1\n" if metal_private_api else ""))
+
+
+def build(output, resume=False, metal_private_api=False, local_build_cache=None):
     output = output.resolve()
     if not output.is_relative_to(ROOT / "build"):
         raise ValueError("Build must be in this worktree's build directory")
     output.mkdir(parents=True, exist_ok=resume)
     previous = json.loads((output / "receipt.json").read_text()) if resume else None
+    if previous and previous.get("metal_private_api", False) != metal_private_api:
+        raise ValueError("Resume cannot change private Metal API configuration")
     started = (previous["started_epoch"] if previous and "started_epoch" in previous
                else (output / "MoltenVK-init.log").stat().st_mtime if previous
                else time.time())
@@ -34,6 +44,7 @@ def build(output, resume=False):
                "licence": PIN["license"], "architecture": "x86_64",
                "budget_seconds": 2700, "steps": [], "status": "incomplete",
                "dependencies": DEPENDENCIES, "runtime_executed": False}
+    receipt["metal_private_api"] = metal_private_api
     receipt["started_epoch"] = started
     if previous:
         if previous["commit"] != COMMIT or previous["status"] != "failed":
@@ -74,7 +85,7 @@ def build(output, resume=False):
             raise RuntimeError(f"{name} failed ({code}); see {log}")
 
     def checkout(name, repo, commit, directory):
-        if resume:
+        if resume or local_build_cache is not None:
             actual = subprocess.check_output(
                 ["git", "-C", str(directory), "rev-parse", "HEAD"],
                 text=True, timeout=10).strip()
@@ -98,6 +109,22 @@ def build(output, resume=False):
     save()
     try:
         source = output / "source"
+        if local_build_cache is not None and not resume:
+            cache = local_build_cache.resolve()
+            if not cache.is_relative_to(ROOT / "build") or output.is_relative_to(cache):
+                raise ValueError("Require a separate owned local build cache")
+            cached = json.loads((cache / "receipt.json").read_text())
+            if (cached["commit"] != COMMIT
+                    or cached["status"] != "source-built-not-runtime-qualified"
+                    or sha256(Path(cached["library"])) != cached["library_sha256"]):
+                raise ValueError("Require intact pinned source-built local cache")
+            receipt["local_build_cache_receipt_sha256"] = sha256(cache / "receipt.json")
+            shutil.copytree(cache / "source", source, symlinks=True)
+            receipt["cached_dependency_artifacts"] = {
+                str(path.relative_to(source)): sha256(path)
+                for path in sorted((source / "External/build/Release").rglob("*.a"))}
+            if not receipt["cached_dependency_artifacts"]:
+                raise ValueError("Local cache lacks source-built dependency artifacts")
         checkout("MoltenVK", URL, COMMIT, source)
         receipt["licence_sha256"] = sha256(source / "LICENSE")
         for name, (repo, commit) in DEPENDENCIES.items():
@@ -108,8 +135,7 @@ def build(output, resume=False):
                 directory = source / "External/SPIRV-Tools/external/spirv-headers"
             checkout(name, f"https://github.com/{repo}.git", commit, directory)
         config = output / "owned.xcconfig"
-        config.write_text("ARCHS = x86_64\nONLY_ACTIVE_ARCH = NO\n"
-                          "CODE_SIGNING_ALLOWED = NO\nCODE_SIGNING_REQUIRED = NO\n")
+        config.write_text(build_configuration(metal_private_api))
         env["XCODE_XCCONFIG_FILE"] = str(config)
         env["CMAKE_BUILD_PARALLEL_LEVEL"] = "4"
         # Upstream invokes xcodebuild by name; constrain all nested invocations too.
@@ -127,7 +153,9 @@ def build(output, resume=False):
         env["PATH"] = f"{bin_dir}:{env['PATH']}"
         receipt["build_config_sha256"] = sha256(config)
         receipt["wrapper_sha256"] = sha256(wrapper)
-        run("dependencies", ["/bin/bash", "./fetchDependencies", "--macos", "--keep-cache"], source)
+        if local_build_cache is None:
+            run("dependencies", ["/bin/bash", "./fetchDependencies", "--macos", "--keep-cache"], source)
+        run("toolchain", ["/usr/bin/xcodebuild", "-version"])
         run("moltenvk", ["xcodebuild", "build", "-quiet", "-project", "MoltenVKPackaging.xcodeproj",
                         "-scheme", "MoltenVK Package (macOS only)", "-configuration", "Release",
                         "-destination", "generic/platform=macOS",
@@ -152,5 +180,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--metal-private-api", action="store_true")
+    parser.add_argument("--local-build-cache", type=Path,
+                        help="Copy an owned pinned source build; no dependency fetch")
     args = parser.parse_args()
-    print(json.dumps(build(args.output, args.resume), indent=2))
+    print(json.dumps(build(args.output, args.resume, args.metal_private_api,
+                           args.local_build_cache), indent=2))

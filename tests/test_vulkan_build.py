@@ -14,9 +14,60 @@ from tools.build_moltenvk import COMMIT, DEPENDENCIES, build
 
 ROOT = Path(__file__).resolve().parents[1]
 DEPENDENCY = ROOT / "build/dependencies/moltenvk-1.4.2-x86_64-01"
+PRIVATE = ROOT / "build/dependencies/moltenvk-1.4.2-x86_64-private-01"
 
 
 class VulkanSourceBuildTests(unittest.TestCase):
+    @unittest.skipUnless((PRIVATE / "receipt.json").is_file(), "Requires local private-SPI build")
+    def test_private_build_binds_actual_macro_and_separate_unsigned_artifact(self):
+        receipt = json.loads((PRIVATE / "receipt.json").read_text())
+        self.assertEqual(receipt["commit"], COMMIT)
+        self.assertIs(receipt["metal_private_api"], True)
+        self.assertIs(receipt["runtime_executed"], False)
+        library = Path(receipt["library"])
+        self.assertTrue(library.is_relative_to(PRIVATE))
+        self.assertEqual(build_moltenvk.sha256(library), receipt["library_sha256"])
+        self.assertNotEqual(receipt["library_sha256"], json.loads(
+            (DEPENDENCY / "receipt.json").read_text())["library_sha256"])
+        self.assertEqual((PRIVATE / "owned.xcconfig").read_text(),
+                         build_moltenvk.build_configuration(True))
+        arguments = list((PRIVATE / "derived/Build/Intermediates.noindex/MoltenVK.build")
+                         .rglob("*.resp"))
+        self.assertTrue(arguments)
+        self.assertTrue(any("-DMVK_USE_METAL_PRIVATE_API=1" in path.read_text()
+                            for path in arguments))
+        self.assertEqual((PRIVATE / "architecture.log").read_text().strip(), "x86_64")
+        for relative, digest in receipt["cached_dependency_artifacts"].items():
+            self.assertEqual(build_moltenvk.sha256(PRIVATE / "source" / relative), digest)
+            self.assertEqual(build_moltenvk.sha256(DEPENDENCY / "source" / relative), digest)
+
+    def test_private_spi_is_explicit_and_default_stays_unsigned_public_api(self):
+        public = build_moltenvk.build_configuration()
+        private = build_moltenvk.build_configuration(True)
+        self.assertNotIn("MVK_USE_METAL_PRIVATE_API", public)
+        self.assertEqual(private, public + "GCC_PREPROCESSOR_DEFINITIONS = $(inherited) "
+                         "MVK_USE_METAL_PRIVATE_API=1\n")
+        self.assertIn("CODE_SIGNING_ALLOWED = NO\n", private)
+
+    def test_resume_cannot_change_private_spi_configuration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            output = root / "build/candidate"
+            output.mkdir(parents=True)
+            (output / "receipt.json").write_text(json.dumps({
+                "commit": COMMIT, "status": "failed", "started_epoch": time.time()}))
+            with patch.object(build_moltenvk, "ROOT", root):
+                with self.assertRaisesRegex(ValueError, "cannot change"):
+                    build(output, resume=True, metal_private_api=True)
+
+    def test_wide_lines_option_enables_feature_before_device_creation(self):
+        source = (ROOT / "tests/vulkan_present_probe.c").read_text()
+        self.assertIn('!strcmp(argv[1], "--require-wide-lines")', source)
+        self.assertIn("require_wide_lines && !available_features.wideLines", source)
+        self.assertIn("features.wideLines = require_wide_lines ? VK_TRUE : VK_FALSE;", source)
+        self.assertLess(source.index("vkGetPhysicalDeviceFeatures(physical"),
+                        source.index('CHECK("vkCreateDevice"'))
+
     def test_requires_owned_output(self):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(ValueError, "worktree"):

@@ -24,7 +24,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LP
     return DefWindowProcA(window, message, wparam, lparam);
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physical = VK_NULL_HANDLE;
@@ -66,8 +66,11 @@ int main(void)
     VkMemoryRequirements requirements;
     VkExtent2D extent;
     float priority = 1.0f;
+    BOOL require_wide_lines = FALSE;
 
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc == 2 && !strcmp(argv[1], "--require-wide-lines")) require_wide_lines = TRUE;
+    else if (argc != 1) { printf("ERROR expected optional --require-wide-lines\n"); return 1; }
     if (!probe_window_position(&window_x, &window_y)) return 1;
     cls.lpfnWndProc = window_proc;
     cls.hInstance = GetModuleHandleA(NULL);
@@ -116,8 +119,18 @@ int main(void)
     }
     if (family == UINT32_MAX) { printf("ERROR no presentation queue\n"); goto cleanup; }
     vkGetPhysicalDeviceProperties(physical, &properties);
-    printf("physical_device=%s api=%u wideLines=0 queue_family=%u\n",
-           properties.deviceName, properties.apiVersion, family);
+    VkPhysicalDeviceFeatures available_features;
+    vkGetPhysicalDeviceFeatures(physical, &available_features);
+    if (require_wide_lines && !available_features.wideLines)
+    {
+        printf("ERROR required wideLines unavailable\n");
+        goto cleanup;
+    }
+    features.wideLines = require_wide_lines ? VK_TRUE : VK_FALSE;
+    printf("physical_device=%s api=%u wideLines=%u queue_family=%u\n",
+           properties.deviceName, properties.apiVersion, features.wideLines, family);
+    printf("wideLines supported=%u required=%u enabled=%u\n",
+           available_features.wideLines, require_wide_lines, features.wideLines);
     VkDeviceQueueCreateInfo queue_info = {.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         .queueFamilyIndex = family, .queueCount = 1, .pQueuePriorities = &priority};
     VkDeviceCreateInfo device_info = {.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
