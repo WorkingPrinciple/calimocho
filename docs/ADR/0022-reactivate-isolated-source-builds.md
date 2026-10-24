@@ -85,7 +85,10 @@ requirements document, `dragos-core projects/ode-to-x/SPEC.md`.
 
 An isolated built-in startup self-check was attempted for the WineHQ 11.20
 port in a new research-owned prefix. It timed out during `wineboot --init`;
-the logs and partial prefix are retained, and this does not satisfy startup
-acceptance. Further runtime or game execution remains subject to parent
-coordination. REQ-71 route admission and REQ-38 human consent are separate
-prerequisites to any game attempt.
+the logs and partial prefix are retained. A second fresh-prefix attempt added
+the isolated x86_64 FreeType directory to `DYLD_FALLBACK_LIBRARY_PATH`.
+That removed the FreeType lookup diagnostic but also timed out during
+`wineboot --init`, so neither attempt satisfies startup acceptance. The
+receipts and partial prefixes remain local. Further runtime or game
+execution remains subject to parent coordination. REQ-71 route admission
+and REQ-38 human consent are separate prerequisites to any game attempt.

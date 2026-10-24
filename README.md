@@ -92,9 +92,10 @@ been built or qualified here. Keep any future DX11 build and registry
 record distinct from the current-Wine DX12 candidate.
 
 Current source/build findings are in [the build log](docs/build-log.md).
-An isolated Wine startup self-check was attempted with a fresh local prefix
-but did not complete; no game was launched. Game runs additionally require
-the canonical route, save-preservation, disk and input-lease checks.
+Two isolated Wine startup self-checks were attempted with fresh local
+prefixes, but neither completed; no game was launched. Game runs
+additionally require the canonical route, save-preservation, disk and
+input-lease checks.
 Subnautica 2's human legal/privacy hold remains unchanged.
 
 ## Local Ode/Exodus runtime reference

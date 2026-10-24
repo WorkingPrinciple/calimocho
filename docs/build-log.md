@@ -151,12 +151,22 @@ and registry query were therefore not run.
 
 The first diagnostic was `Wine cannot find the FreeType font library`.
 Configure had found `libfreetype.6.dylib`, but this run did not provide a
-runtime search path for the isolated FreeType prefix. This points to a
-missing runtime dependency lookup path; the exact dynamic-loader failure
-was not independently established. The log next reports that Wine was
-built without Vulkan, followed by COM/RpcSs startup failures and a setupapi
-`copy error 1812` for `wineusb.inf`; the last message is
-`SYSLINK_SetFont Failed to create link font!`. No retry was made.
+runtime search path for the isolated FreeType prefix. Source inspection
+confirmed that `win32u` calls `dlopen(SONAME_LIBFREETYPE, RTLD_NOW)` and the
+build defines that soname as the bare name `libfreetype.6.dylib`.
+
+A second attempt used a new prefix at
+`build/winehq-11.20/metal-port-06/startup-self-check-02/prefix`. Before
+launch, `lipo -archs` confirmed the isolated pinned FreeType library was
+x86_64. The environment matched the first attempt, with
+`DYLD_FALLBACK_LIBRARY_PATH` set to the FreeType prefix's `lib` directory
+followed by `/usr/lib`. The FreeType diagnostic did not recur, but
+`wineboot --init` again timed out after 180 seconds. The first error in the
+new log reports that Wine was built without Vulkan support; subsequent
+errors report COM/RpcSs startup failures and setupapi `copy error 1812`
+copying `wineusb.inf`. The command did create `system.reg` with
+`#arch=win64`. Since initialization timed out, `cmd /c ver` and the
+registry query were not run. No further retry was made.
 
 The timed-out wineboot process was terminated within its tracked process
 group. The exact build wineserver was then invoked with `-k` and the new
@@ -174,6 +184,19 @@ The partial prefix and logs remain in the ignored build tree for diagnosis:
 
 This is a failed startup self-check, not a usable-runtime result. No game
 was launched and no existing prefix or save was touched.
+
+For the second attempt, process-group termination and prefix-scoped
+`wineserver -k` also completed successfully, with no residual build
+processes. Its stderr SHA-256 is
+`66e2b150203304b3f6dc6f181ba3b9434ad5f9f5857e5f4fb5d169992c1ab184`;
+the ignored local receipt SHA-256 is
+`01d02ff3c35168cfee8de47d2b5b46dd164be0ce4360fcf275a9ed2eecc198d5`.
+The local receipt records the exact environment, executable and FreeType
+hashes, command result, prefix files, and cleanup result. This retry
+confirms the missing FreeType lookup diagnostic is addressed by the
+explicit isolated search path, but it does not establish a successful
+runtime or the root cause of the remaining startup timeout. No
+runtime-recipe change is made from this failed check.
 
 Known unresolved features include GnuTLS/schannel, Vulkan/MoltenVK and
 GStreamer. Wine was executed only for the isolated startup check above.
