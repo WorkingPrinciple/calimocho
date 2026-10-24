@@ -39,6 +39,12 @@ PORT_CHECK_TARGETS = (
 PORT_CHECK_ARTIFACTS = PORT_CHECK_TARGETS
 
 
+def ensure_output_disjoint(output, input_path, label):
+    if (output == input_path or output in input_path.parents
+            or input_path in output.parents):
+        raise ValueError(f"Build output must not overlap {label}")
+
+
 def toolchain_identity():
     tools = {}
     for name in ("clang", "make"):
@@ -88,6 +94,12 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
     upstream_pin = None
     if winehq_source is not None:
         winehq_source = winehq_source.resolve(strict=True)
+    freetype = freetype.resolve(strict=True)
+    output = output.resolve()
+    if winehq_source is not None:
+        ensure_output_disjoint(output, winehq_source, "WineHQ source")
+    ensure_output_disjoint(output, freetype, "FreeType prefix")
+    if winehq_source is not None:
         upstream_pin = json.loads((REPO / "versions.json").read_text())["winehq_probe"]
         commit = subprocess.check_output(
             ["git", "-C", str(winehq_source), "rev-parse", "HEAD"],
@@ -98,7 +110,6 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
                 ["git", "-C", str(winehq_source), "status", "--porcelain",
                  "--untracked-files=all"], text=True, timeout=30):
             raise ValueError("WineHQ input source must remain pristine")
-    freetype = freetype.resolve(strict=True)
     ft_library = freetype / "lib/libfreetype.6.dylib"
     if not ft_library.is_file():
         raise ValueError("Explicit source-built FreeType prefix is missing its library")
@@ -108,7 +119,6 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
     bison = shutil.which("bison")
     if not bison:
         raise ValueError("An installed bison >= 3 is required")
-    output = output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     with tarfile.open(archive) as stream:
         members = [

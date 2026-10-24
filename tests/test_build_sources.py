@@ -88,6 +88,62 @@ class SourceBuildTests(unittest.TestCase):
                 module.build(*arguments)
         self.assertFalse(self.output.exists())
 
+    def test_output_overlap_check_rejects_equal_ancestor_and_descendant(self):
+        source = (self.root / "winehq-source").resolve()
+        source.mkdir()
+        for output in (source, source / "candidate", self.root):
+            with self.subTest(output=output):
+                with self.assertRaisesRegex(ValueError, "overlap WineHQ source"):
+                    cw.ensure_output_disjoint(
+                        output.resolve(), source, "WineHQ source")
+
+    def test_output_inside_pristine_winehq_source_is_rejected_before_writing(self):
+        self.archive_source("cw")
+        source = self.root / "winehq-source"
+        source.mkdir()
+        marker = source / "tracked-file"
+        marker.write_text("preserve")
+        output = source / "candidate"
+        pin = self.pins["winehq_probe"]["commit"]
+
+        def git_output(command, **kwargs):
+            if command[0] == "git" and "rev-parse" in command:
+                return f"{pin}\n"
+            if command[0] == "git" and "status" in command:
+                return ""
+            return self.check_output(command, **kwargs)
+
+        with patch.object(cw.subprocess, "check_output", side_effect=git_output), \
+                patch.object(cw.subprocess, "run",
+                             side_effect=AssertionError("source archive must not run")), \
+                patch.object(cw.shutil, "which", return_value="/usr/bin/true"), \
+                patch.object(cw, "toolchain_identity", return_value={}):
+            with self.assertRaisesRegex(ValueError, "overlap.*WineHQ source"):
+                cw.build(self.archive, output, self.freetype, winehq_source=source)
+
+        self.assertFalse(output.exists())
+        self.assertEqual(marker.read_text(), "preserve")
+
+    def test_output_using_var_alias_inside_freetype_prefix_is_rejected(self):
+        self.archive_source("cw")
+        prefix = self.freetype.resolve()
+        if Path("/var").resolve() == Path("/private/var").resolve():
+            alias = Path(str(prefix).replace("/private/var/", "/var/", 1))
+        else:
+            alias_root = self.root.parent / f"{self.root.name}-var-alias"
+            alias_root.symlink_to(self.root, target_is_directory=True)
+            alias = alias_root / "ft"
+        self.assertEqual(alias.resolve(), prefix)
+        output = alias / "candidate"
+
+        with patch.object(cw.subprocess, "run",
+                          side_effect=AssertionError("patch must not run")):
+            with self.assertRaisesRegex(ValueError, "overlap.*FreeType prefix"):
+                cw.build(self.archive, output, self.freetype)
+
+        self.assertFalse(output.exists())
+        self.assertTrue((prefix / "lib/libfreetype.6.dylib").is_file())
+
     def test_wrong_architecture_is_not_silently_accepted(self):
         self.archive_source("cw")
         with patch.object(cw.subprocess, "check_output", return_value="Mach-O arm64"):
