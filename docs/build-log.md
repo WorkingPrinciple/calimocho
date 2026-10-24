@@ -2182,8 +2182,12 @@ Update-after-bind sampler limits are different properties: line 863 uses
 at lines 3461-3466 reads Metal's `maxArgumentBufferSamplerCount` when
 argument buffers are in use. Neither this property nor the hardware tier
 should be confused with the ordinary per-stage sampler limit.
-No exact numeric NMS requirement has been authenticated in this source-only
-task; research was asked for its existing dialog evidence.
+Research supplied the owner's existing dialog wording: NMS warns that the
+driver does not support the number of per-stage descriptor samplers it
+requires, with possible broken rendering or crashes. The dialog states no
+numeric requirement. No numeric threshold is established by that evidence.
+The CrossOver recipe uses a different MoltenVK fork, so its value 2 is not
+evidence of different semantics in this pinned upstream source.
 
 The existing Vulkan probe now prints the queried ordinary per-stage
 descriptor limits, total per-stage resources, device identity and the
