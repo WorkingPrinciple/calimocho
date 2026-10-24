@@ -119,6 +119,21 @@ int main(int argc, char **argv)
     }
     if (family == UINT32_MAX) { printf("ERROR no presentation queue\n"); goto cleanup; }
     vkGetPhysicalDeviceProperties(physical, &properties);
+    printf("descriptor_limits device=%s vendorID=%u deviceID=%u argument_buffers_env=%s "
+           "maxPerStageDescriptorSamplers=%u maxPerStageDescriptorUniformBuffers=%u "
+           "maxPerStageDescriptorStorageBuffers=%u maxPerStageDescriptorSampledImages=%u "
+           "maxPerStageDescriptorStorageImages=%u maxPerStageDescriptorInputAttachments=%u "
+           "maxPerStageResources=%u\n",
+           properties.deviceName, properties.vendorID, properties.deviceID,
+           getenv("MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS") ?
+               getenv("MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS") : "(unset)",
+           properties.limits.maxPerStageDescriptorSamplers,
+           properties.limits.maxPerStageDescriptorUniformBuffers,
+           properties.limits.maxPerStageDescriptorStorageBuffers,
+           properties.limits.maxPerStageDescriptorSampledImages,
+           properties.limits.maxPerStageDescriptorStorageImages,
+           properties.limits.maxPerStageDescriptorInputAttachments,
+           properties.limits.maxPerStageResources);
     VkPhysicalDeviceFeatures available_features;
     vkGetPhysicalDeviceFeatures(physical, &available_features);
     if (require_wide_lines && !available_features.wideLines)

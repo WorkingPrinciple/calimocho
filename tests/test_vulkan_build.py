@@ -73,6 +73,17 @@ class VulkanSourceBuildTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "worktree"):
                 build(Path(directory) / "not-owned")
 
+    def test_descriptor_limits_report_actual_properties_and_requested_environment(self):
+        source = (ROOT / "tests/vulkan_present_probe.c").read_text()
+        for field in ("Samplers", "UniformBuffers", "StorageBuffers", "SampledImages",
+                      "StorageImages", "InputAttachments"):
+            self.assertIn(f"properties.limits.maxPerStageDescriptor{field}", source)
+        self.assertIn("properties.limits.maxPerStageResources", source)
+        self.assertIn('getenv("MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS")', source)
+        self.assertIn("argument_buffers_env=%s", source)
+        self.assertLess(source.index("vkGetPhysicalDeviceProperties(physical"),
+                        source.index('printf("descriptor_limits'))
+
     def test_git_pins_are_full_and_fixed(self):
         self.assertRegex(COMMIT, r"^[a-f0-9]{40}$")
         self.assertEqual(len(DEPENDENCIES), 7)

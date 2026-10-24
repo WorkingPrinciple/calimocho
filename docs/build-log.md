@@ -2158,3 +2158,39 @@ commit `671ca6443a126305649a981940a2d8377f954ee7` and evidence SHA-256
 is inherited binary evidence only. There is no new performance, HUD or game
 observation. No rebuild, native execution, prefix change, admission change or
 publication occurred.
+
+### Source-only argument-buffer sampler inspection
+
+Whiny scope `2ce958d` requested inspection before any AB2 variant. The selected
+MoltenVK 1.4.2 source remains clean at
+`db66022459ffb663aa2b50f6b018bc2e124f5edf`. Contrary to the older enum model,
+`useMetalArgumentBuffers` is `VkBool32` in `API/mvk_private_api.h:242` and
+`Utility/MVKConfigMembers.def:81`. The pinned configuration documentation
+at lines 580-588 calls it Boolean, default 1. `Utility/MVKEnvironment.cpp:111`
+casts the numeric environment value to that member type.
+
+In `GPUObjects/MVKDevice.mm:2703`, both nonzero values 1 and 2 enable the
+same Boolean path when descriptor-set argument buffers are supported.
+Hardware tier is queried separately at line 2691; value 2 does not select
+Tier 2. The capability predicate at lines 2753-2754 also requires the
+hardware tier. Ordinary `maxPerStageDescriptorSamplers` is assigned from
+`maxPerStageSamplerCount` at line 2890, initialized to 16 at line 2430.
+There is no AB1 versus AB2 branch in that assignment.
+
+Update-after-bind sampler limits are different properties: line 863 uses
+`getMaxSamplerCount()` when the actual Tier 2 predicate holds. That helper
+at lines 3461-3466 reads Metal's `maxArgumentBufferSamplerCount` when
+argument buffers are in use. Neither this property nor the hardware tier
+should be confused with the ordinary per-stage sampler limit.
+No exact numeric NMS requirement has been authenticated in this source-only
+task; research was asked for its existing dialog evidence.
+
+The existing Vulkan probe now prints the queried ordinary per-stage
+descriptor limits, total per-stage resources, device identity and the
+requested argument-buffer environment string. That string is explicitly
+labelled environment, not proof of effective driver configuration.
+The extension adds no feature request, window action or execution mode.
+Ten focused checks pass, including warning-free compile-only validation.
+No native query, new engine, AB2 record, admission or current-run change
+occurred. A later headless comparison still needs separately scoped
+preparation and a fresh native slot.
