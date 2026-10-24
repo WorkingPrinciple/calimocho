@@ -7,6 +7,7 @@
 #include <d3d11.h>
 #include <dxgi1_2.h>
 #include <stdio.h>
+#include "probe_window_position.h"
 
 #define WIDTH 320
 #define HEIGHT 240
@@ -43,9 +44,11 @@ int main(void)
     UINT frame, presented = 0;
     HRESULT hr = E_FAIL;
     int result = 1;
+    int window_x, window_y;
     MSG message;
 
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (!probe_window_position(&window_x, &window_y)) return 1;
     cls.lpfnWndProc = window_proc;
     cls.hInstance = GetModuleHandleA(NULL);
     cls.lpszClassName = "CalimochoD3D11PresentProbe";
@@ -56,7 +59,7 @@ int main(void)
     }
     window = CreateWindowExA(WS_EX_NOACTIVATE, cls.lpszClassName,
         "Calimocho D3D11 Present Probe", WS_OVERLAPPEDWINDOW,
-        80, 80, rect.right - rect.left, rect.bottom - rect.top,
+        window_x, window_y, rect.right - rect.left, rect.bottom - rect.top,
         NULL, NULL, cls.hInstance, NULL);
     if (!window)
     {

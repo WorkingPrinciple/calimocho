@@ -1913,3 +1913,73 @@ has not received a second independent review. Neither source checks nor a
 source review grant native input admission. Crash or forced termination
 cannot guarantee clip/cursor cleanup and requires host-state verification
 before returning the input lease.
+
+## 2026-10-24: REQ-78 source-built Vulkan candidate, native gate pending
+
+The coordinator committed the separate Vulkan prerequisite and assigned
+Calimocho in canonical `dragos-core` commit
+`28533b096cd836db448dc265e79d779053a83777`.
+[ADR-0029](ADR/0029-source-built-vulkan-candidate.md) records the supported
+upstream configure/loader seam and isolated source-build decision.
+This port-11 candidate is not a mouse fix.
+
+Official MoltenVK v1.4.2 commit
+`db66022459ffb663aa2b50f6b018bc2e124f5edf` and all seven release-manifest
+Git dependencies were fetched at exact commits and built with installed
+Xcode tools. No prebuilt dependency was used. The resulting dylib is
+x86_64 only, SHA-256
+`533494b0eef1871d79e6b1d9d5faa59c8417232f7d6ecf00c2850ac40247c6cf`.
+Its install ID is `@rpath/libMoltenVK.dylib`; its other imports are system
+libraries/frameworks. The Apache-2.0 licence is retained in the source.
+
+The first dependency packaging attempt failed because the owned job-limit
+wrapper passed `-jobs 4` to `xcodebuild -create-xcframework`. The corrected
+wrapper exempts packaging and resumes the exact sources within the original
+45-minute budget. The failed-attempt receipt retains the error and recorded
+log hashes. The first wrapper revision reused log names on resume, so the
+initial dependency log bytes were overwritten; those historical hashes are
+not presented as currently re-verifiable log files. The repeatable builder
+now uses separate resumed log names.
+
+An isolated copy of the port-10 source/build/install reconfigures successfully
+with `SONAME_LIBVULKAN` set to `@rpath/libMoltenVK.dylib`.
+Narrow win32u, winevulkan, vulkan-1 and winemac compilation succeeds.
+An initial overlay filename error was corrected without rerunning configure:
+the PE module is `winemac.drv`, not `winemac.drv.drv`, and its Unix module
+is `winemac.so`. A complete comparison finds exactly the eleven declared
+Vulkan files changed across 3,913 install entries. The original port-10
+registry still hashes to `13bc00b7f8e1496cd2b02822d75bc00b2b366b37692ff3701db083b45e56c1c4`.
+
+The owned Vulkan probe cross-compiles warning-free. An independent source
+review returned REVISE for native ordering, runner failure propagation,
+negative TLS selection and resumed architecture-log selection.
+Those corrections are implemented; parent review additionally required
+fail-closed missing/malformed CoreGraphics inventories and unknown foreground.
+Fresh geometry validation and negative fixtures cover that boundary.
+The parent independently ran the fifteen focused checks and closed the
+specific source-review and geometry fail-open findings. The original REVISE
+remains part of the history, not a blanket product PASS. All 73 deterministic
+repository checks subsequently pass, including compilation, synthetic
+geometry/receipt failures and original TLS registry invariants.
+
+The parent admitted one bounded passive Vulkan run after the UI boundary
+cleared. Its fresh geometry preflight refused before Wine or prefix creation:
+neither display had a free 400 by 340 region. The read-only inventory is
+retained locally and a short shared UI pause was requested. No window was
+moved and no native ordering or overlap check was bypassed.
+
+The coordinator then allowed overlap with only the exact foreground Ode
+PID/window pair during an explicit UI-input pause. The new negative fixtures
+require this exact identity and still reject other windows of the same
+process or any foreign process. The UI owner confirmed the pair and paused.
+A fresh preflight still found no region: a foreign layer-20 window covered
+the main display, while foreign windows occupied the second display.
+Execution stopped without Wine, prefix creation or another retry, and
+quiescence was returned to the UI owner. This is a desktop-resource blocker,
+not a Vulkan failure or success.
+
+At this checkpoint no Wine or graphics probe has run on the candidate.
+Actual execution still requires a supported current geometry boundary.
+No usable port-11 record, Vulkan/NMS success, mouse correction, release or
+distribution admission is claimed. Existing prefixes, Apple payloads and
+the frozen port-10 install remain untouched.
