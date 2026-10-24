@@ -1,20 +1,20 @@
 # calimocho
 
-> **Archived 2026-06-01.** This repo is a recipe. Use Porting Kit
-> instead. See below.
+> **Source work reactivated, 2026-10-24.** Calimocho is investigating a
+> current Wine runtime selectable through Exodus for Mac. It is not yet
+> a qualified game runtime. For a supported product, consider
+> [CrossOver](https://www.codeweavers.com/crossover).
 >
-> Subnautica 2 plays on Apple Silicon, for free, on a fully FOSS +
-> Apple D3DMetal stack. Calimocho did not build it. Other people did.
-> This README points you at their work, with the two small tweaks the
-> maintainer needed to make it work on his M1 Max on 2026-06-01.
+> The older Porting Kit recipe below records a Steam Subnautica 2 result.
+> It does not establish Xbox compatibility or qualify this source build.
+> See [ADR-0022](docs/ADR/0022-reactivate-isolated-source-builds.md).
 
-![Status: archived](https://img.shields.io/badge/Status-archived-lightgrey)
 ![Use: non-commercial only](https://img.shields.io/badge/Use-non--commercial%20only-orange.svg)
 ![Platform: macOS arm64](https://img.shields.io/badge/Platform-macOS%20arm64-lightgrey)
 
 ---
 
-## Why this repo is archived
+## Historical archive decision (2026-06-01)
 
 Calimocho was going to be a small Mac app that wrapped Wine + Apple's
 Game Porting Toolkit to let you play Subnautica 2 on your Mac without
@@ -36,10 +36,122 @@ posture, and works:
 So per this project's own rules
 ([AGENTS.md rule #3](AGENTS.md) and
 [ADR-0017](docs/ADR/0017-follow-when-foss-exists-lead-when-only-paid-exists.md)),
-calimocho stops shipping a Wine engine and becomes the document below.
+calimocho stopped shipping a Wine engine and became the recipe below.
+The owner has since reactivated isolated source work; this historical
+decision is not a claim that the new runtime is ready.
 
 If you want the full reasoning, read
-[ADR-0020](docs/ADR/0020-pivot-from-engine-to-recipe-archive.md).
+[ADR-0021](docs/ADR/0021-local-runtime-recipes-without-reviving-engine.md).
+
+## Isolated source builds
+
+The current-Wine target is official WineHQ 11.20, pinned in `versions.json`.
+The first integration baseline is public CodeWeavers 26.3 source, which
+contains Wine 11.0. It is not the latest-Wine deliverable. Neither build
+includes Apple payloads or the retired Calimocho D3D11 shim by default.
+Compilation does not establish GPTK ABI compatibility or Xbox gameplay.
+
+Use Python 3.12 or newer for source archive filtering, installed Xcode/CLT,
+bison 3 or newer, flex, make and both MinGW PE compilers. These commands
+never install global packages. Download the exact source URLs from
+`versions.json` into an owned directory first; the scripts verify their
+SHA-256 before extraction. A CodeWeavers archive already retained locally
+can be reused after verification.
+
+```bash
+python3 tools/build_freetype.py \
+  --archive /absolute/path/to/freetype-2.13.3.tar.xz \
+  --output build/dependencies/freetype-x86_64-new
+PATH="/opt/homebrew/opt/bison/bin:$PATH" \
+  python3 tools/build_cw_candidate.py \
+  --archive /absolute/path/to/crossover-sources-26.3.0.tar.gz \
+  --freetype build/dependencies/freetype-x86_64-new/prefix \
+  --output build/cw26.3-new
+```
+
+Every output must be new. Existing outputs are rejected, not removed.
+FreeType has a ten-minute build budget and a local-prefix install step.
+Wine configure/compile has a thirty-minute budget. The default Wine targets
+are loader, server and macOS driver, not a complete runtime. `--build-all`
+compiles all configured runtime/PE targets, without installing or launching.
+Logs and `receipt.json` bind source, source edits, tools and artifact bytes.
+Keep receipts local: they contain absolute paths.
+
+`--winehq-source /absolute/path/to/pristine/wine-checkout` instead uses the
+exact pinned WineHQ commit in a fresh source copy and applies the measured
+experimental public-source D3DMetal port. It rejects a modified input
+checkout and records every changed file and donor hash. This option is an
+integration investigation, not proof of a usable Apple graphics runtime.
+Normal fonts are required. Unresolved TLS, media and graphics dependencies
+are reported by configure, not silently treated as game support.
+
+For a separate Direct3D 10/11 research path, public
+[DXMT](https://github.com/3Shain/dxmt) describes a Metal translation layer
+and is LGPL-2.1-or-later. It is not a Direct3D 12 replacement and has not
+been built or qualified here. Keep any future DX11 build and registry
+record distinct from the current-Wine DX12 candidate.
+
+Current source/build findings are in [the build log](docs/build-log.md).
+Runtime startup is still held in this lane; game runs additionally require
+the canonical route, save-preservation, disk and input-lease checks.
+Subnautica 2's human legal/privacy hold remains unchanged.
+
+## Local Ode/Exodus runtime reference
+
+The exporter does not make Calimocho a distinct engine to select in Ode. This local source
+adapter exports one already installed, explicitly selected free Wine runtime
+from Ode's existing engine registry. Use Python 3.9 or newer:
+
+```bash
+umask 077
+OUTPUT="$(mktemp "${TMPDIR:-/tmp}/selected-runtime.XXXXXX")"
+python3 tools/runtime_recipe.py \
+  --registry "/absolute/path/to/xode-wine/engines/registry.json" \
+  --engine "apple-gptk-4.0b3" > "$OUTPUT"
+printf 'Private export: %s\n' "$OUTPUT"
+```
+
+Paths are examples, not discovery rules. Use the exact name present in your
+registry and a separate output file. No default engine or hidden fallback is
+chosen. A successful export is a schema-version-1 registry with the selected
+record unchanged. It retains the exact Wine/wineserver paths, environment,
+renderer assets, dependencies, overlays, registry imports, and receipts.
+The additional `calimocho_recipe` metadata records the input and full-record
+digests and observed file hashes. It does not change the engine's name.
+
+The existing Ode/Exodus launch adapter consumes this file through
+`--registry "$OUTPUT" --engine apple-gptk-4.0b3`,
+along with its separately admitted `--prefix`, `--runtime-dll`, and
+`--shim-dir` arguments. It remains responsible for full-record prefix
+ownership, fresh-process boundaries, save preservation, and launch admission.
+This exporter has no launch or prefix option. Do not use the retired
+`bin/calimocho-wine` launcher, which injects historical shim defaults.
+
+The exporter checks pinned Wine and asset bytes, records the explicit
+wineserver bytes, and rejects missing or ambiguous selection, malformed
+records, unsafe overlay destinations, and entrypoints escaping the selected
+installation. Directory dependencies are checked for presence, not complete
+content integrity. Existing smoke/trust metadata is preserved as data, never
+executed or promoted to new evidence. Local paths and source URLs are not a
+redistribution licence. Keep exports local.
+The export includes absolute local paths, environment settings, and runtime
+metadata. The restrictive `umask` and `mktemp` keep this example private to
+your account. Do not share, upload, or commit the export; delete it when it is
+no longer needed.
+
+The Steam recipe below is historical Steam evidence, not Xbox evidence.
+Neither this exporter nor file presence proves graphics, a game launch,
+engine switching, or save reload. The owner-directed source work does not
+authorize a Subnautica 2 launch or game/prefix mutation. See
+[ADR-0021](docs/ADR/0021-local-runtime-recipes-without-reviving-engine.md)
+and [troubleshooting](docs/troubleshooting.md).
+
+Focused checks run without executing Wine or changing any real prefix:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+  -s tests -p 'test_runtime_recipe.py'
+```
 
 ## The recipe (verified 2026-06-01, M1 Max, macOS 15.x)
 
@@ -199,4 +311,4 @@ trying to do similar work:
 [`docs/handover-2026-06-01-end-of-day.md`](docs/handover-2026-06-01-end-of-day.md)
 is the postmortem of why building a competing Wine engine was the
 wrong call when Sikarugir + PK already exist. The detailed reasoning
-is in [ADR-0020](docs/ADR/0020-pivot-from-engine-to-recipe-archive.md).
+is in [ADR-0021](docs/ADR/0021-local-runtime-recipes-without-reviving-engine.md).

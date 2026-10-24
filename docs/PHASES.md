@@ -1,9 +1,13 @@
 # calimocho — Development Phases
 
-> **Status as of 2026-06-01: project archived per
-> [ADR-0020](ADR/0020-pivot-from-engine-to-recipe-archive.md).**
-> The recipe in the [README](../README.md) supersedes Phases 1-6.
-> The history below is preserved as the record of what was planned.
+> **Status as of 2026-10-24: owner-directed source work reactivated.**
+> [ADR-0022](ADR/0022-reactivate-isolated-source-builds.md) supersedes
+> the archive-only scope for an isolated current-Wine/Exodus investigation.
+> The single canonical program scope is
+> `dragos-core projects/ode-to-x/SPEC.md`, COR-36 / REQ-69.
+> The history below remains the original phase plan, not current acceptance.
+> Source compilation and the earlier registry exporter do not complete a
+> runtime, graphics, game, distribution or historical phase gate.
 
 > Six phases, each independently shippable. Each phase has explicit
 > acceptance criteria (see SPECS.md sections A0-A5). Phase N cannot

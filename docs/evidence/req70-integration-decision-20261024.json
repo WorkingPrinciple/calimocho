@@ -1,0 +1,192 @@
+{
+  "requirement": "REQ-70",
+  "observedDate": "2026-10-24",
+  "decision": "Latest official Wine is the final target. Use the verified CodeWeavers baseline only as an intermediate integration reference; port the coherent required macOS graphics integration onto the current pinned upstream source and qualify it with installed Xbox games.",
+  "publicPortChecks20261024": {
+    "method": "Direct unauthenticated-content GitHub REST reads through gh and vendor-page reads; no downloaded candidate executed.",
+    "sikarugirWine": {
+      "url": "https://github.com/Sikarugir-App/wine",
+      "commit": "840a939ee526137639665ff5f587224d6a36403f",
+      "versionFile": "Wine version 11.20",
+      "commitDate": "2026-10-19T16:32:57Z",
+      "comparison": "GitHub compare against pinned upstream 7298a818b79446bae153b8d5aa27235ab3703bf9 reports 20 commits ahead, zero behind; returned changed-file list has no winemac.drv integration files.",
+      "macdrvDirectory": "No d3dmetal.c or d3dmetal Objective-C files listed at inspected master.",
+      "conclusion": "A current-version public fork is not evidence of a ready D3DMetal integration; no replacement bridge established here."
+    },
+    "sikarugirEngines": {
+      "url": "https://github.com/Sikarugir-App/Engines/blob/main/EngineList.txt",
+      "observedEntries": [
+        "WS12WineSikarugir11.0_1",
+        "WS12WineSikarugir10.0_8",
+        "WS12WineCX24.0.7_7"
+      ],
+      "conclusion": "Published engine labels differ from the fork VERSION; inspect exact engine source composition before any reuse."
+    },
+    "sikarugirWrapper": {
+      "url": "https://github.com/Sikarugir-App/Sikarugir",
+      "observed": "README requires Rosetta on Apple Silicon; lists D3DMetal for D3D11/12 and DXMT for D3D10/11; identifies separate LGPL and non-LGPL wrapper components.",
+      "conclusion": "Do not infer native-arm64 Wine or all-wrapper open-source reuse from Apple Silicon support."
+    },
+    "gcenxToolkit": {
+      "url": "https://github.com/Gcenx/game-porting-toolkit",
+      "mainCommit": "2e232b59da4612f2f131bd2f690d70d8fbdf9b87",
+      "mainVersion": "Wine version 7.7",
+      "latestReleaseObserved": "Game-Porting-Toolkit-3.0-3",
+      "releaseDate": "2026-03-03T13:14:18Z",
+      "conclusion": "Release label/date does not make this an upstream Wine11.20 bridge donor; historical reference only."
+    },
+    "portingKit": {
+      "url": "https://www.portingkit.com/pub/portingkit_dev/download_latest.php?format=changelog",
+      "observed": "6.6.1 adds Sikarugir engine support; 6.7.0 says proper Silicon builds; 6.3.0 adds D3DMetal renderer configuration.",
+      "conclusion": "Wrapper integration evidence, not an independently established latest-Wine source patch set or Xbox compatibility."
+    },
+    "dxmt": {
+      "url": "https://github.com/Sikarugir-App/dxmt",
+      "observed": "README identifies Direct3D 10 and 11 translation.",
+      "conclusion": "Not a DX12 replacement for installed Hogwarts/Subnautica2 acceptance."
+    },
+    "executionPlan": [
+      "Keep sole Calimocho writer and canonical REQ69/70/72 ownership; record user approval/corrections in the existing SPEC.",
+      "Use directly inspected CW26.3 source integration as donor; enumerate coupled macdrv/client-surface/loader/ntdll changes against current pinned Wine before applying patches.",
+      "Build a target-architecture complete runtime and test actual graphics ABI; record failures rather than equating module compilation with readiness.",
+      "Existing runtime/game owners qualify isolated installed Hogwarts DX12 render/input/quit/relaunch/save; Subnautica2 legal consent remains separate."
+    ]
+  },
+  "why": [
+    "Vanilla WineHQ 11.20 lacks the inspected macdrv D3DMetal bridge.",
+    "The inspected CodeWeavers bridge is LGPL source, not an assumed closed integration layer.",
+    "Its callback/window/client-surface/loader integration is broader than three files; wholesale copy into WineHQ is unqualified.",
+    "The local Apple evaluation environment explicitly requires a custom Wine translation environment.",
+    "A successful WineHQ server-only compile does not supply a loader, graphics path or complete game runtime."
+  ],
+  "sourceBaselines": {
+    "winehq": {
+      "url": "https://gitlab.winehq.org/wine/wine.git",
+      "tag": "wine-11.20",
+      "tagObject": "b117f32aada84ede119f6c5e7ec385f16315d6f6",
+      "commit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+      "tree": "c616492cbb57e71339abf5d67179d3073de9d1a2",
+      "latest11xTagObserved": true,
+      "macosRequirementsSource": "https://raw.githubusercontent.com/wine-mirror/wine/7298a818b79446bae153b8d5aa27235ab3703bf9/README.md",
+      "intelHomebrewMandatory": false,
+      "configuredWithInstalledToolchain": true,
+      "normalConfigureFailure": "Missing 64-bit FreeType development files.",
+      "serverOnlyCompile": "Succeeded with FreeType explicitly disabled; not a game candidate."
+    },
+    "codeweavers": {
+      "url": "https://media.codeweavers.com/pub/crossover/source/crossover-sources-26.3.0.tar.gz",
+      "archive": "<research-downloads>/crossover-sources-26.3.0.tar.gz",
+      "sha256": "ac99c8ca4b3848f3e81784135f023df266b61c2345726ea55a50b3e030dd6872",
+      "sourceRoot": "<calimocho-worktree>/build/cw26.3-comparison/sources/wine",
+      "wineVersion": "11.0",
+      "license": "Wine LGPL-2.1-or-later; actual d3dmetal.c header read directly.",
+      "bridge": {
+        "path": "dlls/winemac.drv/d3dmetal.c",
+        "compileGuard": "__x86_64__",
+        "callbackStructSizeBytes": 192,
+        "windowStructSizeBytes": 120,
+        "clientSurfaceIntegrationRequired": true
+      },
+      "sourceOwnerComparison": {
+        "macdrvCodeweaversOnlyFiles": 6,
+        "macdrvChangedCommonFiles": 30,
+        "ntdllUnixChangedCommonFiles": 22,
+        "msyncCodeweaversOnly": true,
+        "nonNativeCodeRegionLoaderIntegration": true,
+        "comparisonIsNotPatchApplicabilityProof": true
+      },
+      "latestVendorSourceReleaseIndependentlyEstablished": false,
+      "paidCrossOverPayloadRedistributionGranted": false
+    }
+  },
+  "appleToolkit": {
+    "officialOverview": "https://developer.apple.com/games/game-porting-toolkit/",
+    "officialOverviewObserved": "Game Porting Toolkit 4 and Metal 4 support.",
+    "userProvidedImage": "~/Downloads/Game_Porting_Toolkit_4.0_beta_3.dmg",
+    "imageSha256": "32ce206597e392267574a6c423ef80b9eab8b3c710d8957f011d2b106393b87b",
+    "imageChecksums": "hdiutil verify PASS; checksums establish integrity, not publisher provenance.",
+    "outerImageCodeSignature": "Unsigned image; not interpreted as automatic CLI execution rejection.",
+    "evaluationImage": "Evaluation environment for Windows games 4.0 beta 3.dmg",
+    "licenseSha256": "5abb2d059be217663b00e8fd37e14411d374e11d17e3b744eebd49b8d17118c8",
+    "readmeSha256": "87fd7a447a0a10f7bce894a3c8f5436a79b0778aa5e441a42860e91bc1cbd2cc",
+    "termsReadDirectly": true,
+    "termsSummaryNotLegalClearance": {
+      "2A": "Development, testing and evaluation on Apple-branded products; conditional noncommercial distribution in subsection iii.",
+      "2C": "Framework in entirety or parts of redist may be distributed separately subject to the agreement and noncommercial restriction.",
+      "2D": "Restrictions include modification and reverse engineering except applicable-law or open-source-license exceptions.",
+      "noSilentAgreementAcceptance": true,
+      "odeCommercialDistributionCleared": false,
+      "currentTermsAreNotBlanketNoRedistribution": true
+    },
+    "readmeObserved": {
+      "minimumEvaluationOS": "macOS 15 Sequoia",
+      "hardware": "Apple Silicon",
+      "customWineRequired": true,
+      "communityIntegrationReferences": [
+        "https://github.com/Gcenx/homebrew-wine",
+        "https://github.com/Gcenx/game-porting-toolkit",
+        "https://www.codeweavers.com/crossover"
+      ],
+      "securityBypassExamplesNotExecuted": true,
+      "gpuCaptureDocumentationRequiresSIPChange": "Not authorized or required here; do not use that route."
+    },
+    "actualPayload": {
+      "libd3dsharedPath": "redist/lib/external/libd3dshared.dylib",
+      "libd3dsharedArchitecture": "Mach-O x86_64",
+      "libd3dsharedSha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+      "libd3dsharedSigningAuthorities": [
+        "Software Signing",
+        "Apple Code Signing Certification Authority",
+        "Apple Root CA"
+      ],
+      "signatureCryptographicallyVerified": true,
+      "signatureCheck": "codesign --verify --strict returned exit 0 on the local libd3dshared dylib.",
+      "d3d12Path": "redist/lib/wine/x86_64-windows/d3d12.dll",
+      "d3d12Architecture": "PE32+ x86-64",
+      "d3d12Sha256": "02aa673497ff8694b41f976e194a920468e54897f3546ed1cd4c1b3a97179735",
+      "copiedOrExecuted": false
+    },
+    "exactABICompatibilityWithCodeweavers263": "Not established by static layout alone; requires an isolated actual loader/graphics probe.",
+    "newerAppleEvaluationArtifactAvailable": "Unknown; local beta 3 identified, no claim it is the newest download."
+  },
+  "architectureDecision": {
+    "firstTarget": "x86_64 macOS Wine and Windows x64 PE under Rosetta on Apple Silicon, matching actual inspected bridge and Apple payload.",
+    "intelMacRunsAppleGraphics": "Not established; x86_64 architecture does not establish Intel hardware support.",
+    "nativeArm64MacWine": "Separate investigation; not substituted for the x86_64 D3DMetal path.",
+    "windowsArm64ec": "Distinct from host architecture and not implied by upstream relay-debug improvements.",
+    "armHomebrewFreetype": "arm64 library exists but is not a valid x86_64 link dependency.",
+    "dependencyPlan": "Build required target-architecture dependencies into research-owned paths after precise configure failures; do not use global Intel Homebrew as a speculative prerequisite."
+  },
+  "nextBuildProbes": [
+    "Keep CodeWeavers source pristine and inventory its macdrv, client-surface, loader and ntdll integration as a coherent baseline; do not apply Calimocho's retired D3D11 replacement shim.",
+    "Resolve isolated x86_64 FreeType with verified source provenance and compile it before restoring normal font-enabled configure; disclose other missing security/audio/media features rather than silently disabling them.",
+    "Compile loader, wineserver, macdrv and required PE modules on the integrated baseline; bind every patch/source/toolchain/artifact identity.",
+    "Only after candidate and REQ-71 route admission, run an isolated built-in then a graphics probe with untouched licensed local Apple components; stop on actual ABI/loader errors.",
+    "Treat forward-porting the integrated bridge onto WineHQ 11.20 as a measured follow-on. Do not claim latest-Wine delivery from a Wine 11.0 compatibility baseline."
+  ],
+  "gameEvidence": {
+    "hogwarts": {
+      "storeId": "9MT5NJ5W7B8Z",
+      "installedVersion": "1.0.16.0",
+      "executable": "Phoenix/Binaries/WinGDK/HogwartsLegacy.exe",
+      "historicalImagePersonallyViewed": "<private-session-artifacts>/s3-hogwarts-world-outside-1000.png",
+      "imageObserved": "Visible game world and HUD D3D12 Metal 4 / GPTK 4.0b3 / 42 FPS / M5 Max.",
+      "currentCandidateVerified": false,
+      "source": "Private local runtime evidence, not public community testimony."
+    },
+    "subnautica2": {
+      "storeId": "9PJPCB188SVG",
+      "version": "0.13.1439.0",
+      "historicalStage": "Terms/privacy screen only.",
+      "humanLegalConsentHold": true,
+      "steamRecipeNotXboxProof": true
+    }
+  },
+  "publicResearchLimitations": [
+    "First public-research report contained contradicted claims about GPTK4, published CodeWeavers integration, licensing and private Xbox route readiness; those claims were rejected.",
+    "Correction pass verified Apple's GPTK4 page and retracted blanket closed-source and no-redistribution claims.",
+    "No exact attributable public Subnautica 2 Xbox success record was verified in this research pass; absence of found public reports is not incompatibility.",
+    "No current native-ARM CrossOver shipping capability or social-report matrix was independently qualified.",
+    "Use primary local source/artifact evidence for build decisions; additional community anecdotes cannot substitute for actual candidate testing."
+  ]
+}

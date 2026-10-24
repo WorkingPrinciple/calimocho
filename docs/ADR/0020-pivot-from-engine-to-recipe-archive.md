@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted, 2026-06-01.
+Accepted, 2026-06-01. The archive-only decision is superseded by
+[ADR-0022](0022-reactivate-isolated-source-builds.md) for owner-directed
+isolated source builds. This record remains the historical reason for the
+2026-06-01 archive pivot; its Steam result is not Xbox compatibility proof.
 
 ## Date
 

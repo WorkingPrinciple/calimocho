@@ -3,6 +3,123 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-24: reactivated isolated source builds (REQ-69)
+
+The owner reactivated source work under ADR-0022 and canonical COR-36.
+No result below is a runtime/game qualification.
+
+1. Verified official WineHQ 11.20 commit
+   `7298a818b79446bae153b8d5aa27235ab3703bf9`, Git tree
+   `c616492cbb57e71339abf5d67179d3073de9d1a2`. Normal x86_64 configure
+   failed because x86_64 FreeType was absent. Native Homebrew FreeType
+   is arm64, so it cannot fill that dependency.
+2. One explicitly fontless server-only diagnostic compiled
+   `server/wineserver`, SHA-256
+   `fe00f03fc0c7548d715f33b6a2dcce337c0cd9281ac8e666599157fa630db5c6`.
+   This cannot render a game and is not a candidate. No more features
+   were disabled to manufacture a usable-engine result.
+3. REQ-70 recommended a coherent CodeWeavers 26.3 graphics integration
+   baseline before a measured forward port to current WineHQ.
+   Rehashed archive:
+   `ac99c8ca4b3848f3e81784135f023df266b61c2345726ea55a50b3e030dd6872`.
+   Its Wine VERSION is 11.0. Its bundled FreeType configure/build failed
+   because `subprojects/dlg` was missing. The failed tree is retained.
+4. Built the complete official FreeType 2.13.3 release, archive SHA-256
+   `0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289`,
+   with Apple clang targeting x86_64. Isolated `libfreetype.6.dylib`:
+   `0232db652042c84271e1f07d463e9c93ffb5a758fdb32042a328d4eacf872d05`.
+   Linkage is its local prefix plus system zlib/libSystem, no Intel
+   Homebrew requirement. No global package was installed.
+5. CW normal font-enabled configure succeeded. Initial macOS component
+   compile failed at `win32u/vulkan.c:3009`: CW's Vulkan override used
+   undefined `SONAME_LIBVULKAN` when configure found no Vulkan loader.
+   Guarded that absent macro and kept explicit failure logging. This
+   supplies no Vulkan implementation. First patch retry failed because
+   the unified-diff hunk count was wrong; corrected it and retained
+   that failed output too.
+6. Fresh `build/cw26.3-candidate-03` configured and compiled the loader,
+   server and macdrv in 28.879 seconds, with the donor's 192-byte
+   callback and 120-byte legacy-window assertions enabled. Patch:
+   `eaae968780854d6e2880408a3d94ab315a58ae91293216124ef10098d48e2c9c`.
+   Pristine source-tree digest:
+   `ca90321a6161104f0a1000579de0c214c3b820e51be4be1323b9cfee6da59b70`.
+   Patched source-tree digest:
+   `aa252d0c679a589c8a88f018229981c6452908fae159f18f75f794fc14292a67`.
+
+| Component | Architecture | SHA-256 |
+|---|---|---|
+| loader/wine | x86_64 Mach-O | `9004950d1f1ae32471f89abe318eb6e451343e8af8cc46101de556570cdd3931` |
+| server/wineserver | x86_64 Mach-O | `5c325eee6ae11dcd6fc23777db2f707434d1152da72484f70404d3081b209068` |
+| winemac.so | x86_64 Mach-O | `dfc7982c3ce692ec9c4fe49e9ac54b5561a005e22ab6144623819bed4e295f03` |
+
+All commands, logs, per-file identities and observed linkage remain in
+local build receipts. The newer runner also resolves actual Xcode tools
+with `xcrun`: `/usr/bin/clang` and `/usr/bin/make` are the same dispatch
+shim on this host, so hashing only those paths does not identify the
+actual compiler and make. Installed MinGW, bison, flex and SDK are recorded.
+
+WineHQ 11.20's official tag was rechecked against WineHQ on this date:
+`b117f32aada84ede119f6c5e7ec385f16315d6f6` remains the highest 11.x tag.
+Its macdrv changed opaque types to typed Objective-C pointers, changed
+client-surface construction and removed the old window pixel-format field.
+The measured port must include callback transport, surface lifetime,
+Cocoa layer presentation, PE-region notifications and calling-convention
+adapters. Copying three D3DMetal source files is not sufficient.
+
+The interrupted candidate-04 full `make -j4` log ends with `Wine build
+complete.` The process ended before the runner could update its receipt,
+which still reports the configure step as the latest recorded step. Its
+completed artifacts were independently identified locally:
+
+| Component | Architecture | SHA-256 |
+|---|---|---|
+| loader/wine | x86_64 Mach-O | `6b56c74fe6e3737dd2788bda6ce90af60600e77a5203de764c7501f263489c86` |
+| wineserver | x86_64 Mach-O | `232b612bfd3d3bc4ca286dbc8950f4bc6695420e2ca02bca7cff6fe23f7930c0` |
+| winemac.so | x86_64 Mach-O | `9b04588f045ee29939484a8bf5c9cdb810dd496d95ca737275b094e2ace47669` |
+| ntdll.so | x86_64 Mach-O | `47f8c3083225d97dd0fd4a6bfea83d9c0853aa339b77a9f29ecd72ce95fa32e0` |
+| win32u.so | x86_64 Mach-O | `84a74bbc49c9634b42a79dc380fd014aa06140ac03a8ed3419b10636bf805827` |
+| ntdll.dll | x86_64 PE | `b97a66687729651747746842a9d59175250ba328ee9a0461e95c92507d294476` |
+| kernel32.dll | x86_64 PE | `0cd806ea70a4e0d9853c638fb8ef050357bc349cc6acc786a8f629eed729b371` |
+| winemac.drv | x86_64 PE | `c34597b9bdf58195ec6d80df82c6ac70a33d92d9198c20f6653a89b03b0d0acf` |
+| wineboot.exe | x86_64 PE | `7bf584797d9376e5ab0198f01bcee3c7cef163fcd64b97652f473bf926eedc88` |
+
+This is a full source compile, not an installed or executed runtime.
+No Apple payload was copied and no Wine executable was launched.
+
+The first measured WineHQ 11.20 forward-port applies the CW bridge and its
+coupled seams to a fresh source snapshot. Three early compile attempts
+exposed and corrected ObjC header contamination, missing WinReg declarations,
+and private `RegCloseKey` name conflicts. The next bounded candidate compiled
+the x86_64 loader/server/macdrv/ntdll/win32u plus x86_64 ntdll, kernel32 and
+winemac PE modules. Receipt:
+`build/winehq-11.20/metal-port-05/receipt.json`.
+The patched source tree SHA-256 is
+`72ee65e26bfa957b8217c5c20bc66542b591d19b82be750bfeba011505293960`;
+the port transformer SHA-256 is
+`24566527dcba1a46b5cad2763695c622f40e9f6bb36a97c15c6344e155356c27`.
+The receipt binds the 19 edited upstream files and nine x86_64 ms-ABI
+wrappers to public CW donor-file digests. The copied D3DMetal code remains
+guarded to x86_64, matching the inspected Apple bridge architecture.
+
+Public DXMT source was checked as a separate potential DX11 route. Its README
+describes Direct3D 10/11 translation; the LGPL-2.1-or-later license is
+present in its main branch. The observed upstream main revision is
+`a148782d431249405acdb1531dbb0c7e737bbece`; the Sikarugir mirror main
+revision is `50102f994b406f58f56d5d09f2ad20f9b90390a2`. Neither DXMT revision
+was built. It is not a DX12 option and is not a qualified candidate.
+
+The next latest-Wine full build is underway in
+`build/winehq-11.20/metal-port-06/`; its outcome must be taken from the
+receipt, not inferred from this note. DX11 and DX12 may have separate
+runtime records. The 11.20 port does not depend on DX11 parity or on the
+retired D3D11 override shim.
+
+Known unresolved features include GnuTLS/schannel, Vulkan/MoltenVK and
+GStreamer. No Wine process or Apple payload has been executed, no Apple
+payload copied, and no existing runtime, prefix, save or account modified.
+Current-Wine integration, Apple ABI compatibility, isolated runtime
+startup and actual Xbox DX12 gameplay remain open.
+
 ## 2026-05-31 — Session 1: discovery + planning
 
 ### What we learned
@@ -273,7 +390,7 @@ to the NSWindow's Metal layer.
 
 Findings on PK/CX comparison:
 - PK ships **gcenx's wine-private wined3d-based d3d11.dll** in the
-  bottle (sourced from `/Users/gcenx/Documents/GitHub/wine-private/`),
+  bottle (sourced from an upstream local build tree),
   NOT real DXVK. It's the same wined3d code as our Wine 11 builtin.
 - PK wraps wine with `wineskinlauncher` (Wineskin) which sets
   `MVK_ALLOW_METAL_FENCES=1`, `MVK_CONFIG_VK_SEMAPHORE_SUPPORT_STYLE=

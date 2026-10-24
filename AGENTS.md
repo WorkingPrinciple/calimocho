@@ -3,6 +3,40 @@
 > Read this before changing anything. Applies to humans and AI agents.
 > If a rule conflicts with what feels expedient, the rule wins.
 
+## Owner-directed reactivation (2026-10-24)
+
+The owner explicitly retired the outdated archived constitution and directed
+reuse of the Calimocho name for source-built runtimes usable through Exodus
+for Mac. This mandate supersedes the old no-rebuild/archive, CodeWeavers-only
+source, intentional feature/release restrictions, and old phase-order rules
+only as necessary for that work. Historical sections below remain context,
+not a prohibition on this authorized source-build investigation.
+
+Build from lawful source, never from copied proprietary CrossOver binaries.
+WineHQ and CodeWeavers sources are both candidates. Pin Git sources to an
+exact verified commit; pin downloaded source archives by SHA-256 before use.
+Keep the source and build isolated, retain diagnostics and source identity,
+and do not mistake compilation for game compatibility.
+
+The first authorized slice was a maximum 30-minute configure/compile probe
+using installed tools. Canonical COR-36 / REQ-69 now permits continued
+bounded isolated source builds, including source-built local dependencies
+inside owned build directories. Current upstream Wine remains the target;
+CodeWeavers 26.3 / Wine 11.0 is an integration baseline, not its replacement.
+No global dependency installs, runtime installation,
+security/signing/quarantine changes, credentials, Apple licence acceptance,
+game launch, or existing prefix/save changes are authorized by this slice.
+Parent coordination owns runtime and game admission. Subnautica 2 is first;
+another installed Xbox DirectX 12 game is a fallback target, not permission
+for this child to launch it.
+
+Use the existing Ode/Exodus engine contract, not a new engine enum or hidden
+fallback. Do not reintroduce the retired D3DMetal shim by default. Assess
+upstream macOS and renderer integration against the exact source instead.
+The canonical program requirements remain in
+`dragos-core projects/ode-to-x/SPEC.md`; do not create a competing SPEC.
+See [ADR-0022](docs/ADR/0022-reactivate-isolated-source-builds.md).
+
 ## North star
 
 calimocho exists to let the maintainer (and people in the same situation) run

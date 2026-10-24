@@ -1,5 +1,38 @@
 {
   "_doc": "Single source of truth for upstream URLs + sha256 pins. Read by scripts/fetch-sources.sh and .github/workflows/upstream-watch.yml.",
+  "freetype_source": {
+    "version": "2.13.3",
+    "url": "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz",
+    "sha256": "0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289",
+    "checksum_source": "https://raw.githubusercontent.com/buildroot/buildroot/2025.02/package/freetype/freetype.hash",
+    "license": "FTL or GPL-2.0; retained docs/LICENSE.TXT"
+  },
+  "dxmt_reference": {
+    "_doc": "Public Direct3D 10/11 Metal translation-layer reference only. Not a current runtime dependency or built candidate.",
+    "repository": "https://github.com/3Shain/dxmt",
+    "mirror": "https://github.com/Sikarugir-App/dxmt",
+    "upstream_main_commit_observed": "a148782d431249405acdb1531dbb0c7e737bbece",
+    "mirror_main_commit_observed": "50102f994b406f58f56d5d09f2ad20f9b90390a2",
+    "license": "LGPL-2.1-or-later",
+    "scope": "Direct3D 10/11; not a Direct3D 12 replacement"
+  },
+  "cw_candidate_sources": {
+    "crossover_release": "26.3.0",
+    "wine_version": "11.0",
+    "url": "https://media.codeweavers.com/pub/crossover/source/crossover-sources-26.3.0.tar.gz",
+    "sha256": "ac99c8ca4b3848f3e81784135f023df266b61c2345726ea55a50b3e030dd6872",
+    "freetype_version": "2.13.3",
+    "license": "Component licences retained in source archive"
+  },
+  "winehq_probe": {
+    "_doc": "Owner-authorized isolated source compile probe. Git object identity is checked before configuring; no retired Calimocho patches or Apple payloads.",
+    "version": "11.20",
+    "repository": "https://gitlab.winehq.org/wine/wine.git",
+    "tag": "wine-11.20",
+    "tag_object": "b117f32aada84ede119f6c5e7ec385f16315d6f6",
+    "commit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+    "license": "LGPL-2.1+"
+  },
   "cx_sources": {
     "_doc": "CodeWeavers' LGPL Wine source drop. Published at codeweavers.com/crossover/source.",
     "crossover_release": "26.1.0",
