@@ -352,6 +352,50 @@ compatibility verdict. The next discriminator must select matching GPTK PE
 and Unix modules without modifying the installed payload; do not repeat
 redist-first `WINEDLLPATH` alone.
 
+### startup-gfx-05: isolated installed-module layout
+
+The WineHQ 11.20 build was installed with `make -j4 install` into a fresh
+research-owned prefix. The install's five x86_64 Wine PE modules
+(`d3d10.dll`, `d3d11.dll`, `d3d12.dll`, `d3d12core.dll`, and `dxgi.dll`)
+were moved into `install/research-wine-originals/` and retained. Their
+installed paths and the corresponding x86_64 Unix-module paths were then
+symlinked to the installed GPTK redist. `install/lib/external` was also
+symlinked to the redist's `lib/external`. No GPTK file was copied, modified,
+or re-signed. The probe environment had no `WINEBUILDDIR` or `WINEDLLPATH`,
+so this run used the installed `bin/wine` without the build-tree module
+precedence seen in startup-gfx-04.
+
+The fresh prefix initialized successfully, and Wine's load trace reported
+the D3D12, DXGI, and D3D12Core PE modules as builtins. The direct D3D12
+probe then faulted on a null read at `00007FF8183B31E3`, started WineDbg,
+and timed out after 60 seconds before reporting a `D3D12CreateDevice`
+HRESULT. The D3D12 conformance command exited 5 without a test summary.
+There was no `vulkan-1.dll` or `vkd3d` evidence in either graphics-command
+log; WineVulkan appeared during wineboot only. The logs did not establish
+that GPTK's Unix modules or `libd3dshared.dylib` loaded, so this is not a
+D3DMetal-path or compatibility pass. The observed page fault is the first
+graphics error; its origin is not established by this probe.
+
+| Evidence | Result |
+|---|---|
+| Attempt / local receipt | `startup-gfx-05`; `build/winehq-11.20/metal-port-06/startup-gfx-05/receipt.json` (ignored) |
+| Wine source commit / patched tree SHA-256 | `7298a818b79446bae153b8d5aa27235ab3703bf9` / `72ee65e26bfa957b8217c5c20bc66542b591d19b82be750bfeba011505293960` |
+| Installed Wine version | `wine-11.20` |
+| Wineboot | exit 0 in 10.677 seconds |
+| Wineboot stderr SHA-256 | `0a99d77fbee9734e18272bd924b870195b2b439ba7a2cae8c7ad48f117045bf5` |
+| First D3D12 probe | timed out at 60 seconds after null-read page fault; no HRESULT |
+| Probe stdout / stderr SHA-256 | `264825d7b30134af2d05da580c485ecca4550a323166e446cd944e2f49157007` / `ac1d4d66272c5fc2b18934c36e747a3b9af34b5f1c603f69f36313b76f037dd0` |
+| D3D12 conformance | exit 5; no stdout or test summary |
+| Test stdout / stderr SHA-256 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` / `1e7de8dafb5beb5e89c2925c520cac6367de0cd49f17a2b78a3d1e46ab26f6bd` |
+| Prefix-scoped `wineserver -k` / residual isolated Wine processes | exit 0 / none |
+| GPTK payload hashes before and after | unchanged; all module, bridge, and framework hashes are in the ignored receipt |
+| Local receipt SHA-256 | `6fe481b93f01579d55618c6727aa77a1c9fd344dfda40143d400bc844856b0f1` |
+
+This layout removed build-tree precedence and avoided Vulkan/vkd3d in the
+graphics probe, but neither a D3D12 device result nor GPTK Unix-module load
+was established. Preserve the crash logs and do not treat conformance exit
+5 as a test pass.
+
 ## 2026-05-31 — Session 1: discovery + planning
 
 ### What we learned
