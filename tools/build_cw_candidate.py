@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -215,19 +216,31 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
     ]
     if winehq_source is not None:
         interposer_source = REPO / "tools/native_gs_localtime.c"
-        interposer = directory / "libnative-gs-localtime.dylib"
+        interposer = directory / "loader/libnative-gs-localtime.dylib"
+        interposer.parent.mkdir(exist_ok=True)
         receipt["native_gs_interposer_source"] = {
             "path": str(interposer_source), "sha256": sha256(interposer_source),
         }
         receipt["runtime_environment"] = {
-            "DYLD_INSERT_LIBRARIES": str(interposer),
             "DYLD_FALLBACK_LIBRARY_PATH": f"{freetype / 'lib'}:/usr/lib",
             "WINEDLLOVERRIDES": "mscoree,mshtml=",
         }
+        receipt["runtime_dependencies"] = [{
+            "path": str(interposer),
+            "install_relative_path": "lib/wine/x86_64-unix/libnative-gs-localtime.dylib",
+            "loader_dependency": "@loader_path/libnative-gs-localtime.dylib",
+            "required_load_command": "LC_LOAD_DYLIB",
+        }]
         steps.append(("native-gs-interposer", [
             "/usr/bin/clang", "-arch", "x86_64", "-dynamiclib",
-            "-Wall", "-Wextra", "-Werror", "-o", str(interposer),
+            "-Wall", "-Wextra", "-Werror",
+            "-Wl,-install_name,@loader_path/libnative-gs-localtime.dylib",
+            "-o", str(interposer),
             str(interposer_source),
+        ]))
+        steps.append(("native-gs-loader-link", [
+            "/usr/bin/make", "-W", "loader/main.o", "loader/wine",
+            f"LDFLAGS={environment['LDFLAGS']} -Wl,-needed_library,{interposer}",
         ]))
     for label, command in steps:
         remaining = 1800 - (time.monotonic() - started)
@@ -242,11 +255,21 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
             print(f"{label} failed ({step['exit_code']}): {output / f'{label}.log'}",
                   file=sys.stderr)
             return step["exit_code"] if step["exit_code"] > 0 else 1
+    if winehq_source is not None:
+        load_commands = subprocess.check_output(
+            ["otool", "-l", str(directory / "loader/wine")], text=True, timeout=30)
+        if not re.search(
+            r"\bcmd LC_LOAD_DYLIB\s+cmdsize \d+\s+"
+            r"name @loader_path/libnative-gs-localtime\.dylib \(offset \d+\)",
+            load_commands,
+        ):
+            raise ValueError("Wine loader is missing its required native-GS LC_LOAD_DYLIB")
+        receipt["native_gs_loader_load_commands"] = load_commands
     receipt["artifacts"] = []
     artifacts = (FULL_ARTIFACTS if build_all else
                  PORT_CHECK_ARTIFACTS if port_check else COMPONENT_ARTIFACTS)
     if winehq_source is not None:
-        artifacts += ("libnative-gs-localtime.dylib",)
+        artifacts += ("loader/libnative-gs-localtime.dylib",)
     for relative in artifacts:
         path = directory / relative
         if not path.is_file() or not path.stat().st_size:

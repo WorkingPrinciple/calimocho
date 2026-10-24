@@ -11,17 +11,27 @@
 
 /* Darwin localtime's TSD slot overlaps the mirrored Windows PEB pointer. */
 static __thread struct tm localtime_buffer;
+static __thread char ctime_buffer[26];
 
 static struct tm *native_gs_localtime(const time_t *value)
 {
     return localtime_r(value, &localtime_buffer);
 }
 
+static char *native_gs_ctime(const time_t *value)
+{
+    struct tm calendar;
+
+    if (!localtime_r(value, &calendar)) return NULL;
+    return asctime_r(&calendar, ctime_buffer);
+}
+
 static const struct
 {
     const void *replacement;
     const void *original;
-} localtime_interpose __attribute__((used, section("__DATA,__interpose"))) =
+} time_interpose[] __attribute__((used, section("__DATA,__interpose"))) =
 {
-    (const void *)native_gs_localtime, (const void *)localtime
+    { (const void *)native_gs_localtime, (const void *)localtime },
+    { (const void *)native_gs_ctime, (const void *)ctime }
 };

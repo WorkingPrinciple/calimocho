@@ -229,6 +229,11 @@ class SourceBuildTests(unittest.TestCase):
         def check_output(command, **kwargs):
             if command[0] == "git":
                 return f"{pin}\n" if "rev-parse" in command else ""
+            if command[:2] == ["otool", "-l"]:
+                return (
+                    "cmd LC_LOAD_DYLIB\ncmdsize 80\n"
+                    "name @loader_path/libnative-gs-localtime.dylib (offset 24)\n"
+                ) if mode != "missing-load-command" else "cmd LC_LOAD_WEAK_DYLIB\n"
             return self.check_output(command, **kwargs)
 
         def archive(command, **kwargs):
@@ -239,11 +244,16 @@ class SourceBuildTests(unittest.TestCase):
                 for name in ("configure", "VERSION"):
                     stream.add(staging / name, arcname=name)
 
-        for mode in ("success", "compiler-failure", "missing-artifact"):
+        for mode in (
+            "success", "compiler-failure", "loader-link-failure",
+            "missing-artifact", "missing-load-command",
+        ):
             output = self.root / mode
 
             def run(command, directory, environment, log, timeout):
                 if command[0] == "/usr/bin/make":
+                    if "-W" in command and mode == "loader-link-failure":
+                        return {"command": command, "exit_code": 1}
                     for relative in cw.FULL_ARTIFACTS:
                         path = directory / relative
                         path.parent.mkdir(parents=True, exist_ok=True)
@@ -255,7 +265,7 @@ class SourceBuildTests(unittest.TestCase):
                     self.assertNotIn("DYLD_INSERT_LIBRARIES", environment)
                     if mode == "compiler-failure":
                         return {"command": command, "exit_code": 1}
-                    if mode == "success":
+                    if mode in ("success", "missing-load-command", "loader-link-failure"):
                         Path(command[command.index("-o") + 1]).write_bytes(b"helper")
                 return {"command": command, "exit_code": 0}
 
@@ -266,23 +276,35 @@ class SourceBuildTests(unittest.TestCase):
                     patch.object(cw, "toolchain_identity", return_value={}), \
                     patch.object(cw, "port", return_value={}), \
                     patch.object(cw, "run_step", side_effect=run):
-                if mode == "missing-artifact":
-                    with self.assertRaisesRegex(ValueError, "artifact missing"):
+                if mode in ("missing-artifact", "missing-load-command"):
+                    expected = "artifact missing" if mode == "missing-artifact" else "LC_LOAD_DYLIB"
+                    with self.assertRaisesRegex(ValueError, expected):
                         cw.build(self.archive, output, self.freetype, True, source)
                 else:
                     self.assertEqual(cw.build(
                         self.archive, output, self.freetype, True, source),
-                        1 if mode == "compiler-failure" else 0)
+                        1 if mode in ("compiler-failure", "loader-link-failure") else 0)
             receipt = json.loads((output / "receipt.json").read_text())
             self.assertEqual(receipt["native_gs_interposer_source"]["sha256"],
                              cw.sha256(helper))
-            self.assertEqual(receipt["runtime_environment"]["DYLD_INSERT_LIBRARIES"],
-                             str(output / "build/libnative-gs-localtime.dylib"))
+            self.assertNotIn("DYLD_INSERT_LIBRARIES", receipt["runtime_environment"])
+            dependency = receipt["runtime_dependencies"][0]
+            self.assertEqual(dependency["loader_dependency"],
+                             "@loader_path/libnative-gs-localtime.dylib")
+            self.assertEqual(dependency["required_load_command"], "LC_LOAD_DYLIB")
+            self.assertEqual(dependency["path"],
+                             str(output / "build/loader/libnative-gs-localtime.dylib"))
             if mode == "success":
                 self.assertEqual(receipt["artifacts"][-1]["sha256"],
-                                 cw.sha256(output / "build/libnative-gs-localtime.dylib"))
+                                 cw.sha256(output / "build/loader/libnative-gs-localtime.dylib"))
+                self.assertEqual(receipt["steps"][-1]["command"][:5],
+                                 ["/usr/bin/make", "-W", "loader/main.o", "loader/wine",
+                                  f"LDFLAGS=-L{self.freetype / 'lib'} -Wl,-needed_library,"
+                                  f"{output / 'build/loader/libnative-gs-localtime.dylib'}"])
             if mode == "compiler-failure":
                 self.assertEqual(receipt["status"], "native-gs-interposer-failed")
+            if mode == "loader-link-failure":
+                self.assertEqual(receipt["status"], "native-gs-loader-link-failed")
 
     def test_freetype_failure_stops_before_local_install(self):
         self.archive_source("ft")

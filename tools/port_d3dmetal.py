@@ -423,5 +423,5 @@ typedef CAMetalLayer *macdrv_metal_layer;""")
         (source / name).write_text(content)
     return {"donor_files": donor_files, "changed_files": manifest,
             "abi_wrappers": wrapper_count,
-            "native_gs_requires": "Launch-loaded source-built native_gs_localtime.c interposer",
+            "native_gs_requires": "Loader-linked source-built native_gs_localtime.c interposer",
             "qualification": "experimental source port; no Apple ABI/runtime/game qualification"}

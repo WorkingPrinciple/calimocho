@@ -1408,7 +1408,8 @@ rights. WineHQ graphics parity remains unresolved.
 
 The owner requested Wine-side boundary tracing and then a coherent
 Darwin x86_64 native-GS port. See
-[ADR-0023](ADR/0023-native-gs-and-localtime-interposition.md).
+the native-GS decision, now continued in
+[ADR-0024](ADR/0024-loader-linked-time-slot-protection.md).
 The canonical requirements remain in `dragos-core projects/ode-to-x/SPEC.md`.
 
 ### Discriminator and source change
@@ -1504,3 +1505,113 @@ This completes the assigned builtin/device discriminator, not full
 REQ-74 acceptance, presentation, Xbox gameplay, an Exodus engine switch,
 distribution clearance or release readiness. No game, shared registry,
 existing prefix/save, signing policy or global environment was changed.
+
+## Port-09: protect ctime and link the helper (REQ-74)
+
+Review of `09fea4a` identified a libc-internal call which the original
+localtime-only helper did not intercept. The extended native regression
+reproduced it: with the old helper, ctime succeeds but changes the mirrored
+PEB bytes. This is a real correction to port-08, not just packaging.
+The earlier environment-injection recipe and evidence remain historical.
+[ADR-0024](ADR/0024-loader-linked-time-slot-protection.md) replaces that
+dependency design.
+
+### Bounded libc audit and correction
+
+The public Apple Libc reference is commit
+`71bbe350ab79eef58113991d817ccc6165061a64`.
+In [localtime.c](https://raw.githubusercontent.com/apple-oss-distributions/Libc/71bbe350ab79eef58113991d817ccc6165061a64/stdtime/FreeBSD/localtime.c),
+ctime calls localtime internally at line 2213. Gmtime uses a distinct
+`__LIBC_PTHREAD_KEY_GMTIME`, not the localtime key. Mktime calls time1 and
+localsub with caller-owned storage, not public localtime.
+[Strftime](https://raw.githubusercontent.com/apple-oss-distributions/Libc/71bbe350ab79eef58113991d817ccc6165061a64/stdtime/FreeBSD/strftime.c)
+formats caller-owned calendar fields; its `%s` path calls mktime.
+These are public reference sources, not a claim that they are the exact
+private sources of every system library on this host.
+
+The helper now interposes ctime separately, using localtime_r and asctime_r
+with a thread-local character buffer. It retains localtime interposition.
+The Windows PEB mirror is retained: there is no established proof that
+all Windows PE consumers can safely lose that ABI field.
+
+The owned native probe audits localtime, ctime, gmtime, localtime_r,
+gmtime_r, ctime_r, asctime, asctime_r, mktime, timegm and strftime
+(`%c %s %Z %z`). It checks both the mirrored data and the pointer slot.
+All eleven preserve both on the observed macOS 27.0.1 / Darwin 27.0.0 host
+with the linked helper. Localtime and ctime reproduce corruption without
+protection; ctime still reproduces it with the old helper. This does not
+qualify every private libc entrypoint or future operating-system version.
+
+### Required loader dependency, no injection environment
+
+The bounded builder compiles the helper into
+`build/loader/libnative-gs-localtime.dylib`, then relinks only the actual
+Wine loader with the linker's needed-library flag. It verifies a required
+`LC_LOAD_DYLIB` naming `@loader_path/libnative-gs-localtime.dylib`.
+Its source, compiler, binary, dependency path and observed load commands
+are bound in the receipt. Helper compilation, loader link, missing output
+and missing load command all have explicit failing tests.
+
+The separate port-09 research install contains the corrected helper
+beside `lib/wine/x86_64-unix/wine`. No Apple payload or ntdll/macdrv source
+was changed for this follow-up. No DYLD_INSERT_LIBRARIES entry is present
+in the observed runtime environment. Relocated native probes pass with
+the adjacent helper, while the actual Wine loader copied without it fails
+at process load before main. No security setting was changed.
+
+Fresh-prefix port-09 startup, version/registry queries and the original
+device probe all exit zero; D3D12CreateDevice returns `0x00000000`.
+A further fresh-prefix run enables the correct `+ntdll` debug channel and
+records timezone year_start/year_end and DST ctime traces while still
+returning `S_OK`. An earlier `+system` run passed but did not enable those
+traces; it is not used as evidence that the ctime TRACE path executed.
+
+### Same conformance executable, same desktop negative-case boundary
+
+The original, unmodified conformance executable SHA-256 is
+`e70d5839afee5cad229b21893fde69bbf6ecc8b9c98238ec64d85a8575c497de`.
+The exact same bytes and arguments ran on port-09 and the unchanged
+source-built CW26.3 baseline in fresh prefixes. Both device probes
+returned `S_OK`. Both conformance runs print identical first twelve
+stdout lines, including the refcount failures at lines 893 and 1172.
+Both then print `No macdrv window data` and
+`Failed to initialize swapchain`.
+
+Port-09 exits 1. CW proceeds into exception handling, records access
+violations and a stack overflow, and reaches the 180-second deadline.
+It is a timeout, not a passing exit. Prefix-scoped server shutdown
+completes on both. A transient baseline zombie is absent after the runner
+returns; final checks find no owned groups or prefix file handles.
+
+Source ordering points to the desktop-window negative test, not a normal
+application window. A separate diagnostic rebuild adds exactly one trace
+after GetDesktopWindow in test_desktop_window, with no assertion or
+behavior changes. It prints desktop HWND `0x10020` immediately before the
+renderer asserts for that same handle. The test expects `E_ACCESSDENIED`.
+Earlier normal-window callbacks return nonzero data. This rules out
+treating the observed NULL as a forward-port-only window-lifetime failure.
+It does not turn either conformance run into a pass.
+
+The diagnostic source and executable are retained separately. Original
+source bytes were restored. A rebuild changed the PE timestamp/checksum,
+so the exact frozen original executable was restored from the retained
+run artifact and its original hash verified.
+
+### Evidence and remaining scope
+
+The [sanitized follow-up evidence](evidence/winehq-port09-time-and-conformance.json)
+binds the source audit, helper regression, loader linkage, runtime bytes,
+original pair, separate desktop diagnostic and final cleanup.
+Its SHA-256 is
+`d41620d4df221cb09bb2e8c4f0a81c545dd019c7cc2f86c83e16488c87f4d6c3`.
+Raw receipts, logs, install manifest and actual launch paths remain under
+`build/winehq-11.20/metal-port-09`; `handoff.local.json` contains the
+non-injected runtime environment and required adjacent dependency.
+
+The deterministic suite passes 46 tests, including native red/green,
+relocation and missing-dependency checks. Apple payload hashes are
+unchanged and probe diagnostics contain no Vulkan/vkd3d selection.
+There is no passing full-conformance summary, independently observed
+presentation, game launch, engine-switch qualification or REQ-74 closure.
+The shared desktop-negative-case behavior must remain distinct from any
+future ordinary-window presentation probe.
