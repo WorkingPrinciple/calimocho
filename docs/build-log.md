@@ -2133,3 +2133,28 @@ Full receipt bindings and limitations are in
 [the private qualification evidence](evidence/port11b-private-qualification.json).
 This qualifies the bounded probes, not wide-line rasterization or NMS.
 Admission and any game run remain owned by the parent. No publication occurred.
+
+### Port-11b performance environment sibling
+
+Owner-directed REQ-N13/N25 scope recorded by Whiny commit `56998de`
+authorized one data-only sibling of frozen `fbb6b9cb...`. Its full SHA-256 is
+`170ca4ad08a5274b614e74bf740866ef219a97fdc7855270c5d8fa03192ed609`.
+The local file is
+`build/winehq-11.20/metal-port-11b-private-binding-01/calimocho-wine11.20-gptk4b3-tls-vulkan-private.registry.local.PERF-FROZEN-170ca4ad.json`.
+
+The complete semantic diff is limited to `engines[0].environment`:
+`WINEDEBUG` changes from `+loaddll,+seh,+macdrv_d3dmtl,+unixlib` to `-all`,
+`DYLD_PRINT_LIBRARIES=1` is removed, and `MTL_HUD_ENABLED=1` is added.
+Every other JSON value is identical, including the engine name, installation,
+private API and argument buffers values of 1, all asset/dependency paths and
+pins, and historical qualification timestamps, environments and receipts.
+The existing exporter verified all 45 referenced files. Frozen `fbb6b9cb...`
+is unchanged.
+
+The existing engine name is retained; prefix admission remains the owner's
+contract, not a guarantee made by this derivation. Qualification from source
+commit `671ca6443a126305649a981940a2d8377f954ee7` and evidence SHA-256
+`f729ff3deb1572e110ccffb1a21604781f3670a697c27584f2c0b644884dd57c`
+is inherited binary evidence only. There is no new performance, HUD or game
+observation. No rebuild, native execution, prefix change, admission change or
+publication occurred.
