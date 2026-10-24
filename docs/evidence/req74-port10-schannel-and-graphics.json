@@ -1,0 +1,1085 @@
+{
+  "requirements": [
+    "REQ-69",
+    "REQ-74"
+  ],
+  "scope": "Missing schannel capability: source-built x86_64 TLS dependencies and targeted crypto-module overlay onto copied WineHQ port-09; no game",
+  "versions": [
+    {
+      "name": "gmp",
+      "version": "6.3.0",
+      "url": "https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz",
+      "sha256": "a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898",
+      "checksum_source": "https://formulae.brew.sh/api/formula/gmp.json",
+      "license": "LGPL-3.0-or-later or GPL-2.0-or-later"
+    },
+    {
+      "name": "nettle",
+      "version": "4.0",
+      "url": "https://ftp.gnu.org/gnu/nettle/nettle-4.0.tar.gz",
+      "sha256": "3addbc00da01846b232fb3bc453538ea5468da43033f21bb345cb1e9073f5094",
+      "checksum_source": "https://formulae.brew.sh/api/formula/nettle.json",
+      "license": "LGPL-3.0-or-later or GPL-2.0-or-later"
+    },
+    {
+      "name": "libtasn1",
+      "version": "4.21.0",
+      "url": "https://ftp.gnu.org/gnu/libtasn1/libtasn1-4.21.0.tar.gz",
+      "sha256": "1d8a444a223cc5464240777346e125de51d8e6abf0b8bac742ac84609167dc87",
+      "checksum_source": "https://formulae.brew.sh/api/formula/libtasn1.json",
+      "license": "LGPL-2.1-or-later (library); GPL-3.0-or-later (tools)"
+    },
+    {
+      "name": "gnutls",
+      "version": "3.8.13",
+      "url": "https://www.gnupg.org/ftp/gcrypt/gnutls/v3.8/gnutls-3.8.13.tar.xz",
+      "sha256": "ffed8ec1bf09c2426d4f14aae377de4753b53e537d685e604e99a8b16ca9c97e",
+      "checksum_source": "https://formulae.brew.sh/api/formula/gnutls.json",
+      "license": "LGPL-2.1-or-later (library); GPL-3.0-or-later (tools)"
+    }
+  ],
+  "sources": {
+    "tls_builder_sha256": "71d59e2056391702a2f04e3eb9b6f87d3b3a06746235333115041a7443fbfdd6",
+    "wine_builder_sha256": "6fcfb6bf6525870b254c2d16d8662287594550fd0ab80c731794fac649af5fc8",
+    "https_pe_source_sha256": "f4cec69b71b34fb65729344fb3f5e2daf21fd610822da42874acd47770786da9",
+    "https_probe_sha256": "62efbea5f8ad8a655f6add8f8bea170c20dd2fe2e6c2a92a7e24db219c7be235",
+    "compile_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "local_runner_sha256": "36d8c71908c2f38fa60277dc6a84fcabad187bbcb826b677c35db4095a54ea11",
+    "local_overlay_script_sha256": "c37127a2e9313b3c3cc8d0d0d10d2466a807a81e6f778e67bd033f31f12d61c5"
+  },
+  "tls_build": {
+    "architecture": "x86_64",
+    "prefix": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix",
+    "sources": [
+      {
+        "name": "gmp",
+        "version": "6.3.0",
+        "url": "https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz",
+        "sha256": "a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898",
+        "checksum_source": "https://formulae.brew.sh/api/formula/gmp.json",
+        "license": "LGPL-3.0-or-later or GPL-2.0-or-later"
+      },
+      {
+        "name": "nettle",
+        "version": "4.0",
+        "url": "https://ftp.gnu.org/gnu/nettle/nettle-4.0.tar.gz",
+        "sha256": "3addbc00da01846b232fb3bc453538ea5468da43033f21bb345cb1e9073f5094",
+        "checksum_source": "https://formulae.brew.sh/api/formula/nettle.json",
+        "license": "LGPL-3.0-or-later or GPL-2.0-or-later"
+      },
+      {
+        "name": "libtasn1",
+        "version": "4.21.0",
+        "url": "https://ftp.gnu.org/gnu/libtasn1/libtasn1-4.21.0.tar.gz",
+        "sha256": "1d8a444a223cc5464240777346e125de51d8e6abf0b8bac742ac84609167dc87",
+        "checksum_source": "https://formulae.brew.sh/api/formula/libtasn1.json",
+        "license": "LGPL-2.1-or-later (library); GPL-3.0-or-later (tools)"
+      },
+      {
+        "name": "gnutls",
+        "version": "3.8.13",
+        "url": "https://www.gnupg.org/ftp/gcrypt/gnutls/v3.8/gnutls-3.8.13.tar.xz",
+        "sha256": "ffed8ec1bf09c2426d4f14aae377de4753b53e537d685e604e99a8b16ca9c97e",
+        "checksum_source": "https://formulae.brew.sh/api/formula/gnutls.json",
+        "license": "LGPL-2.1-or-later (library); GPL-3.0-or-later (tools)"
+      }
+    ],
+    "environment": {
+      "CC": "/usr/bin/clang -arch x86_64",
+      "CXX": "/usr/bin/clang++ -arch x86_64",
+      "CFLAGS": "-O2",
+      "CPPFLAGS": "-I$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/include",
+      "LDFLAGS": "-L$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib",
+      "PKG_CONFIG_LIBDIR": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/pkgconfig",
+      "DYLD_FALLBACK_LIBRARY_PATH": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib:/usr/lib",
+      "CONFIG_SITE": "/dev/null",
+      "LC_ALL": "C"
+    },
+    "compiler_sha256": "34129c71a01a74f7f3b2443521519b2e5447553fa187f5fcafaaf8c42cc192e2",
+    "steps": [
+      {
+        "command": [
+          "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/gmp-6.3.0/configure",
+          "--host=x86_64-apple-darwin",
+          "--prefix=$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix",
+          "--disable-static",
+          "--enable-shared",
+          "--disable-assembly",
+          "--enable-cxx=no"
+        ],
+        "exit_code": 0,
+        "timed_out": false,
+        "log": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/gmp-configure.log",
+        "log_sha256": "3b8955b0c221d013798f26d9d0256549d37fb9b7cd1f26455c1fccf3c8d021ce"
+      },
+      {
+        "command": [
+          "/usr/bin/make",
+          "-j4"
+        ],
+        "exit_code": 0,
+        "timed_out": false,
+        "log": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/gmp-compile.log",
+        "log_sha256": "539b131f7ae7994589bef436369de6acb9925de05efa8acee65df1797a210a2e"
+      },
+      {
+        "command": [
+          "/usr/bin/make",
+          "-j1",
+          "install"
+        ],
+        "exit_code": 0,
+        "timed_out": false,
+        "log": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/gmp-install.log",
+        "log_sha256": "78e10ef5c572a4f976b2a4cce1605a55f4c7e2cd97db729a3ef008f926761589"
+      },
+      {
+        "command": [
+          "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/nettle-4.0/configure",
+          "--host=x86_64-apple-darwin",
+          "--prefix=$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix",
+          "--disable-static",
+          "--enable-shared",
+          "--disable-documentation",
+          "--disable-openssl"
+        ],
+        "exit_code": 0,
+        "timed_out": false,
+        "log": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/nettle-configure.log",
+        "log_sha256": "28c9990b000f22ef6080a448ef40e9c0a0eb2dc1442ae58f2a03b93c6bb96d52"
+      },
+      {
+        "command": [
+          "/usr/bin/make",
+          "-j4"
+        ],
+        "exit_code": 0,
+        "timed_out": false,
+        "log": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/nettle-compile.log",
+        "log_sha256": "5ce2510ca7f852c8d4c25d3341032bd2b4038d381d559fb1bf457c1df3780d94"
+      },
+      {
+        "command": [
+          "/usr/bin/make",
+          "-j1",
+          "install"
+        ],
+        "exit_code": 0,
+        "timed_out": false,
+        "log": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/nettle-install.log",
+        "log_sha256": "588626cd329ac7e63553ccf63ccd3dba1620e8aa7b4151d03932c7e65b0acf1b"
+      },
+      {
+        "command": [
+          "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/libtasn1-4.21.0/configure",
+          "--host=x86_64-apple-darwin",
+          "--prefix=$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix",
+          "--disable-static",
+          "--enable-shared",
+          "--disable-doc",
+          "--disable-tools",
+          "--disable-tests"
+        ],
+        "exit_code": 0,
+        "timed_out": false,
+        "log": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/libtasn1-configure.log",
+        "log_sha256": "702caed54deb22619a495ca71ff4ebc0a8c04119cd94d013a93f2f0a599e6e4a"
+      },
+      {
+        "command": [
+          "/usr/bin/make",
+          "-j4"
+        ],
+        "exit_code": 0,
+        "timed_out": false,
+        "log": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/libtasn1-compile.log",
+        "log_sha256": "3a17f170dfe6e4e33147472e40e1408a9f68e00f61975dfe07dc228ed044f49f"
+      },
+      {
+        "command": [
+          "/usr/bin/make",
+          "-j1",
+          "install"
+        ],
+        "exit_code": 0,
+        "timed_out": false,
+        "log": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/libtasn1-install.log",
+        "log_sha256": "1f7d56dc27ca81a34ba7b4a33e558749252c1697c16ed1cbe3cab02d1b9f1ce5"
+      },
+      {
+        "command": [
+          "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/gnutls-3.8.13/configure",
+          "--host=x86_64-apple-darwin",
+          "--prefix=$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix",
+          "--disable-static",
+          "--enable-shared",
+          "--without-p11-kit",
+          "--with-included-unistring",
+          "--without-idn",
+          "--disable-doc",
+          "--disable-tools",
+          "--disable-tests",
+          "--disable-cxx",
+          "--disable-guile",
+          "--disable-nls",
+          "--without-brotli",
+          "--without-zstd",
+          "--without-zlib"
+        ],
+        "exit_code": 0,
+        "timed_out": false,
+        "log": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/gnutls-configure.log",
+        "log_sha256": "21f49b40a15d34a8d3e62c7d8a31e586a97f4e8eec298e8bb0ee27c36f8d2d65"
+      },
+      {
+        "command": [
+          "/usr/bin/make",
+          "-j4"
+        ],
+        "exit_code": 0,
+        "timed_out": false,
+        "log": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/gnutls-compile.log",
+        "log_sha256": "dc9d551aa6b588a7db5dcd198a9970884b6725ebd131a1c829d8f06004ba34be"
+      },
+      {
+        "command": [
+          "/usr/bin/make",
+          "-j1",
+          "install"
+        ],
+        "exit_code": 0,
+        "timed_out": false,
+        "log": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/gnutls-install.log",
+        "log_sha256": "13cb8946765f23da495b8fe680235fedfdc2fd523b56c3d4091f46b65873efc8"
+      }
+    ],
+    "status": "built-local-tls-dependencies",
+    "elapsed_seconds": 165.93,
+    "artifacts": [
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libgmp.10.dylib",
+        "sha256": "ef47bfee5f097893606b6d540e1ff7cfd5a6ffa033fb4973c5b305c5f9a7126f",
+        "file": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libgmp.10.dylib: Mach-O 64-bit dynamically linked shared library x86_64\n",
+        "linkage": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libgmp.10.dylib:\n\t$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libgmp.10.dylib (compatibility version 16.0.0, current version 16.0.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.0.0)\n"
+      },
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libgnutls.30.dylib",
+        "sha256": "7f461e21a70d66d8d1b7725d2cdfddcd71a4cb3cad15014695178b10c12d28b5",
+        "file": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libgnutls.30.dylib: Mach-O 64-bit dynamically linked shared library x86_64\n",
+        "linkage": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libgnutls.30.dylib:\n\t$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libgnutls.30.dylib (compatibility version 73.0.0, current version 73.0.0)\n\t/System/Library/Frameworks/Security.framework/Versions/A/Security (compatibility version 1.0.0, current version 62460.1.2)\n\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 5027.0.69)\n\t$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libtasn1.6.dylib (compatibility version 13.0.0, current version 13.5.0)\n\t$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libhogweed.7.dylib (compatibility version 7.0.0, current version 7.0.0)\n\t$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libnettle.9.dylib (compatibility version 9.0.0, current version 9.0.0)\n\t$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libgmp.10.dylib (compatibility version 16.0.0, current version 16.0.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.0.0)\n"
+      },
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libhogweed.7.0.dylib",
+        "sha256": "be390c9f2aa6177c0c2269c61d869ba8f0be74f447c7c8c2770dbf98a05b0284",
+        "file": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libhogweed.7.0.dylib: Mach-O 64-bit dynamically linked shared library x86_64\n",
+        "linkage": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libhogweed.7.0.dylib:\n\t$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libhogweed.7.dylib (compatibility version 7.0.0, current version 7.0.0)\n\t$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libnettle.9.dylib (compatibility version 9.0.0, current version 9.0.0)\n\t$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libgmp.10.dylib (compatibility version 16.0.0, current version 16.0.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.0.0)\n"
+      },
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libnettle.9.0.dylib",
+        "sha256": "b7601074c2a32019c544f1c3d701297768bbd9b3ce24d62a28736e8dffc2776f",
+        "file": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libnettle.9.0.dylib: Mach-O 64-bit dynamically linked shared library x86_64\n",
+        "linkage": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libnettle.9.0.dylib:\n\t$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libnettle.9.dylib (compatibility version 9.0.0, current version 9.0.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.0.0)\n"
+      },
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libtasn1.6.dylib",
+        "sha256": "04b8bd9d411af65fd257816fad155042037aa60c8c72f7a444d02348d0bb3d05",
+        "file": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libtasn1.6.dylib: Mach-O 64-bit dynamically linked shared library x86_64\n",
+        "linkage": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libtasn1.6.dylib:\n\t$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib/libtasn1.6.dylib (compatibility version 13.0.0, current version 13.5.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.0.0)\n"
+      }
+    ]
+  },
+  "overlay": {
+    "build_receipt_sha256": "df19aaa6bbca4c0efebee5daf4801d2ee2cc428290aa80d64ef4528ca0376d9e",
+    "install": {
+      "command": [
+        "/usr/bin/make",
+        "-j4",
+        "dlls/secur32/all",
+        "dlls/bcrypt/all",
+        "dlls/crypt32/all"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "log": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/tls-modules-02.log",
+      "log_sha256": "f1b262beb9c4f4c7612f8d607159a00e7097b3077be1a37d5410a657f6738eda"
+    },
+    "gptk_symlink_map": [
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-windows/d3d10.dll",
+        "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d10.dll",
+        "target_sha256": "8509cd61f4e25e20fa6c4444b3dea062f026d672f441e82402702fa1faf6676b",
+        "symlink_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d10.dll"
+      },
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-windows/d3d11.dll",
+        "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d11.dll",
+        "target_sha256": "a5de9738b3f89f1d8cdfb9103e82f9231ae543ce3c46134ed761c146a2f2d3e1",
+        "symlink_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d11.dll"
+      },
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-windows/d3d12.dll",
+        "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d12.dll",
+        "target_sha256": "02aa673497ff8694b41f976e194a920468e54897f3546ed1cd4c1b3a97179735",
+        "symlink_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d12.dll"
+      },
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-windows/d3d12core.dll",
+        "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d12core.dll",
+        "target_sha256": "1034f5989c8c69496add15f79c04e56ae47cdf2a861098e8b4323bc8835b9e29",
+        "symlink_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d12core.dll"
+      },
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-windows/dxgi.dll",
+        "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/dxgi.dll",
+        "target_sha256": "124015390b8527033bcd6e65af6376fde8fb3923450b63a9dbe0bbef05e63f10",
+        "symlink_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/dxgi.dll"
+      },
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-unix/d3d10.so",
+        "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d10.so",
+        "target_sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+        "symlink_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d10.so"
+      },
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-unix/d3d11.so",
+        "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d11.so",
+        "target_sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+        "symlink_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d11.so"
+      },
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-unix/d3d12.so",
+        "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d12.so",
+        "target_sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+        "symlink_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d12.so"
+      },
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-unix/d3d12core.so",
+        "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d12core.so",
+        "target_sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+        "symlink_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d12core.so"
+      },
+      {
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-unix/dxgi.so",
+        "target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/dxgi.so",
+        "target_sha256": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+        "symlink_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/dxgi.so"
+      }
+    ],
+    "external_symlink": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/external",
+    "external_target": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external",
+    "apple_payloads_before": {
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/D3DMetal.framework/Versions/Current/D3DMetal": "b16aab78127dcf6dbbaba4cfaf8120b96c90ee7b31a48be8599847932a4931e1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d10.so": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d11.so": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d12.so": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d12core.so": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/dxgi.so": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d10.dll": "8509cd61f4e25e20fa6c4444b3dea062f026d672f441e82402702fa1faf6676b",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d11.dll": "a5de9738b3f89f1d8cdfb9103e82f9231ae543ce3c46134ed761c146a2f2d3e1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d12.dll": "02aa673497ff8694b41f976e194a920468e54897f3546ed1cd4c1b3a97179735",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d12core.dll": "1034f5989c8c69496add15f79c04e56ae47cdf2a861098e8b4323bc8835b9e29",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/dxgi.dll": "124015390b8527033bcd6e65af6376fde8fb3923450b63a9dbe0bbef05e63f10"
+    },
+    "apple_payloads_after": {
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/D3DMetal.framework/Versions/Current/D3DMetal": "b16aab78127dcf6dbbaba4cfaf8120b96c90ee7b31a48be8599847932a4931e1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d10.so": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d11.so": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d12.so": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/d3d12core.so": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-unix/dxgi.so": "e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d10.dll": "8509cd61f4e25e20fa6c4444b3dea062f026d672f441e82402702fa1faf6676b",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d11.dll": "a5de9738b3f89f1d8cdfb9103e82f9231ae543ce3c46134ed761c146a2f2d3e1",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d12.dll": "02aa673497ff8694b41f976e194a920468e54897f3546ed1cd4c1b3a97179735",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/d3d12core.dll": "1034f5989c8c69496add15f79c04e56ae47cdf2a861098e8b4323bc8835b9e29",
+      "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/wine/x86_64-windows/dxgi.dll": "124015390b8527033bcd6e65af6376fde8fb3923450b63a9dbe0bbef05e63f10"
+    },
+    "apple_payloads_unchanged": true,
+    "loader_load_commands": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-unix/wine:\nLoad command 0\n      cmd LC_SEGMENT_64\n  cmdsize 72\n  segname __PAGEZERO\n   vmaddr 0x0000000000000000\n   vmsize 0x0000000000001000\n  fileoff 0\n filesize 0\n  maxprot 0x00000000\n initprot 0x00000000\n   nsects 0\n    flags 0x0\nLoad command 1\n      cmd LC_SEGMENT_64\n  cmdsize 552\n  segname __TEXT\n   vmaddr 0x0000000200000000\n   vmsize 0x0000000000001000\n  fileoff 0\n filesize 4096\n  maxprot 0x00000005\n initprot 0x00000005\n   nsects 6\n    flags 0x0\nSection\n  sectname __text\n   segname __TEXT\n      addr 0x00000002000006e0\n      size 0x00000000000002a7\n    offset 1760\n     align 2^4 (16)\n    reloff 0\n    nreloc 0\n     flags 0x80000400\n reserved1 0\n reserved2 0\nSection\n  sectname __stubs\n   segname __TEXT\n      addr 0x0000000200000987\n      size 0x0000000000000066\n    offset 2439\n     align 2^0 (1)\n    reloff 0\n    nreloc 0\n     flags 0x80000408\n reserved1 0 (index into indirect symbol table)\n reserved2 6 (size of stubs)\nSection\n  sectname __stub_helper\n   segname __TEXT\n      addr 0x00000002000009f0\n      size 0x00000000000000da\n    offset 2544\n     align 2^2 (4)\n    reloff 0\n    nreloc 0\n     flags 0x80000400\n reserved1 0\n reserved2 0\nSection\n  sectname __cstring\n   segname __TEXT\n      addr 0x0000000200000aca\n      size 0x0000000000000086\n    offset 2762\n     align 2^0 (1)\n    reloff 0\n    nreloc 0\n     flags 0x00000002\n reserved1 0\n reserved2 0\nSection\n  sectname __info_plist\n   segname __TEXT\n      addr 0x0000000200000b50\n      size 0x00000000000003aa\n    offset 2896\n     align 2^0 (1)\n    reloff 0\n    nreloc 0\n     flags 0x00000000\n reserved1 0\n reserved2 0\nSection\n  sectname __unwind_info\n   segname __TEXT\n      addr 0x0000000200000efc\n      size 0x0000000000000060\n    offset 3836\n     align 2^2 (4)\n    reloff 0\n    nreloc 0\n     flags 0x00000000\n reserved1 0\n reserved2 0\nLoad command 2\n      cmd LC_SEGMENT_64\n  cmdsize 392\n  segname __DATA\n   vmaddr 0x0000000200001000\n   vmsize 0x0000000000001000\n  fileoff 4096\n filesize 4096\n  maxprot 0x00000003\n initprot 0x00000003\n   nsects 4\n    flags 0x0\nSection\n  sectname __la_symbol_ptr\n   segname __DATA\n      addr 0x0000000200001000\n      size 0x0000000000000088\n    offset 4096\n     align 2^3 (8)\n    reloff 0\n    nreloc 0\n     flags 0x00000007\n reserved1 17 (index into indirect symbol table)\n reserved2 0\nSection\n  sectname __const\n   segname __DATA\n      addr 0x0000000200001090\n      size 0x0000000000000020\n    offset 4240\n     align 2^4 (16)\n    reloff 0\n    nreloc 0\n     flags 0x00000000\n reserved1 0\n reserved2 0\nSection\n  sectname __data\n   segname __DATA\n      addr 0x00000002000010b0\n      size 0x0000000000000010\n    offset 4272\n     align 2^3 (8)\n    reloff 0\n    nreloc 0\n     flags 0x00000000\n reserved1 0\n reserved2 0\nSection\n  sectname __got\n   segname __DATA\n      addr 0x00000002000010c0\n      size 0x0000000000000010\n    offset 4288\n     align 2^3 (8)\n    reloff 0\n    nreloc 0\n     flags 0x00000006\n reserved1 34 (index into indirect symbol table)\n reserved2 0\nLoad command 3\n      cmd LC_SEGMENT_64\n  cmdsize 152\n  segname WINE_RESERVE\n   vmaddr 0x0000000000001000\n   vmsize 0x00000001fffff000\n  fileoff 0\n filesize 0\n  maxprot 0x00000003\n initprot 0x00000003\n   nsects 1\n    flags 0x0\nSection\n  sectname WINE_RESERVE\n   segname WINE_RESERVE\n      addr 0x0000000000001000\n      size 0x00000001fffff000\n    offset 0\n     align 2^4 (16)\n    reloff 0\n    nreloc 0\n     flags 0x00000001\n reserved1 0\n reserved2 0\nLoad command 4\n      cmd LC_SEGMENT_64\n  cmdsize 72\n  segname __LINKEDIT\n   vmaddr 0x0000000200002000\n   vmsize 0x0000000000001000\n  fileoff 8192\n filesize 1816\n  maxprot 0x00000001\n initprot 0x00000001\n   nsects 0\n    flags 0x0\nLoad command 5\n            cmd LC_DYLD_INFO_ONLY\n        cmdsize 48\n     rebase_off 0\n    rebase_size 0\n       bind_off 8192\n      bind_size 40\n  weak_bind_off 0\n weak_bind_size 0\n  lazy_bind_off 8232\n lazy_bind_size 280\n     export_off 8512\n    export_size 64\nLoad command 6\n     cmd LC_SYMTAB\n cmdsize 24\n  symoff 8584\n   nsyms 42\n  stroff 9400\n strsize 608\nLoad command 7\n            cmd LC_DYSYMTAB\n        cmdsize 80\n      ilocalsym 0\n      nlocalsym 21\n     iextdefsym 21\n     nextdefsym 2\n      iundefsym 23\n      nundefsym 19\n         tocoff 0\n           ntoc 0\n      modtaboff 0\n        nmodtab 0\n   extrefsymoff 0\n    nextrefsyms 0\n indirectsymoff 9256\n  nindirectsyms 36\n      extreloff 0\n        nextrel 0\n      locreloff 0\n        nlocrel 0\nLoad command 8\n          cmd LC_LOAD_DYLINKER\n      cmdsize 32\n         name /usr/lib/dyld (offset 12)\nLoad command 9\n     cmd LC_UUID\n cmdsize 24\n    uuid CE561DF7-C3F8-35AD-B149-F0BB35361DFC\nLoad command 10\n      cmd LC_BUILD_VERSION\n  cmdsize 32\n platform 1\n    minos 27.0\n      sdk 27.0\n   ntools 1\n     tool 3\n  version 27037.1\nLoad command 11\n      cmd LC_SOURCE_VERSION\n  cmdsize 16\n  version 0.0\nLoad command 12\n       cmd LC_MAIN\n   cmdsize 24\n  entryoff 1760\n stacksize 0\nLoad command 13\n          cmd LC_LOAD_DYLIB\n      cmdsize 72\n         name @loader_path/libnative-gs-localtime.dylib (offset 24)\n   time stamp 2 Thu Jan  1 02:00:02 1970\n      current version 0.0.0\ncompatibility version 0.0.0\nLoad command 14\n          cmd LC_LOAD_DYLIB\n      cmdsize 56\n         name /usr/lib/libSystem.B.dylib (offset 24)\n   time stamp 2 Thu Jan  1 02:00:02 1970\n      current version 1359.0.0\ncompatibility version 1.0.0\nLoad command 15\n      cmd LC_FUNCTION_STARTS\n  cmdsize 16\n  dataoff 8576\n datasize 8\nLoad command 16\n      cmd LC_DATA_IN_CODE\n  cmdsize 16\n  dataoff 8584\n datasize 0\n",
+    "secur32_load_commands": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-unix/secur32.so:\nLoad command 0\n      cmd LC_SEGMENT_64\n  cmdsize 552\n  segname __TEXT\n   vmaddr 0x0000000000000000\n   vmsize 0x0000000000006000\n  fileoff 0\n filesize 24576\n  maxprot 0x00000005\n initprot 0x00000005\n   nsects 6\n    flags 0x0\nSection\n  sectname __text\n   segname __TEXT\n      addr 0x00000000000006d0\n      size 0x00000000000043f3\n    offset 1744\n     align 2^4 (16)\n    reloff 0\n    nreloc 0\n     flags 0x80000400\n reserved1 0\n reserved2 0\nSection\n  sectname __stubs\n   segname __TEXT\n      addr 0x0000000000004ac4\n      size 0x000000000000008a\n    offset 19140\n     align 2^1 (2)\n    reloff 0\n    nreloc 0\n     flags 0x80000408\n reserved1 0 (index into indirect symbol table)\n reserved2 6 (size of stubs)\nSection\n  sectname __cstring\n   segname __TEXT\n      addr 0x0000000000004b4e\n      size 0x0000000000000e78\n    offset 19278\n     align 2^0 (1)\n    reloff 0\n    nreloc 0\n     flags 0x00000002\n reserved1 0\n reserved2 0\nSection\n  sectname __const\n   segname __TEXT\n      addr 0x00000000000059d0\n      size 0x00000000000001dc\n    offset 22992\n     align 2^4 (16)\n    reloff 0\n    nreloc 0\n     flags 0x00000000\n reserved1 0\n reserved2 0\nSection\n  sectname __ustring\n   segname __TEXT\n      addr 0x0000000000005bb0\n      size 0x00000000000000b4\n    offset 23472\n     align 2^4 (16)\n    reloff 0\n    nreloc 0\n     flags 0x00000000\n reserved1 0\n reserved2 0\nSection\n  sectname __unwind_info\n   segname __TEXT\n      addr 0x0000000000005c64\n      size 0x00000000000000d8\n    offset 23652\n     align 2^2 (4)\n    reloff 0\n    nreloc 0\n     flags 0x00000000\n reserved1 0\n reserved2 0\nLoad command 1\n      cmd LC_SEGMENT_64\n  cmdsize 232\n  segname __DATA_CONST\n   vmaddr 0x0000000000006000\n   vmsize 0x0000000000001000\n  fileoff 24576\n filesize 4096\n  maxprot 0x00000003\n initprot 0x00000003\n   nsects 2\n    flags 0x10\nSection\n  sectname __const\n   segname __DATA_CONST\n      addr 0x0000000000006000\n      size 0x00000000000002c8\n    offset 24576\n     align 2^4 (16)\n    reloff 0\n    nreloc 0\n     flags 0x00000000\n reserved1 0\n reserved2 0\nSection\n  sectname __got\n   segname __DATA_CONST\n      addr 0x00000000000062c8\n      size 0x00000000000000b8\n    offset 25288\n     align 2^3 (8)\n    reloff 0\n    nreloc 0\n     flags 0x00000006\n reserved1 23 (index into indirect symbol table)\n reserved2 0\nLoad command 2\n      cmd LC_SEGMENT_64\n  cmdsize 232\n  segname __DATA\n   vmaddr 0x0000000000007000\n   vmsize 0x0000000000001000\n  fileoff 28672\n filesize 4096\n  maxprot 0x00000003\n initprot 0x00000003\n   nsects 2\n    flags 0x0\nSection\n  sectname __data\n   segname __DATA\n      addr 0x0000000000007000\n      size 0x0000000000000020\n    offset 28672\n     align 2^0 (1)\n    reloff 0\n    nreloc 0\n     flags 0x00000000\n reserved1 0\n reserved2 0\nSection\n  sectname __bss\n   segname __DATA\n      addr 0x0000000000007020\n      size 0x0000000000000194\n    offset 0\n     align 2^3 (8)\n    reloff 0\n    nreloc 0\n     flags 0x00000001\n reserved1 0\n reserved2 0\nLoad command 3\n      cmd LC_SEGMENT_64\n  cmdsize 72\n  segname __LINKEDIT\n   vmaddr 0x0000000000008000\n   vmsize 0x0000000000003000\n  fileoff 32768\n filesize 11248\n  maxprot 0x00000001\n initprot 0x00000001\n   nsects 0\n    flags 0x0\nLoad command 4\n          cmd LC_ID_DYLIB\n      cmdsize 48\n         name @rpath/secur32.so (offset 24)\n   time stamp 1 Thu Jan  1 02:00:01 1970\n      current version 0.0.0\ncompatibility version 0.0.0\nLoad command 5\n      cmd LC_DYLD_CHAINED_FIXUPS\n  cmdsize 16\n  dataoff 32768\n datasize 432\nLoad command 6\n      cmd LC_DYLD_EXPORTS_TRIE\n  cmdsize 16\n  dataoff 33200\n datasize 64\nLoad command 7\n     cmd LC_SYMTAB\n cmdsize 24\n  symoff 33384\n   nsyms 424\n  stroff 40352\n strsize 3664\nLoad command 8\n            cmd LC_DYSYMTAB\n        cmdsize 80\n      ilocalsym 0\n      nlocalsym 399\n     iextdefsym 399\n     nextdefsym 2\n      iundefsym 401\n      nundefsym 23\n         tocoff 0\n           ntoc 0\n      modtaboff 0\n        nmodtab 0\n   extrefsymoff 0\n    nextrefsyms 0\n indirectsymoff 40168\n  nindirectsyms 46\n      extreloff 0\n        nextrel 0\n      locreloff 0\n        nlocrel 0\nLoad command 9\n     cmd LC_UUID\n cmdsize 24\n    uuid 9F7819A0-49F7-367A-AD8D-12614829D45F\nLoad command 10\n      cmd LC_BUILD_VERSION\n  cmdsize 32\n platform 1\n    minos 27.0\n      sdk 27.0\n   ntools 1\n     tool 3\n  version 27037.1\nLoad command 11\n      cmd LC_SOURCE_VERSION\n  cmdsize 16\n  version 0.0\nLoad command 12\n          cmd LC_LOAD_DYLIB\n      cmdsize 40\n         name @rpath/ntdll.so (offset 24)\n   time stamp 2 Thu Jan  1 02:00:02 1970\n      current version 0.0.0\ncompatibility version 0.0.0\nLoad command 13\n          cmd LC_LOAD_DYLIB\n      cmdsize 56\n         name /usr/lib/libSystem.B.dylib (offset 24)\n   time stamp 2 Thu Jan  1 02:00:02 1970\n      current version 1359.0.0\ncompatibility version 1.0.0\nLoad command 14\n          cmd LC_RPATH\n      cmdsize 32\n         path @loader_path/ (offset 12)\nLoad command 15\n          cmd LC_RPATH\n      cmdsize 136\n         path $CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib (offset 12)\nLoad command 16\n      cmd LC_FUNCTION_STARTS\n  cmdsize 16\n  dataoff 33264\n datasize 88\nLoad command 17\n      cmd LC_DATA_IN_CODE\n  cmdsize 16\n  dataoff 33352\n datasize 32\n",
+    "helper_sha256": "e0558c03cda020c388612cd31c2ba1b82eca1b3066a08fa3d2cb56331a4de87f",
+    "installed_root": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install",
+    "route": "Coordinator-directed targeted TLS overlay onto unchanged port-09 copy",
+    "base_install": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install",
+    "overlay": [
+      {
+        "source": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/build/dlls/secur32/x86_64-windows/secur32.dll",
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-windows/secur32.dll",
+        "original_sha256": "9c9929535e6a2a122102a354343cf144254a79ae59c182fa20e86911de6662f6",
+        "sha256": "43c939d024fc323599ba4e1b94dd5a668826f940e9eb3873f9d6b8bd2848cfe2"
+      },
+      {
+        "source": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/build/dlls/secur32/i386-windows/secur32.dll",
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/i386-windows/secur32.dll",
+        "original_sha256": "29038328609d33310b030a7ad6da34c4710aeddb0e0fee941a35e45572da876e",
+        "sha256": "e0158973b378bd66475a95ec08e56793323764e0a3def077b01b4c55edddca7a"
+      },
+      {
+        "source": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/build/dlls/secur32/secur32.so",
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-unix/secur32.so",
+        "original_sha256": "a67af1c8dfe3554f86209083a0db0ba5e4c819bb5e770129f59b88b34482ec60",
+        "sha256": "a95ee9eea602e1e0e271e8a1ea62026d527afbed7295f530cf1637dd3da8fd67"
+      },
+      {
+        "source": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/build/dlls/bcrypt/x86_64-windows/bcrypt.dll",
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-windows/bcrypt.dll",
+        "original_sha256": "714dbe17af08129917ca23715b0c9378fe05c91179de2be911587277b58a1785",
+        "sha256": "0bdb08a452171cf31486adf6571c327a0e91c3b511b93499aa8c57b2c3ee9d5e"
+      },
+      {
+        "source": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/build/dlls/bcrypt/i386-windows/bcrypt.dll",
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/i386-windows/bcrypt.dll",
+        "original_sha256": "a5f4b0ecd9cda55c463c03d537afd0455553cd28af4a715a0b3175963e5dffd6",
+        "sha256": "f3ffa6872cfb7127ece89d3134231473741eee9506f7eee5fc8e8cecaca785e7"
+      },
+      {
+        "source": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/build/dlls/crypt32/x86_64-windows/crypt32.dll",
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-windows/crypt32.dll",
+        "original_sha256": "6aae1526c84444f93d4de092285bcab501fff8b4db08b62527d42db644593ef0",
+        "sha256": "2a576ffe3b68466827251cfd8869be21bf88b562ad09e06949d91353d911f266"
+      },
+      {
+        "source": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/build/dlls/crypt32/i386-windows/crypt32.dll",
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/i386-windows/crypt32.dll",
+        "original_sha256": "ad4679443ae10c2af03312d0ccc3a5f4417a168b09e023cd2a28808d0d5c233c",
+        "sha256": "c2be1b73d3cc075bfcb76c33613367387159ded1ebcc35b7cbaa7e8c2a8d8002"
+      },
+      {
+        "source": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/build/dlls/crypt32/crypt32.so",
+        "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/lib/wine/x86_64-unix/crypt32.so",
+        "original_sha256": "ec20f3f3da798376aa9849ef558cd37e6fe9fd9ceac6c822a39b3beed4e72f0d",
+        "sha256": "2c5caea00b1766216a36a49e9890e45acd3184eb448b105c3971f63eea16ebf7"
+      }
+    ]
+  },
+  "integrity": {
+    "status": "unchanged",
+    "manifest_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/port10-registry-files.json",
+    "manifest_sha256": "bb3b323d59bc2d0756020211bee28ef7b14a0577a151f36dc5cdf68cab31042a",
+    "compared_files": 3912,
+    "changed_files": [],
+    "scope": "Post-overlay post-HTTPS full install manifest; all base core/renderer preserved",
+    "base_install_sha256_comparison": {
+      "compared_files": 3912,
+      "changed_relative_paths": [
+        "lib/wine/i386-windows/bcrypt.dll",
+        "lib/wine/i386-windows/crypt32.dll",
+        "lib/wine/i386-windows/secur32.dll",
+        "lib/wine/x86_64-unix/crypt32.so",
+        "lib/wine/x86_64-unix/secur32.so",
+        "lib/wine/x86_64-windows/bcrypt.dll",
+        "lib/wine/x86_64-windows/crypt32.dll",
+        "lib/wine/x86_64-windows/secur32.dll"
+      ],
+      "only_overlay_modules_changed": true,
+      "base_manifest_rehashed_unchanged": true,
+      "native_gs_loader_helper_renderer_preserved": true
+    }
+  },
+  "runs": [
+    {
+      "kind": "https-positive",
+      "receipt_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-02/receipt.json",
+      "receipt_sha256": "2313595c23f4c2a90fed48b1c831f43bee48d154ebb1cd3030f7e736d4df4c5a",
+      "actual_engine": "calimocho-wine11.20-gptk4b3-tls",
+      "harness_engine_label": "winehq-11.20-metal-port-07",
+      "harness_label_note": "Stale generic label; actual install/loader/server paths and hashes bind identity",
+      "probe_sha256": "62efbea5f8ad8a655f6add8f8bea170c20dd2fe2e6c2a92a7e24db219c7be235",
+      "probe_exit_code": 0,
+      "elapsed_seconds": 5.158,
+      "deadline_seconds": 90,
+      "stdout_log": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-02/logs/create-device.stdout.log",
+      "stdout_sha256": "bda05549f861af4e780b87cf361d37531ae84ce2eafedd539d4ede2a2666539e",
+      "stderr_log": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-02/logs/create-device.stderr.log",
+      "stderr_sha256": "f63584c9aae8cc366171932263f8f9c37b0fe4bde6ec94e176d000331c002ebb",
+      "fresh_prefix": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-02/prefix",
+      "process_environment": {
+        "PATH": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "HOME": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-02/home",
+        "TEMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-02/tmp",
+        "TMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-02/tmp",
+        "TMPDIR": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-02/tmp",
+        "WINEARCH": "win64",
+        "WINEPREFIX": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-02/prefix",
+        "WINELOADER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+        "WINESERVER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wineserver",
+        "WINEDLLOVERRIDES": "mscoree,mshtml=",
+        "WINEDEBUG": "+loaddll,+seh,+schannel,+winhttp",
+        "DYLD_PRINT_LIBRARIES": "1",
+        "DYLD_FALLBACK_LIBRARY_PATH": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib:$CALIMOCHO_WORKTREE/build/dependencies/freetype-2.13.3-x86_64-02/prefix/lib:/usr/lib",
+        "CX_APPLEGPTK_LIBD3DSHARED_PATH": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+      },
+      "apple_payloads_unchanged": true,
+      "residual_owned_groups": [],
+      "prefix_open_files": false,
+      "http_status": 200,
+      "certificate_validation": "enabled"
+    },
+    {
+      "kind": "https-expired-negative",
+      "receipt_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-03/receipt.json",
+      "receipt_sha256": "e4af6e29a50ca5204ba45cc409b9934e0c791f547d5beafb26e968676b0f346e",
+      "actual_engine": "calimocho-wine11.20-gptk4b3-tls",
+      "harness_engine_label": "winehq-11.20-metal-port-07",
+      "harness_label_note": "Stale generic label; actual install/loader/server paths and hashes bind identity",
+      "probe_sha256": "62efbea5f8ad8a655f6add8f8bea170c20dd2fe2e6c2a92a7e24db219c7be235",
+      "probe_exit_code": 1,
+      "elapsed_seconds": 4.948,
+      "deadline_seconds": 90,
+      "stdout_log": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-03/logs/create-device.stdout.log",
+      "stdout_sha256": "c3890d90effa5e6da48e5e917fdb92323bd9707d2c800db46596b9cbb4b9d0ef",
+      "stderr_log": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-03/logs/create-device.stderr.log",
+      "stderr_sha256": "7da431db5170ccf476be49ff9956df1aa63c23cad4a9f3e6242942a6830624d2",
+      "fresh_prefix": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-03/prefix",
+      "process_environment": {
+        "PATH": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "HOME": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-03/home",
+        "TEMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-03/tmp",
+        "TMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-03/tmp",
+        "TMPDIR": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-03/tmp",
+        "WINEARCH": "win64",
+        "WINEPREFIX": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-03/prefix",
+        "WINELOADER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+        "WINESERVER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wineserver",
+        "WINEDLLOVERRIDES": "mscoree,mshtml=",
+        "WINEDEBUG": "+loaddll,+seh,+schannel,+winhttp",
+        "DYLD_PRINT_LIBRARIES": "1",
+        "DYLD_FALLBACK_LIBRARY_PATH": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib:$CALIMOCHO_WORKTREE/build/dependencies/freetype-2.13.3-x86_64-02/prefix/lib:/usr/lib",
+        "CX_APPLEGPTK_LIBD3DSHARED_PATH": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+      },
+      "apple_payloads_unchanged": true,
+      "residual_owned_groups": [],
+      "prefix_open_files": false,
+      "expected_rejection": true,
+      "tls_handshake_completed": true,
+      "wine_certificate_error": 12037,
+      "winhttp_returned_error": 12157,
+      "date_invalid_callback_delivered": false,
+      "certificate_checks_bypassed": false,
+      "observation": "Certificate date failure is proven by WinHTTP trace, not generic API error alone. Raw negative PE exit1 is expected."
+    },
+    {
+      "kind": "d3d12-present",
+      "receipt_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-04/receipt.json",
+      "receipt_sha256": "add3a7d6097dd446d57da1d415d862be05c435af36a4b352c2ab2396edd03a47",
+      "actual_engine": "calimocho-wine11.20-gptk4b3-tls",
+      "harness_engine_label": "winehq-11.20-metal-port-07",
+      "harness_label_note": "Stale generic label; actual install/loader/server paths and hashes bind identity",
+      "probe_sha256": "cc478c50437a87edcd913c8b3d31de979e0e751eb4113c19b6baa205b8f6c707",
+      "probe_exit_code": 0,
+      "elapsed_seconds": 7.13,
+      "deadline_seconds": 90,
+      "stdout_log": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-04/logs/create-device.stdout.log",
+      "stdout_sha256": "25c5a43e738ff659c33b532604cbdbfa4806687c760e72890823a9fd3b8488fe",
+      "stderr_log": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-04/logs/create-device.stderr.log",
+      "stderr_sha256": "34951bad2bead77b2a48f13293502743ed980de67d6aadf49eefc3f9a1686ad7",
+      "fresh_prefix": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-04/prefix",
+      "process_environment": {
+        "PATH": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "HOME": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-04/home",
+        "TEMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-04/tmp",
+        "TMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-04/tmp",
+        "TMPDIR": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-04/tmp",
+        "WINEARCH": "win64",
+        "WINEPREFIX": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-04/prefix",
+        "WINELOADER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+        "WINESERVER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wineserver",
+        "WINEDLLOVERRIDES": "mscoree,mshtml=",
+        "WINEDEBUG": "+loaddll,+seh,+macdrv_d3dmtl,+unixlib",
+        "DYLD_PRINT_LIBRARIES": "1",
+        "DYLD_FALLBACK_LIBRARY_PATH": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib:$CALIMOCHO_WORKTREE/build/dependencies/freetype-2.13.3-x86_64-02/prefix/lib:/usr/lib",
+        "CX_APPLEGPTK_LIBD3DSHARED_PATH": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+      },
+      "apple_payloads_unchanged": true,
+      "residual_owned_groups": [],
+      "prefix_open_files": false,
+      "present_count": 120,
+      "target_frames": 120,
+      "hresults": "all printed HRESULTs 0x00000000",
+      "readback_pixel_rgba": [
+        51,
+        102,
+        204,
+        255
+      ],
+      "pixel_matches_exactly": true,
+      "window_capture": {
+        "window": {
+          "id": 1264,
+          "title": "Calimocho D3D12 Present Probe",
+          "on_screen": true,
+          "pid": 71346,
+          "bounds": {
+            "X": 84,
+            "Height": 272,
+            "Y": 78,
+            "Width": 320
+          }
+        },
+        "window_lookup_exit_code": 0,
+        "capture_exit_code": 0,
+        "png": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-04/logs/probe-window.png",
+        "sha256": "ed06bfba1a3fe99b634ab016400a8ffcf4d2749b57b16ebae8c2115a7bf876e4",
+        "bytes": 24373
+      },
+      "visual_observation": "Inspected targeted PNG: blue client area, not black",
+      "input_sent": false,
+      "focus_requested": false,
+      "no_vulkan_or_vkd3d_selection": true
+    },
+    {
+      "kind": "d3d11-present",
+      "receipt_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-05/receipt.json",
+      "receipt_sha256": "be53d9b6a1fffada71f374507394392fd7341597d0e69846ddbadb447dfce3ac",
+      "actual_engine": "calimocho-wine11.20-gptk4b3-tls",
+      "harness_engine_label": "winehq-11.20-metal-port-07",
+      "harness_label_note": "Stale generic label; actual install/loader/server paths and hashes bind identity",
+      "probe_sha256": "06d5a74f6cb1c9eb5965d7913be102c900ef4ae9d3bdaa19425e352ff5f13c04",
+      "probe_exit_code": 0,
+      "elapsed_seconds": 7.006,
+      "deadline_seconds": 90,
+      "stdout_log": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-05/logs/create-device.stdout.log",
+      "stdout_sha256": "c80fc47b711c12cb2e6b5dc7f080ddc0aa9c3de82237f54ac5b84d1a89ec1349",
+      "stderr_log": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-05/logs/create-device.stderr.log",
+      "stderr_sha256": "22351d43b980e2a531880a92fa950d9c412c6fa3be7d4902777a99403c336a56",
+      "fresh_prefix": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-05/prefix",
+      "process_environment": {
+        "PATH": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "HOME": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-05/home",
+        "TEMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-05/tmp",
+        "TMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-05/tmp",
+        "TMPDIR": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-05/tmp",
+        "WINEARCH": "win64",
+        "WINEPREFIX": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-05/prefix",
+        "WINELOADER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+        "WINESERVER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wineserver",
+        "WINEDLLOVERRIDES": "mscoree,mshtml=",
+        "WINEDEBUG": "+loaddll,+seh,+macdrv_d3dmtl,+unixlib",
+        "DYLD_PRINT_LIBRARIES": "1",
+        "DYLD_FALLBACK_LIBRARY_PATH": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib:$CALIMOCHO_WORKTREE/build/dependencies/freetype-2.13.3-x86_64-02/prefix/lib:/usr/lib",
+        "CX_APPLEGPTK_LIBD3DSHARED_PATH": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+      },
+      "apple_payloads_unchanged": true,
+      "residual_owned_groups": [],
+      "prefix_open_files": false,
+      "present_count": 120,
+      "target_frames": 120,
+      "hresults": "all printed HRESULTs 0x00000000",
+      "readback_pixel_rgba": [
+        51,
+        102,
+        204,
+        255
+      ],
+      "pixel_matches_exactly": true,
+      "window_capture": {
+        "window": {
+          "id": 1293,
+          "title": "Calimocho D3D11 Present Probe",
+          "on_screen": true,
+          "pid": 71527,
+          "bounds": {
+            "X": 84,
+            "Height": 272,
+            "Y": 78,
+            "Width": 320
+          }
+        },
+        "window_lookup_exit_code": 0,
+        "capture_exit_code": 0,
+        "png": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-05/logs/probe-window.png",
+        "sha256": "111135097e904a284f093739afd412ca51c7827e5202e2fbbef9d27dc022087d",
+        "bytes": 24174
+      },
+      "visual_observation": "Inspected targeted PNG: blue client area, not black",
+      "input_sent": false,
+      "focus_requested": false,
+      "no_vulkan_or_vkd3d_selection": true
+    },
+    {
+      "kind": "https-rpath-without-tls-fallback",
+      "receipt_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-06/receipt.json",
+      "receipt_sha256": "8b3107d034b8f878ac41468a555780a9e16ac155bb6ce41ad3014ae82859679b",
+      "actual_engine": "calimocho-wine11.20-gptk4b3-tls",
+      "harness_engine_label": "winehq-11.20-metal-port-07",
+      "harness_label_note": "Stale generic label; actual install/loader/server paths and hashes bind identity",
+      "probe_sha256": "62efbea5f8ad8a655f6add8f8bea170c20dd2fe2e6c2a92a7e24db219c7be235",
+      "probe_exit_code": 0,
+      "elapsed_seconds": 4.756,
+      "deadline_seconds": 90,
+      "stdout_log": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-06/logs/create-device.stdout.log",
+      "stdout_sha256": "bda05549f861af4e780b87cf361d37531ae84ce2eafedd539d4ede2a2666539e",
+      "stderr_log": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-06/logs/create-device.stderr.log",
+      "stderr_sha256": "79b7aa83f9ac740e3ac5d4c0e2b4668f39a4b92626b486c597657b6b64ca791b",
+      "fresh_prefix": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-06/prefix",
+      "process_environment": {
+        "PATH": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "HOME": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-06/home",
+        "TEMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-06/tmp",
+        "TMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-06/tmp",
+        "TMPDIR": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-06/tmp",
+        "WINEARCH": "win64",
+        "WINEPREFIX": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-06/prefix",
+        "WINELOADER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+        "WINESERVER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wineserver",
+        "WINEDLLOVERRIDES": "mscoree,mshtml=",
+        "WINEDEBUG": "+loaddll,+schannel,+winhttp",
+        "DYLD_PRINT_LIBRARIES": "1",
+        "DYLD_FALLBACK_LIBRARY_PATH": "$CALIMOCHO_WORKTREE/build/dependencies/freetype-2.13.3-x86_64-02/prefix/lib:/usr/lib",
+        "CX_APPLEGPTK_LIBD3DSHARED_PATH": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+      },
+      "apple_payloads_unchanged": true,
+      "residual_owned_groups": [],
+      "prefix_open_files": false,
+      "http_status": 200,
+      "certificate_validation": "enabled",
+      "tls_fallback_removed": true
+    },
+    {
+      "kind": "port09-https-red-same-pe",
+      "receipt_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-07/receipt.json",
+      "receipt_sha256": "ded7d56e6157f0dc112e4d9ba007cf3ef6691f78e0082cc6c6f06f45a9f0db7a",
+      "actual_engine": "calimocho-wine11.20-gptk4b3",
+      "harness_engine_label": "winehq-11.20-metal-port-07",
+      "harness_label_note": "Stale generic label; actual install/loader/server paths and hashes bind identity",
+      "probe_sha256": "62efbea5f8ad8a655f6add8f8bea170c20dd2fe2e6c2a92a7e24db219c7be235",
+      "probe_exit_code": 1,
+      "elapsed_seconds": 4.331,
+      "deadline_seconds": 90,
+      "stdout_log": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-07/logs/create-device.stdout.log",
+      "stdout_sha256": "95b7d5669f81a2ca57344add06de6d01345872d5083ab93120d2e22be25096c5",
+      "stderr_log": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-07/logs/create-device.stderr.log",
+      "stderr_sha256": "a6ddb557790b68963b5b8b1233acd4112dd108aaef05bdf73f2070fb04f87e1c",
+      "fresh_prefix": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-07/prefix",
+      "process_environment": {
+        "PATH": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "HOME": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-07/home",
+        "TEMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-07/tmp",
+        "TMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-07/tmp",
+        "TMPDIR": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-07/tmp",
+        "WINEARCH": "win64",
+        "WINEPREFIX": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-07/prefix",
+        "WINELOADER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wine",
+        "WINESERVER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-09/install/bin/wineserver",
+        "WINEDLLOVERRIDES": "mscoree,mshtml=",
+        "WINEDEBUG": "+loaddll,+schannel,+winhttp",
+        "DYLD_PRINT_LIBRARIES": "1",
+        "DYLD_FALLBACK_LIBRARY_PATH": "$CALIMOCHO_WORKTREE/build/dependencies/freetype-2.13.3-x86_64-02/prefix/lib:/usr/lib",
+        "CX_APPLEGPTK_LIBD3DSHARED_PATH": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+      },
+      "apple_payloads_unchanged": true,
+      "residual_owned_groups": [],
+      "prefix_open_files": false,
+      "winhttp_returned_error": 2148074245
+    }
+  ],
+  "failed_or_stopped_approaches": [
+    {
+      "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10/configure.log",
+      "sha256": "b87ed99d4c86d0c0c8b2df20f60c4beb4788058b5ce6e995b614575e7ad6106c",
+      "result": "Configure rejected macOS old bison; reused installed modern bison via PATH, no install"
+    },
+    {
+      "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-02/configure.log",
+      "sha256": "1e5b318e65c062267881f7abe85b557815814bdc0f0ec6d29c9ed186583cba52",
+      "result": "Configure found bare GnuTLS SONAME. Full compile stopped for explicit @rpath selection; not accepted"
+    },
+    {
+      "path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/tls-modules.log",
+      "sha256": "8a3bb12d2c52541780af10f66eef2107418701ff312b44dfc33890e580860bce",
+      "result": "Narrow compile collided with still-running full-build child/import archive. Exact owned make groups authenticated by cwd, stopped; explicit import prerequisites then targeted compile succeeded"
+    },
+    {
+      "full_build_groups": [
+        45118,
+        65170
+      ],
+      "receipt_sha256": "e967a248ff7c7e811ff1899f4e0290d5961a44b2add45e523832bd0f9d84f10c",
+      "residual_groups": [],
+      "result": "Full build intentionally not completed after urgent coordinator narrowing; only TLS modules overlaid"
+    }
+  ],
+  "dependency_option_warnings": "Initial libtasn1 --disable-tools/--disable-tests and GnuTLS --disable-guile were unrecognized; actual logs retained, no claim they disabled anything. Reproduction tool removes these ignored flags. Required p11-kit/IDN/included-unistring flags recognized.",
+  "cw_baseline_updated": false,
+  "cw_reason": "Not cheap: avoid another source rebuild and preserve qualified comparison engine",
+  "certificate_validation_bypassed": false,
+  "game_launched": false,
+  "game_error_causality_established": false,
+  "full_conformance_pass": false,
+  "distribution_qualified": false,
+  "cleanup_verified": true,
+  "runtime_environment": {
+    "WINELOADER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+    "WINESERVER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wineserver",
+    "WINEDLLOVERRIDES": "mscoree,mshtml=",
+    "WINEDEBUG": "+loaddll,+seh,+macdrv_d3dmtl,+unixlib",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "DYLD_FALLBACK_LIBRARY_PATH": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib:$CALIMOCHO_WORKTREE/build/dependencies/freetype-2.13.3-x86_64-02/prefix/lib:/usr/lib",
+    "CX_APPLEGPTK_LIBD3DSHARED_PATH": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+  },
+  "final_runtime_https_smoke": {
+    "status": "pass",
+    "tested_at": "2026-10-24T11:39:43.065450+00:00",
+    "wine_sha256": "f6d0546fad2d0dafaa09a9fe6cabe75bb070567df6b0933ecd3622dcb6349194",
+    "probe_sha256": "62efbea5f8ad8a655f6add8f8bea170c20dd2fe2e6c2a92a7e24db219c7be235",
+    "fresh_prefix": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/prefix",
+    "commands": [
+      [
+        "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wineboot",
+        "--init"
+      ],
+      [
+        "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+        "reg",
+        "add",
+        "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug",
+        "/v",
+        "Debugger",
+        "/t",
+        "REG_SZ",
+        "/d",
+        "winedbg --auto %ld %ld",
+        "/f"
+      ],
+      [
+        "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+        "reg",
+        "add",
+        "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug",
+        "/v",
+        "Auto",
+        "/t",
+        "REG_SZ",
+        "/d",
+        "1",
+        "/f"
+      ],
+      [
+        "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+        "reg",
+        "query",
+        "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug"
+      ],
+      [
+        "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+        "cmd",
+        "/c",
+        "ver"
+      ],
+      [
+        "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+        "reg",
+        "query",
+        "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion",
+        "/v",
+        "CurrentVersion"
+      ],
+      [
+        "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+        "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/app/winhttp-https-probe.exe"
+      ],
+      [
+        "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wineserver",
+        "-k"
+      ],
+      [
+        "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wineserver",
+        "-w"
+      ]
+    ],
+    "exit_codes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "environment": {
+      "WINELOADER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+      "WINESERVER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wineserver",
+      "WINEDLLOVERRIDES": "mscoree,mshtml=",
+      "WINEDEBUG": "+loaddll,+seh,+macdrv_d3dmtl,+unixlib",
+      "DYLD_PRINT_LIBRARIES": "1",
+      "DYLD_FALLBACK_LIBRARY_PATH": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib:$CALIMOCHO_WORKTREE/build/dependencies/freetype-2.13.3-x86_64-02/prefix/lib:/usr/lib",
+      "CX_APPLEGPTK_LIBD3DSHARED_PATH": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+    },
+    "process_environment": {
+      "PATH": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+      "HOME": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/home",
+      "TEMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/tmp",
+      "TMP": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/tmp",
+      "TMPDIR": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/tmp",
+      "WINEARCH": "win64",
+      "WINEPREFIX": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/prefix",
+      "WINELOADER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+      "WINESERVER": "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wineserver",
+      "WINEDLLOVERRIDES": "mscoree,mshtml=",
+      "WINEDEBUG": "+loaddll,+seh,+macdrv_d3dmtl,+unixlib",
+      "DYLD_PRINT_LIBRARIES": "1",
+      "DYLD_FALLBACK_LIBRARY_PATH": "$CALIMOCHO_WORKTREE/build/dependencies/tls-x86_64-01/prefix/lib:$CALIMOCHO_WORKTREE/build/dependencies/freetype-2.13.3-x86_64-02/prefix/lib:/usr/lib",
+      "CX_APPLEGPTK_LIBD3DSHARED_PATH": "$APPLEGPTK_ENGINE/evaluation-environment/redist/lib/external/libd3dshared.dylib"
+    },
+    "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/create-device.stdout.log",
+    "log_sha256": "bda05549f861af4e780b87cf361d37531ae84ce2eafedd539d4ede2a2666539e",
+    "command_logs": [
+      {
+        "command": [
+          "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wineboot",
+          "--init"
+        ],
+        "exit_code": 0,
+        "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/wineboot.stderr.log",
+        "log_sha256": "46699639a408d4727a0e13de74edc7b5ea398613c104a0015ac61daa42923c41",
+        "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/wineboot.stdout.log",
+        "stdout_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "command": [
+          "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+          "reg",
+          "add",
+          "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug",
+          "/v",
+          "Debugger",
+          "/t",
+          "REG_SZ",
+          "/d",
+          "winedbg --auto %ld %ld",
+          "/f"
+        ],
+        "exit_code": 0,
+        "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/set-debugger.stderr.log",
+        "log_sha256": "41acbf485dc312b0714f0ee33bb53c201792085eddb633765e61576b968776fc",
+        "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/set-debugger.stdout.log",
+        "stdout_log_sha256": "76883419a4c93e1b79835eccdb18fc278ad67ab36c535b384031b73958d487df"
+      },
+      {
+        "command": [
+          "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+          "reg",
+          "add",
+          "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug",
+          "/v",
+          "Auto",
+          "/t",
+          "REG_SZ",
+          "/d",
+          "1",
+          "/f"
+        ],
+        "exit_code": 0,
+        "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/set-debugger-auto.stderr.log",
+        "log_sha256": "997935af67763603cf88aeec7f1065c8353b2e908a8d6efb51290cbd026c1c52",
+        "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/set-debugger-auto.stdout.log",
+        "stdout_log_sha256": "76883419a4c93e1b79835eccdb18fc278ad67ab36c535b384031b73958d487df"
+      },
+      {
+        "command": [
+          "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+          "reg",
+          "query",
+          "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug"
+        ],
+        "exit_code": 0,
+        "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/verify-debugger.stderr.log",
+        "log_sha256": "955d61504d20e1f5ccce0733db0c4111f1001b0c6692baa8c26b2897e98b89e6",
+        "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/verify-debugger.stdout.log",
+        "stdout_log_sha256": "9bb80e3b6671454918044bb9f731b1688913037e544bcc2a9b2dfa2e5a214530"
+      },
+      {
+        "command": [
+          "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+          "cmd",
+          "/c",
+          "ver"
+        ],
+        "exit_code": 0,
+        "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/cmd-ver.stderr.log",
+        "log_sha256": "2b2dd33a30f92480f0d6adc9c4a0c472d7ba606779bc5abe89ddea1b00d87188",
+        "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/cmd-ver.stdout.log",
+        "stdout_log_sha256": "07496cbba7bef678e6732b1552fda0cc41494da42c30c49400c7a502499a9b3e"
+      },
+      {
+        "command": [
+          "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+          "reg",
+          "query",
+          "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion",
+          "/v",
+          "CurrentVersion"
+        ],
+        "exit_code": 0,
+        "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/registry-version.stderr.log",
+        "log_sha256": "355bb970fc4c0744d7bd69813fe7bfb4215efb56ce9255c7aa4fb8e52ab0e640",
+        "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/registry-version.stdout.log",
+        "stdout_log_sha256": "c7f9e2e888b34b5b7f94623f12c1f3e8fae23a88466ec7d12298032e2346a8b7"
+      },
+      {
+        "command": [
+          "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wine",
+          "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/app/winhttp-https-probe.exe"
+        ],
+        "exit_code": 0,
+        "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/create-device.stderr.log",
+        "log_sha256": "47200f6148219ad19477503b40c8bd1465390c37b4fcff9fdefcbd6804d2a8da",
+        "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/create-device.stdout.log",
+        "stdout_log_sha256": "bda05549f861af4e780b87cf361d37531ae84ce2eafedd539d4ede2a2666539e"
+      },
+      {
+        "command": [
+          "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wineserver",
+          "-k"
+        ],
+        "exit_code": 0,
+        "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/wineserver-k.stderr.log",
+        "log_sha256": "b255f240974471229018b820fb2a71950c81cea83caf6465fc943441dcd4edf9",
+        "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/wineserver-k.stdout.log",
+        "stdout_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "command": [
+          "$CALIMOCHO_WORKTREE/build/winehq-11.20/metal-port-10-03/install/bin/wineserver",
+          "-w"
+        ],
+        "exit_code": 0,
+        "log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/wineserver-w.stderr.log",
+        "log_sha256": "a9b41c9a2f2043de05b568bee9a5d96a5c9256dbe974012ac0c9a361ad528bdd",
+        "stdout_log_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/logs/wineserver-w.stdout.log",
+        "stdout_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "receipt_path": "$CALIMOCHO_WORKTREE/build/winehq-11.20/tls-qualification-01/gfx-candidate-08/receipt.json",
+    "receipt_sha256": "6879df8488876dc9c30a1d3d6175dd83a54c4136a00d86f372ea97c8e66b0430",
+    "https_status": 200,
+    "certificate_validation": "enabled",
+    "apple_payload_hashes_unchanged": true,
+    "residual_process_groups": [],
+    "prefix_open_files_check": {
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    "game_launched": false,
+    "qualification": "Fresh-prefix WinHTTP HTTPS200 with certificate validation enabled, separately proven expired-certificate rejection, D3D11 and D3D12 120-Present/exact RGBA readback and targeted blue-window captures. No game or activation qualification."
+  },
+  "runtime_debug_note": "HTTP and schannel diagnostic channels exist only in diagnostic test receipts; they are not enabled in the runtime recipe.",
+  "verification": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v",
+    "tests_run": 57,
+    "result": "OK",
+    "log_sha256": "375c582b765628abd54d5e039e8f6781f7395f1f38beb26e564f66f8db3b8f65",
+    "markdownlint": "Not installed; not run",
+    "diff_check": "clean",
+    "new_documentation_links": "checked"
+  },
+  "test_source_hashes": {
+    "tests/test_tls_build.py": "c4ba5cf0c5b34723e73a5e0cd22f56e092cf3a3d59744a0d618def0b59ea7317",
+    "tests/test_build_sources.py": "f275eb54acc6a1c2ad53ee2be0ca4f20c2244bbe7c17b9a205843ceb434e0647",
+    "tests/test_winehq_registry_evidence.py": "9111d9f55b3e01c175a36a591b802412430b6d3b92c3014e2b996b0d19ec4d40"
+  }
+}

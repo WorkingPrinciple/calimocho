@@ -151,6 +151,74 @@ class SourceBuildTests(unittest.TestCase):
                 cw.build(self.archive, self.output, self.freetype)
         self.assertFalse(self.output.exists())
 
+    def test_tls_prefix_missing_library_is_rejected_before_build(self):
+        self.archive_source("cw")
+        tls = self.root / "tls"
+        tls.mkdir()
+        with patch.object(cw.subprocess, "check_output", side_effect=self.check_output):
+            with self.assertRaisesRegex(ValueError, "GnuTLS library and pkg-config"):
+                cw.build(self.archive, self.output, self.freetype, tls=tls)
+        self.assertFalse(self.output.exists())
+
+    def test_tls_configure_requires_gnutls_and_blocks_compile_without_soname(self):
+        self.archive_source("cw")
+        tls = self.root / "tls"
+        (tls / "lib/pkgconfig").mkdir(parents=True)
+        (tls / "lib/libgnutls.dylib").write_bytes(b"fixture")
+        (tls / "lib/pkgconfig/gnutls.pc").write_text("fixture")
+
+        def configure(command, directory, environment, log, timeout):
+            self.assertIn("--with-gnutls", command)
+            self.assertIn(f"--prefix={self.output / 'install'}", command)
+            self.assertEqual(environment["PKG_CONFIG_PATH"], str(tls / "lib/pkgconfig"))
+            self.assertEqual(environment["ac_cv_lib_soname_gnutls"],
+                             "@rpath/libgnutls.dylib")
+            self.assertIn(f"-Wl,-rpath,{tls / 'lib'}", environment["LDFLAGS"])
+            (directory / "include").mkdir()
+            (directory / "include/config.h").write_text("/* no GnuTLS */")
+            return {"exit_code": 0}
+
+        with patch.object(cw.subprocess, "check_output", side_effect=self.check_output), \
+                patch.object(cw.shutil, "which", return_value="/usr/bin/true"), \
+                patch.object(cw, "toolchain_identity", return_value={}), \
+                patch.object(cw, "run_step", side_effect=configure) as run:
+            with self.assertRaisesRegex(ValueError, "no GnuTLS SONAME"):
+                cw.build(self.archive, self.output, self.freetype, tls=tls)
+        self.assertEqual(run.call_count, 1)
+
+    def test_tls_only_build_targets_crypto_modules_without_full_build(self):
+        self.archive_source("cw")
+        tls = self.root / "tls"
+        (tls / "lib/pkgconfig").mkdir(parents=True)
+        (tls / "lib/libgnutls.dylib").write_bytes(b"fixture")
+        (tls / "lib/pkgconfig/gnutls.pc").write_text("fixture")
+        commands = []
+
+        def run(command, directory, environment, log, timeout):
+            commands.append(command)
+            if "configure" in command[0]:
+                (directory / "include").mkdir()
+                (directory / "include/config.h").write_text(
+                    '#define SONAME_LIBGNUTLS "@rpath/libgnutls.dylib"\n')
+            if command[-3:] == list(cw.TLS_TARGETS):
+                for relative in cw.TLS_ARTIFACTS:
+                    artifact = directory / relative
+                    artifact.parent.mkdir(parents=True, exist_ok=True)
+                    artifact.write_bytes(b"fixture")
+            return {"command": command, "exit_code": 0}
+
+        with patch.object(cw.subprocess, "check_output", side_effect=self.check_output), \
+                patch.object(cw.shutil, "which", return_value="/usr/bin/true"), \
+                patch.object(cw, "toolchain_identity", return_value={}), \
+                patch.object(cw, "run_step", side_effect=run):
+            self.assertEqual(cw.build(self.archive, self.output, self.freetype,
+                                      tls=tls, tls_only=True), 0)
+        self.assertEqual(commands[-1], ["/usr/bin/make", "-j4"] + list(cw.TLS_TARGETS))
+        self.assertIn("libucrtbase.a", commands[1][-1])
+        receipt = json.loads((self.output / "receipt.json").read_text())
+        self.assertEqual(receipt["status"], "tls-modules-compiled-not-runtime-qualified")
+        self.assertFalse(receipt["runtime_executed"])
+
     def test_existing_output_is_preserved(self):
         self.archive_source("cw")
         self.output.mkdir()

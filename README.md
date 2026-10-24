@@ -142,6 +142,16 @@ alongside the renderer. Like the baseline record, its public placeholders
 are not executable configuration. The matching verified local artifact is
 under `build/winehq-11.20/metal-port-09/`.
 
+The separate local **port-10 TLS overlay** adds source-built GnuTLS
+without replacing port-09's loader, native-GS helper or renderer.
+Its owned WinHTTP probe returns HTTPS 200 and the expired-certificate
+endpoint is rejected; both graphics probes still pass their 120-frame
+exact-pixel checks. This addresses missing schannel capability, not proof
+that a game's online activation works.
+See [TLS and graphics evidence](docs/evidence/req74-port10-schannel-and-graphics.json)
+and the [port-10 record](docs/evidence/calimocho-wine11.20-gptk4b3-tls.registry.json),
+named `calimocho-wine11.20-gptk4b3-tls`.
+
 ## Local Ode/Exodus runtime reference
 
 The exporter does not make Calimocho a distinct engine to select in Ode. This local source

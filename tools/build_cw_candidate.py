@@ -38,6 +38,12 @@ PORT_CHECK_TARGETS = (
     "dlls/winemac.drv/x86_64-windows/winemac.drv",
 )
 PORT_CHECK_ARTIFACTS = PORT_CHECK_TARGETS
+TLS_TARGETS = ("dlls/secur32/all", "dlls/bcrypt/all", "dlls/crypt32/all")
+TLS_ARTIFACTS = ("dlls/secur32/secur32.so", "dlls/crypt32/crypt32.so") + tuple(
+    f"dlls/{module}/{arch}-windows/{module}.dll"
+    for module in ("secur32", "bcrypt", "crypt32")
+    for arch in ("x86_64", "i386")
+)
 
 
 def ensure_output_disjoint(output, input_path, label):
@@ -86,9 +92,11 @@ def tree_hash(root):
 
 
 def build(archive, output, freetype, build_all=False, winehq_source=None,
-          port_check=False):
+          port_check=False, tls=None, tls_only=False):
     if port_check and (not winehq_source or build_all):
         raise ValueError("--port-check requires --winehq-source and excludes --build-all")
+    if tls_only and (tls is None or build_all or port_check):
+        raise ValueError("--tls-only requires --tls and excludes other build modes")
     pin = json.loads((REPO / "versions.json").read_text())["cw_candidate_sources"]
     if sha256(archive) != pin["sha256"]:
         raise ValueError("CodeWeavers source archive checksum mismatch")
@@ -117,6 +125,14 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
     ft_info = subprocess.check_output(["file", str(ft_library)], text=True, timeout=30)
     if "x86_64" not in ft_info:
         raise ValueError("FreeType must contain an x86_64 slice")
+    if tls is not None:
+        tls = tls.resolve(strict=True)
+        ensure_output_disjoint(output, tls, "TLS prefix")
+        library = tls / "lib/libgnutls.dylib"
+        if not library.is_file() or not (tls / "lib/pkgconfig/gnutls.pc").is_file():
+            raise ValueError("Explicit TLS prefix must contain GnuTLS library and pkg-config file")
+        if "x86_64" not in subprocess.check_output(["file", "-L", str(library)], text=True):
+            raise ValueError("GnuTLS must contain an x86_64 slice")
     bison = shutil.which("bison")
     if not bison:
         raise ValueError("An installed bison >= 3 is required")
@@ -176,6 +192,15 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
         CPPFLAGS=f"-I{freetype / 'include/freetype2'}",
         LDFLAGS=f"-L{freetype / 'lib'}",
     )
+    if tls is not None:
+        environment.update(
+            PKG_CONFIG_PATH=str(tls / "lib/pkgconfig"),
+            PKG_CONFIG_LIBDIR=f"{tls / 'lib/pkgconfig'}:{freetype / 'lib/pkgconfig'}",
+            LDFLAGS=(f"-L{tls / 'lib'} -Wl,-rpath,{tls / 'lib'} "
+                     f"{environment['LDFLAGS']}"),
+            DYLD_FALLBACK_LIBRARY_PATH=f"{tls / 'lib'}:{freetype / 'lib'}:/usr/lib",
+            ac_cv_lib_soname_gnutls=f"@rpath/{library.resolve().name}",
+        )
     receipt = {
         "source_url": pin["url"], "archive_sha256": pin["sha256"],
         "pristine_source_tree_sha256": pristine_tree,
@@ -199,11 +224,19 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
         "installed": False, "runtime_executed": False,
         "apple_payloads_copied": False, "game_qualified": False,
         "build_all": build_all,
+        "tls_only": tls_only,
     }
+    if tls is not None:
+        receipt["tls"] = {
+            "prefix": str(tls), "gnutls_sha256": sha256(tls / "lib/libgnutls.dylib"),
+            "pkg_config_path": environment["PKG_CONFIG_PATH"],
+            "soname": environment["ac_cv_lib_soname_gnutls"],
+            "runtime_rpath": str(tls / "lib"),
+        }
     (output / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
     started = time.monotonic()
     compile_targets = (
-        [] if build_all else
+        list(TLS_TARGETS) if tls_only else [] if build_all else
         list(PORT_CHECK_TARGETS) if port_check else [
             "loader/wine", "server/wineserver", "dlls/winemac.drv/winemac.so"])
     steps = [
@@ -214,6 +247,15 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
         ]),
         ("compile", ["/usr/bin/make", "-j4"] + compile_targets),
     ]
+    if tls is not None:
+        steps[0][1].append("--with-gnutls")
+        steps[0][1].append(f"--prefix={output / 'install'}")
+    if tls_only:
+        steps.insert(1, ("tls-import-prerequisites", [
+            "/usr/bin/make", "-j4",
+            "dlls/ucrtbase/x86_64-windows/libucrtbase.a",
+            "dlls/ucrtbase/i386-windows/libucrtbase.a",
+        ]))
     if winehq_source is not None:
         interposer_source = REPO / "tools/native_gs_localtime.c"
         interposer = directory / "loader/libnative-gs-localtime.dylib"
@@ -225,6 +267,9 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
             "DYLD_FALLBACK_LIBRARY_PATH": f"{freetype / 'lib'}:/usr/lib",
             "WINEDLLOVERRIDES": "mscoree,mshtml=",
         }
+        if tls is not None:
+            receipt["runtime_environment"]["DYLD_FALLBACK_LIBRARY_PATH"] = (
+                f"{tls / 'lib'}:{freetype / 'lib'}:/usr/lib")
         receipt["runtime_dependencies"] = [{
             "path": str(interposer),
             "install_relative_path": "lib/wine/x86_64-unix/libnative-gs-localtime.dylib",
@@ -255,6 +300,13 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
             print(f"{label} failed ({step['exit_code']}): {output / f'{label}.log'}",
                   file=sys.stderr)
             return step["exit_code"] if step["exit_code"] > 0 else 1
+        if label == "configure" and tls is not None:
+            config = (directory / "include/config.h").read_text()
+            if not re.search(r'^#define SONAME_LIBGNUTLS "[^"]+"$', config, re.M):
+                raise ValueError("Configured runtime has no GnuTLS SONAME (schannel unavailable)")
+            expected = f'#define SONAME_LIBGNUTLS "{environment["ac_cv_lib_soname_gnutls"]}"'
+            if expected not in config.splitlines():
+                raise ValueError("Configured GnuTLS SONAME differs from explicit @rpath selection")
     if winehq_source is not None:
         load_commands = subprocess.check_output(
             ["otool", "-l", str(directory / "loader/wine")], text=True, timeout=30)
@@ -266,7 +318,7 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
             raise ValueError("Wine loader is missing its required native-GS LC_LOAD_DYLIB")
         receipt["native_gs_loader_load_commands"] = load_commands
     receipt["artifacts"] = []
-    artifacts = (FULL_ARTIFACTS if build_all else
+    artifacts = (TLS_ARTIFACTS if tls_only else FULL_ARTIFACTS if build_all else
                  PORT_CHECK_ARTIFACTS if port_check else COMPONENT_ARTIFACTS)
     if winehq_source is not None:
         artifacts += ("loader/libnative-gs-localtime.dylib",)
@@ -284,6 +336,7 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
                 ["otool", "-L", str(path)], text=True, timeout=30)
         receipt["artifacts"].append(artifact)
     receipt["status"] = (
+        "tls-modules-compiled-not-runtime-qualified" if tls_only else
         "full-build-compiled-not-runtime-qualified" if build_all else
         "port-check-compiled-not-runtime-qualified" if port_check
         else "macos-components-compiled-not-runtime-qualified")
@@ -303,10 +356,14 @@ def main():
                         help="Pristine pinned WineHQ checkout; port CW integration into a new copy")
     parser.add_argument("--port-check", action="store_true",
                         help="Compile coupled macdrv, ntdll, win32u and key PE modules")
+    parser.add_argument("--tls", type=Path,
+                        help="Explicit isolated x86_64 GnuTLS dependency prefix")
+    parser.add_argument("--tls-only", action="store_true",
+                        help="Build only secur32/bcrypt/crypt32 for an explicitly bound overlay")
     args = parser.parse_args()
     try:
         return build(args.archive, args.output, args.freetype, args.build_all,
-                     args.winehq_source, args.port_check)
+                     args.winehq_source, args.port_check, args.tls, args.tls_only)
     except (OSError, ValueError, tarfile.TarError, subprocess.SubprocessError) as error:
         print(f"calimocho candidate build: ERROR {error}", file=sys.stderr)
         return 1

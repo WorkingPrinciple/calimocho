@@ -1755,3 +1755,124 @@ All 49 deterministic tests pass, including warning-free PE64 builds for
 both presentation probes and the public WineHQ identity/threshold checks.
 This is bounded DX11/DX12 smoke and a bindable local record, not game
 rendering, full conformance, engine-switch or distribution acceptance.
+
+## 2026-10-24: Port-10 source-built schannel overlay
+
+The coordinator identified missing schannel support in game-owned logs.
+An owned PE independently reproduces it on unchanged port-09: WinHTTP
+SendRequest returns `0x80090305` (`SEC_E_SECPKG_NOT_FOUND`), alongside
+`SECUR32_initSchannelSP no schannel support`. The same final PE succeeds
+on port-10. This establishes a missing runtime capability, not causality
+for a particular game's activation error.
+
+[ADR-0027](ADR/0027-isolated-schannel-dependency.md) records the bounded
+dependency and overlay decision. `versions.json` now pins official GMP
+6.3.0, nettle 4.0, libtasn1 4.21.0 and GnuTLS 3.8.13 archives with SHA-256
+checksums independently published in the Homebrew formula API. Only
+official source was downloaded, never a Homebrew binary. Every archive
+hash was verified before extraction.
+
+`tools/build_tls.py` builds shared x86_64 libraries with installed tools
+under `build/dependencies/tls-x86_64-01/prefix`. The retained source trees
+contain their licences. GnuTLS uses included unistring without p11-kit or
+optional IDN support. Its complete five-dylib closure references only that
+owned prefix and macOS system libraries, not Homebrew or `/usr/local`.
+It is a local-only dependency layout, not a relocatable distribution.
+
+`tools/build_cw_candidate.py --tls PREFIX` makes schannel explicit and
+rejects a missing library, wrong architecture or absent/wrong SONAME.
+Configure emits `SONAME_LIBGNUTLS "@rpath/libgnutls.30.dylib"`. The Unix
+TLS modules carry an LC_RPATH for the isolated TLS lib directory.
+The runtime recipe adds that directory alongside FreeType. A separate
+positive HTTPS run removes TLS from DYLD_FALLBACK_LIBRARY_PATH and still
+returns 200, proving the new selection does not rely only on fallback.
+
+The coordinator then prioritized an immediate targeted overlay instead
+of a full rebuild. A fresh pinned-source tree had already configured;
+only its secur32, bcrypt and crypt32 module targets were completed.
+`--tls-only` now exposes that narrow repeatable build mode and explicitly
+builds the ucrtbase import archives first. For example:
+
+```bash
+python3 tools/build_cw_candidate.py \
+  --archive "$CW_SOURCE_ARCHIVE" --winehq-source build/winehq-11.20/source \
+  --output "$NEW_OWNED_BUILD" \
+  --freetype build/dependencies/freetype-2.13.3-x86_64-02/prefix \
+  --tls build/dependencies/tls-x86_64-01/prefix --tls-only
+```
+
+Use the existing installed modern bison on PATH, not macOS's old bison.
+This command compiles only; it does not install or launch a runtime.
+The observed research overlay copies the qualified port-09 install and
+replaces exactly eight files: secur32/bcrypt/crypt32 PE modules for both
+architectures and secur32/crypt32 Unix modules. Current WineHQ has no
+`bcrypt.so`. The full 3912-file manifest proves every other file identical
+to port-09, including its real loader, native-GS helper, ntdll/macdrv and
+GPTK symlinks. The old install was also rehashed unchanged.
+
+The owned `tests/winhttp_https_probe.c` is built with MinGW warnings as
+errors and makes a synchronous WinHTTP request, with bounded network
+timeouts and ordinary certificate checks. The normal request requires
+200; `--expired-certificate` selects only the fixed negative endpoint.
+It never ignores certificate errors or changes trust:
+
+| Observation | Result |
+| --- | --- |
+| port-09 Microsoft HTTPS, same final PE | Missing schannel, exit 1 |
+| port-10 Microsoft HTTPS | Status 200, exit 0 |
+| port-10 expired.badssl.com | TLS completes; certificate-date error 12037 |
+| Negative public API result | Generic secure-channel error 12157, raw PE exit 1 |
+| port-10 HTTPS without TLS fallback directory | Status 200, exit 0 |
+| D3D12 presentation/readback | 120 Presents; RGBA 51,102,204,255; exit 0 |
+| D3D11 presentation/readback | 120 Presents; RGBA 51,102,204,255; exit 0 |
+
+The negative run did not deliver the date-invalid callback expected by
+the strict probe. Its raw exit remains 1, not relabeled as a positive
+success. The WinHTTP trace explicitly says `cert verify failed: 12037`
+after `InitializeSecurityContext ret 0`, establishing certificate expiry
+rather than a generic connection failure. Native curl independently
+rejects the same certificate with exit 60. No validation was bypassed.
+
+The two exact previously qualified graphics PEs run in fresh prefixes,
+each with a 90-second deadline. D3D12 takes 7.130 seconds and D3D11 takes
+7.006 seconds; these are not performance comparisons. All printed
+HRESULTs are zero, exact readback matches, and targeted captures show the
+blue client area. Their PNG hashes match the corresponding earlier
+D3D12 and D3D11 captures. No input or focus request was sent.
+
+The [sanitized port-10 record](evidence/calimocho-wine11.20-gptk4b3-tls.registry.json)
+is `calimocho-wine11.20-gptk4b3-tls`. Its usable local copy is
+`build/winehq-11.20/metal-port-10-03/calimocho-wine11.20-gptk4b3-tls.registry.local.json`.
+It binds the original core, source/overlay receipts, eight module changes,
+all TLS dylibs, FreeType, renderer links, fresh-prefix HTTPS receipt,
+negative observation and both graphics reruns. The existing read-only
+Ode verifier and Calimocho exporter accept it. The local record was sent
+to the coordinator before documentation, as requested.
+HTTP/schannel diagnostic channels remain test-only, not enabled in the
+runtime recipe. Another fresh HTTPS 200 receipt binds the final exact
+runtime environment without HTTP tracing.
+
+The [TLS/graphics evidence](evidence/req74-port10-schannel-and-graphics.json)
+retains exact sources, commands, artifact/log/receipt/capture hashes and
+honest failed/stopped approaches. Initial configure rejected old bison.
+A bare-SONAME full build was abandoned for explicit RPATH selection.
+Full builds were then stopped for the targeted approach. The shell
+wrapper stop left separate-session make children alive; their exact owned
+PIDs/groups were authenticated by working directory and stopped explicitly.
+A concurrent initial narrow target hit an incomplete import archive;
+explicit prerequisites and the narrow retry succeeded. No abandoned
+full build is called complete. Logs stay local.
+
+Initial dependency configure warnings for ignored optional flags are
+retained in the evidence; the repeatable tool removes those flags.
+Required GnuTLS selection options were recognized. The CW baseline is
+unchanged because a second rebuild was not cheap.
+
+Apple before/after hashes match. All owned run groups and prefix handles
+are gone. No game, account, shared registry, existing prefix/save, global
+install, signing or trust-policy change was made in this lane. Game
+retests and canonical acceptance remain coordinator-owned.
+
+All 57 deterministic tests pass, including pinned-archive rejection,
+explicit TLS-prefix/SONAME guards, narrow-build target selection,
+warning-free owned PE compilation and registry closure/observation checks.
