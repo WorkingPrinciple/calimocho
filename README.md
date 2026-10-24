@@ -82,6 +82,15 @@ exact pinned WineHQ commit in a fresh source copy and applies the measured
 experimental public-source D3DMetal port. It rejects a modified input
 checkout and records every changed file and donor hash. This option is an
 integration investigation, not proof of a usable Apple graphics runtime.
+The Darwin x86_64 native-GS port also builds
+`build/libnative-gs-localtime.dylib` inside the requested output. Its source
+and binary hashes, compiler identity, and required process-local
+`DYLD_INSERT_LIBRARIES` value are recorded in `receipt.json`. Preserve that
+dependency and the recorded FreeType environment when testing an isolated
+install. Do not launch this port without the helper or set the variable
+globally. A normal `make install` does not install this research helper.
+The helper uses loader-supported symbol interposition, not instruction
+patching, Apple binary changes, or the retired D3D11 shim.
 Normal fonts are required. Unresolved TLS, media and graphics dependencies
 are reported by configure, not silently treated as game support.
 
@@ -100,8 +109,14 @@ binds its source, loader/server hashes, FreeType path, renderer links and
 smoke logs. Its path placeholders are not executable configuration; use
 the matching local registry artifact to bind the actual host paths.
 
-WineHQ 11.20 port-07 compiles and starts, but still faults before returning
-a D3D12 device-creation result. The known-good GPTK control returns `S_OK`.
+WineHQ 11.20 port-08 now passes fresh-prefix builtin startup, `cmd /c ver`,
+a registry query and the same D3D12 device-creation probe as the CW baseline:
+both return `S_OK`. This requires the source-built localtime helper above.
+See [ADR-0023](docs/ADR/0023-native-gs-and-localtime-interposition.md) and the
+[smoke evidence](docs/evidence/winehq-port08-native-gs-smoke.json).
+The D3D12 conformance attempt still fails at swapchain initialization:
+the Wine callback returns no window data. There is no passing conformance
+summary or presentation result.
 Device creation is not presentation or gameplay proof. No game was launched.
 Game admission remains coordinator-owned and additionally requires the
 canonical route, save-preservation, disk and input-lease checks.

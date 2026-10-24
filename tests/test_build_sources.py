@@ -215,6 +215,75 @@ class SourceBuildTests(unittest.TestCase):
         self.assertFalse(receipt["apple_payloads_copied"])
         self.assertEqual(len(receipt["artifacts"]), len(cw.FULL_ARTIFACTS))
 
+    def test_winehq_build_requires_and_binds_launch_loaded_interposer(self):
+        self.archive_source("cw")
+        source = self.root / "winehq-input"
+        source.mkdir()
+        helper = self.repo / "tools/native_gs_localtime.c"
+        helper.parent.mkdir()
+        helper.write_bytes((self.real_repo / "tools/native_gs_localtime.c").read_bytes())
+        (helper.parent / "port_d3dmetal.py").write_bytes(
+            (self.real_repo / "tools/port_d3dmetal.py").read_bytes())
+        pin = self.pins["winehq_probe"]["commit"]
+
+        def check_output(command, **kwargs):
+            if command[0] == "git":
+                return f"{pin}\n" if "rev-parse" in command else ""
+            return self.check_output(command, **kwargs)
+
+        def archive(command, **kwargs):
+            destination = Path(next(arg.split("=", 1)[1] for arg in command
+                                    if arg.startswith("--output=")))
+            with tarfile.open(destination, "w") as stream:
+                staging = self.root / "staging/sources/wine"
+                for name in ("configure", "VERSION"):
+                    stream.add(staging / name, arcname=name)
+
+        for mode in ("success", "compiler-failure", "missing-artifact"):
+            output = self.root / mode
+
+            def run(command, directory, environment, log, timeout):
+                if command[0] == "/usr/bin/make":
+                    for relative in cw.FULL_ARTIFACTS:
+                        path = directory / relative
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_bytes(b"fixture")
+                if command[0] == "/usr/bin/clang":
+                    self.assertIn("-arch", command)
+                    self.assertIn("x86_64", command)
+                    self.assertIn("-dynamiclib", command)
+                    self.assertNotIn("DYLD_INSERT_LIBRARIES", environment)
+                    if mode == "compiler-failure":
+                        return {"command": command, "exit_code": 1}
+                    if mode == "success":
+                        Path(command[command.index("-o") + 1]).write_bytes(b"helper")
+                return {"command": command, "exit_code": 0}
+
+            with self.subTest(mode=mode), \
+                    patch.object(cw.subprocess, "check_output", side_effect=check_output), \
+                    patch.object(cw.subprocess, "run", side_effect=archive), \
+                    patch.object(cw.shutil, "which", return_value="/usr/bin/true"), \
+                    patch.object(cw, "toolchain_identity", return_value={}), \
+                    patch.object(cw, "port", return_value={}), \
+                    patch.object(cw, "run_step", side_effect=run):
+                if mode == "missing-artifact":
+                    with self.assertRaisesRegex(ValueError, "artifact missing"):
+                        cw.build(self.archive, output, self.freetype, True, source)
+                else:
+                    self.assertEqual(cw.build(
+                        self.archive, output, self.freetype, True, source),
+                        1 if mode == "compiler-failure" else 0)
+            receipt = json.loads((output / "receipt.json").read_text())
+            self.assertEqual(receipt["native_gs_interposer_source"]["sha256"],
+                             cw.sha256(helper))
+            self.assertEqual(receipt["runtime_environment"]["DYLD_INSERT_LIBRARIES"],
+                             str(output / "build/libnative-gs-localtime.dylib"))
+            if mode == "success":
+                self.assertEqual(receipt["artifacts"][-1]["sha256"],
+                                 cw.sha256(output / "build/libnative-gs-localtime.dylib"))
+            if mode == "compiler-failure":
+                self.assertEqual(receipt["status"], "native-gs-interposer-failed")
+
     def test_freetype_failure_stops_before_local_install(self):
         self.archive_source("ft")
         with patch.object(ft.subprocess, "check_output", side_effect=self.check_output), \

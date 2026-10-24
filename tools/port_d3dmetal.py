@@ -71,6 +71,101 @@ def port_thread_teb_key(thread, server, virtual, unix_private):
     return thread, server, virtual, unix_private
 
 
+def port_native_gs(signal, loader):
+    """Keep Darwin's native TSD base while exposing Wine's Windows TEB slots."""
+    signal = replace_once(
+        signal, "    _thread_set_tsd_base( (uint64_t)amd64_data->pthread_teb );\n", "")
+    signal = replace_once(
+        signal,
+        "#elif defined __APPLE__\n"
+        "    if (!is_inside_signal_stack( data, (void *)RSP_sig(sigcontext )) &&\n"
+        "        !is_inside_syscall( data, RSP_sig(sigcontext )))\n"
+        "        _thread_set_tsd_base( (uint64_t)data->teb );\n", "")
+    switches = re.compile(
+        r"#elif defined __APPLE__\n"
+        r"(?:(?!^#).)*?/\* _thread_set_tsd_base \*/"
+        r"(?:(?!^#).)*?(?=^#endif)",
+        re.MULTILINE | re.DOTALL,
+    )
+    signal, count = switches.subn("", signal)
+    if count != 5:
+        raise ValueError(f"Expected five Darwin assembly GS switches, found {count}")
+    frame_load = '                   "movq %gs:0x378,%rcx\\n\\t"'
+    if signal.count(frame_load) != 3:
+        raise ValueError("Expected three syscall-frame GS loads")
+    signal = signal.replace(
+        frame_load,
+        '#ifdef __APPLE__\n'
+        '                   "movq %gs:0x30,%rcx\\n\\t"\n'
+        '                   "movq 0x378(%rcx),%rcx\\n\\t"\n'
+        "#else\n" + frame_load + "\n#endif\n                  ",
+    )
+    signal = replace_once(
+        signal,
+        '                   "2:\\tmovq %gs:0x330,%r10\\n\\t"',
+        "#ifdef __APPLE__\n"
+        '                   "2:\\tmovq %gs:0x30,%r10\\n\\t"\n'
+        '                   "movq 0x330(%r10),%r10\\n\\t"\n'
+        "#else\n"
+        '                   "2:\\tmovq %gs:0x330,%r10\\n\\t"\n'
+        "#endif\n                  ",
+    )
+    signal = replace_once(
+        signal,
+        "#elif defined (__APPLE__)\n"
+        "    thread_data->pthread_teb = mac_thread_gsbase();",
+        "#elif defined (__APPLE__)\n"
+        "    /* Native libraries can be entered directly from the renderer's PE thread. */\n"
+        '    __asm__ volatile ("movq %0,%%gs:%c1" :: "r" (teb->Tib.Self), "n" (FIELD_OFFSET(TEB, Tib.Self)));\n'
+        '    __asm__ volatile ("movq %0,%%gs:%c1" :: "r" (teb->ThreadLocalStoragePointer), "n" (FIELD_OFFSET(TEB, ThreadLocalStoragePointer)));\n'
+        '    __asm__ volatile ("movq %0,%%gs:%c1" :: "r" (teb->Peb), "n" (FIELD_OFFSET(TEB, Peb)));\n'
+        "    thread_data->pthread_teb = mac_thread_gsbase();\n"
+        "    teb->Instrumentation[0] = thread_data->pthread_teb;",
+    )
+    loader = replace_once(
+        loader,
+        "            teb->ThreadLocalStoragePointer = new;\n",
+        "            teb->ThreadLocalStoragePointer = new;\n"
+        "#if defined(__x86_64__) && !defined(__arm64ec__)\n"
+        "            if (teb->Instrumentation[0])\n"
+        "                ((TEB *)teb->Instrumentation[0])->ThreadLocalStoragePointer = new;\n"
+        "#endif\n",
+    )
+    for value in ("pointers", "NULL"):
+        line = f"NtCurrentTeb()->ThreadLocalStoragePointer = {value};"
+        indent = "    " if value == "pointers" else "        "
+        loader = replace_once(
+            loader, indent + line + "\n",
+            indent + line + "\n"
+            "#if defined(__x86_64__) && !defined(__arm64ec__)\n"
+            + indent + "if (NtCurrentTeb()->Instrumentation[0])\n"
+            + indent + "    ((TEB *)NtCurrentTeb()->Instrumentation[0])->ThreadLocalStoragePointer = "
+            + value + ";\n#endif\n",
+        )
+    loader = replace_once(
+        loader, "    NtCurrentTeb()->FlsSlots = fls_alloc_data();",
+        """#if defined(__x86_64__) && !defined(__arm64ec__)
+    if (NtCurrentTeb()->Instrumentation[0] && !NtCurrentTeb()->WowTebOffset)
+    {
+        /* Keep inline Windows TLS accesses away from Darwin's native TSD slots. */
+        if (!NtCurrentTeb()->TlsExpansionSlots &&
+            !(NtCurrentTeb()->TlsExpansionSlots = RtlAllocateHeap( GetProcessHeap(), HEAP_ZERO_MEMORY,
+                8 * sizeof(NtCurrentTeb()->Peb->TlsExpansionBitmapBits) * sizeof(void *) )))
+        {
+            ERR( "Native-GS TLS expansion allocation failed\\n" );
+            NtTerminateProcess( GetCurrentProcess(), STATUS_NO_MEMORY );
+        }
+        ((TEB *)NtCurrentTeb()->Instrumentation[0])->TlsExpansionSlots = NtCurrentTeb()->TlsExpansionSlots;
+        if (!attach_done)
+            while (RtlFindClearBitsAndSet( NtCurrentTeb()->Peb->TlsBitmap, 1, 1 ) != ~0U);
+    }
+#endif
+
+    NtCurrentTeb()->FlsSlots = fls_alloc_data();""",
+    )
+    return signal, loader
+
+
 def port(source, donor):
     """Stage all exact-anchor edits before writing any source."""
     driver = "dlls/winemac.drv/"
@@ -303,6 +398,19 @@ typedef CAMetalLayer *macdrv_metal_layer;""")
     changed[ntdll + "unix/virtual.c"] = virtual
     changed[ntdll + "unix/unix_private.h"] = unix_private
 
+    donor_signal = donated(ntdll + "unix/signal_x86_64.c")
+    for anchor in (
+        '    teb->Instrumentation[0] = thread_data->pthread_teb;',
+        '                   "movq 0x378(%rcx),%rcx\\n\\t"',
+    ):
+        if anchor not in donor_signal:
+            raise ValueError(f"Missing CW native-GS donor anchor: {anchor}")
+    donated(ntdll + "loader.c")
+    signal, loader = port_native_gs(
+        upstream(ntdll + "unix/signal_x86_64.c"), upstream(ntdll + "loader.c"))
+    changed[ntdll + "unix/signal_x86_64.c"] = signal
+    changed[ntdll + "loader.c"] = loader
+
     manifest = []
     for name, content in sorted(changed.items()):
         path = source / name
@@ -315,4 +423,5 @@ typedef CAMetalLayer *macdrv_metal_layer;""")
         (source / name).write_text(content)
     return {"donor_files": donor_files, "changed_files": manifest,
             "abi_wrappers": wrapper_count,
+            "native_gs_requires": "Launch-loaded source-built native_gs_localtime.c interposer",
             "qualification": "experimental source port; no Apple ABI/runtime/game qualification"}

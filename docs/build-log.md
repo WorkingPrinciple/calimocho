@@ -1403,3 +1403,104 @@ The deterministic Python suite passed all 37 tests. This slice establishes
 source-built CW builtin startup and D3D12 device creation, not window
 presentation, DX11 parity, Xbox gameplay, release readiness or distribution
 rights. WineHQ graphics parity remains unresolved.
+
+## WineHQ port-08: native GS and builtin/device parity (REQ-74)
+
+The owner requested Wine-side boundary tracing and then a coherent
+Darwin x86_64 native-GS port. See
+[ADR-0023](ADR/0023-native-gs-and-localtime-interposition.md).
+The canonical requirements remain in `dragos-core projects/ode-to-x/SPEC.md`.
+
+### Discriminator and source change
+
+`tools/trace_d3dmetal.py` instruments all 24 `my_*` callbacks with entry
+and return-value traces. It also traces the safe C thread-start boundary,
+`init_syscall_frame`, before assembly hands off to the Windows entrypoint.
+The first instrumented reproduction entered no renderer callback before
+the existing pthread fault. Thread `0210` reached its handoff at
+`dxgi.dll+0x1f00`, with argument `0x7fce04015a00`, TEB `0x100027000` and
+native thread-data base `0x40446a0e0`.
+
+Port-08 adapts the public CW native-GS model into the pinned WineHQ
+`7298a818b79446bae153b8d5aa27235ab3703bf9` source. It retains native GS in
+Darwin signal, syscall, Unix-call and thread-start paths. Private Wine
+frame fields are reached through mirrored TEB self. Static TLS updates,
+expansion-slot allocation and inline-slot reservation preserve the native
+thread-data slots. Other platforms retain their original assembly paths.
+
+Native GS alone exposed a second source-documented conflict: localtime
+uses the same native slot as the mirrored Windows process pointer.
+Temporary Wine-only diagnostics narrowed the lost process parameters to
+the timezone query. Those diagnostics were removed from the final build.
+The owned native regression in `tests/native_gs_localtime_probe.c` confirms
+the conflict: without the helper it reports
+`mirrored_peb_changed=1` and exits 1; with the final helper it reports
+`mirrored_peb_changed=0` and exits 0.
+
+`tools/native_gs_localtime.c` uses standard launch-loaded symbol
+interposition to call localtime_r with thread-local result storage.
+No Apple instructions or files are patched. The WineHQ build tool now
+compiles and hashes this helper, binds its source/compiler and records
+the required process-local `DYLD_INSERT_LIBRARIES`. Compiler failures or
+missing helper artifacts fail the build. CW baseline builds are unchanged.
+
+The failed native-GS-only attempts and late/executable interpose attempts
+remain under `metal-port-07-reboot-01/gfx-candidate-04` through `11`.
+One attempt also put the real loader in the wrong `bin/wine` location.
+The launcher belongs there; the actual loader is under
+`lib/wine/x86_64-unix/wine`. That layout error was corrected, not treated
+as runtime evidence. Attempt 12 first returned `S_OK` with the
+launch-loaded helper, before the clean final rebuild.
+
+### Clean source and runtime observations
+
+The final `metal-port-08/source` was regenerated from a new archive of the
+exact pristine WineHQ commit, then transformed and instrumented.
+The known-good post-reboot build configuration was reused for an
+incremental `make -j4` of the changed Unix modules, loader and both PE
+ntdll architectures. Source-byte checks bind that build input to the
+clean source receipt. A separate copy-on-write research install retains
+the unchanged original port-07 install and CW baseline. There are no
+temporary kernelbase diagnostics in this final install.
+
+Fresh prefixes produced these results:
+
+| Check | WineHQ port-08 | Unchanged CW26.3 baseline |
+| --- | --- | --- |
+| wineboot and prefix-local AeDebug | Exit 0 | Exit 0 |
+| cmd /c ver | Exit 0, Windows 10.0.19045 | Exit 0 |
+| CurrentVersion registry query | Exit 0, REG_SZ 6.3 | Exit 0 |
+| Same D3D12 device probe | Exit 0, HRESULT 0x00000000 | Exit 0, HRESULT 0x00000000 |
+| Prefix-scoped server shutdown | Exit 0 | Exit 0 |
+
+Both probes loaded the installed GPTK bridge/framework, with no
+Vulkan/vkd3d selection. Apple payload hashes matched before and after.
+There were no tracked process groups or prefix file handles after cleanup.
+The baseline had no native-GS helper injected.
+
+The Wine D3D12 conformance executable progressed beyond device creation
+but exited 1 without a passing summary. Its first test failure was
+`d3d12.c:893: Got unexpected refcount 3`. Its fatal boundary was
+`my_get_win_data(hwnd=0x10020)` returning zero, followed by
+`No macdrv window data` and `Failed to initialize swapchain`.
+This is not the earlier pthread fault, nor evidence of presentation parity.
+The next presentation discriminator is Wine window/client-surface lifetime
+and driver selection at that callback, not another export or GS rewrite.
+
+### Evidence and limits
+
+The [sanitized smoke evidence](evidence/winehq-port08-native-gs-smoke.json)
+binds source tools, compiler/helper/runtime hashes, final log hashes,
+regression results, both HRESULTs and the conformance failure.
+Its SHA-256 is
+`b5d1d0e5b06b930d2f1768cbda08131b46d56210e065648f5f684c41d8993627`.
+Local source/build/install manifests, raw logs and the actual environment
+are under `build/winehq-11.20/metal-port-08`; `handoff.local.json` binds
+their paths. The install manifest covers 3913 entries.
+
+All 43 deterministic Python tests pass. The localtime regression also
+completed its observed red/green cycle against the final helper.
+This completes the assigned builtin/device discriminator, not full
+REQ-74 acceptance, presentation, Xbox gameplay, an Exodus engine switch,
+distribution clearance or release readiness. No game, shared registry,
+existing prefix/save, signing policy or global environment was changed.

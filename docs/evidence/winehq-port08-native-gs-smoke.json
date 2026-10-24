@@ -1,0 +1,225 @@
+{
+  "requirements": [
+    "REQ-69",
+    "REQ-74"
+  ],
+  "winehq_commit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+  "cw_source_archive_sha256": "ac99c8ca4b3848f3e81784135f023df266b61c2345726ea55a50b3e030dd6872",
+  "source_tools": {
+    "tools/port_d3dmetal.py": "e06e8146fd29d01eb42103ccffc509e0c4b49490b0dc6fd40e44c9cb765db1c6",
+    "tools/trace_d3dmetal.py": "0f54361f01836f3f6e76466efdda423c69ec1dcff6fc2aa9274adc7f93f398b7",
+    "tools/native_gs_localtime.c": "8cbc9aef3ad07b40e1bf9bfec80c5f6310fbaa9e611786d95a12ff60133f26cf",
+    "tools/build_cw_candidate.py": "cc9706a2ed7342fca267f56d0c399293d988aa50f49a3ac1b5b2cd481fe0c92b",
+    "tests/native_gs_localtime_probe.c": "b501e98f16ad2b6e71be651edd6826ba60c96b485beea63793ec50f9e0787024"
+  },
+  "native_gs_interposer": {
+    "path": "$RESEARCH_INSTALL/lib/wine/x86_64-unix/libnative-gs-localtime.dylib",
+    "sha256": "bd03f3b607df56e1df76e99d960b59537103682ef2e9f217adbbb07771492255",
+    "compiler_sha256": "34129c71a01a74f7f3b2443521519b2e5447553fa187f5fcafaaf8c42cc192e2",
+    "source_sha256": "8cbc9aef3ad07b40e1bf9bfec80c5f6310fbaa9e611786d95a12ff60133f26cf",
+    "required_environment": {
+      "DYLD_INSERT_LIBRARIES": "$RESEARCH_INSTALL/lib/wine/x86_64-unix/libnative-gs-localtime.dylib"
+    }
+  },
+  "localtime_regression": {
+    "source_sha256": "b501e98f16ad2b6e71be651edd6826ba60c96b485beea63793ec50f9e0787024",
+    "binary_sha256": "e2ac2d91de6cc128a4b310652856f259023511b5eec48b8e2977e16e5cd32cf5",
+    "compiler_sha256": "34129c71a01a74f7f3b2443521519b2e5447553fa187f5fcafaaf8c42cc192e2",
+    "runs": [
+      {
+        "interposer_loaded": false,
+        "exit_code": 1,
+        "stdout": "localtime_nonnull=1 mirrored_peb_changed=1\n",
+        "stderr": ""
+      },
+      {
+        "interposer_loaded": true,
+        "exit_code": 0,
+        "stdout": "localtime_nonnull=1 mirrored_peb_changed=0\n",
+        "stderr": ""
+      }
+    ]
+  },
+  "source_receipt_sha256": "c96fd2926da8aa8e2d7f2611ac1de3e525a121c6d678fedb3553eb6138dad8a5",
+  "compile_log_sha256": "bbaa500527bc0edef61eeefbcf95a52737efd0e2b9bdcb9882cb9d5f976de307",
+  "incremental_build_exit_code": 0,
+  "install_manifest_sha256": "e5c357e6f322f15ecc58daf08282054ef9f1e807c30fc69878a4dfb791725c29",
+  "runtime_artifacts": {
+    "bin/wine": "f6d0546fad2d0dafaa09a9fe6cabe75bb070567df6b0933ecd3622dcb6349194",
+    "bin/wineserver": "e3ec4e7e76cee273f17d5fa3459902642f73d6921e94c576aa74e8cdbdcd7da1",
+    "lib/wine/x86_64-unix/wine": "fe52070f45ebd139779d9a37a92d99a2b84020f7fceffa80a217fb198c882db8",
+    "lib/wine/x86_64-unix/ntdll.so": "44fac088ab22c9bd438d0908d1ab5dad5944fd9a279378209b0e78b360ec224a",
+    "lib/wine/x86_64-unix/winemac.so": "dc2b113eb01be5b8efa1dbcd53bcced2093037fc908c67174c71226ccf992ef0",
+    "lib/wine/x86_64-windows/ntdll.dll": "f246362cde0e51518e1218d188db112ba96a35c6c838c4d422d169da5389a10b",
+    "lib/wine/i386-windows/ntdll.dll": "c302ccb05c91be70eeb83d958727f86c62c6cb71524871ef7daa584461b03ba2"
+  },
+  "runs": [
+    {
+      "engine": "winehq-11.20-metal-port-08",
+      "receipt_sha256": "2bd74b7a41db47e7e5e2b7695885483b60110ae367c987e178300632d48ef6d4",
+      "first_hresult": "0x00000000",
+      "commands": [
+        {
+          "name": "wineboot",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "c861bee60ffe8dae884f26e24a95d37346481af64f8ccb1b0421baa1635db8d3"
+        },
+        {
+          "name": "set-debugger",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "76883419a4c93e1b79835eccdb18fc278ad67ab36c535b384031b73958d487df",
+          "stderr_sha256": "59c54312d3dff69d6f86f21ee5aaaad79df6ad38ac0c6125cd178db99cc6b589"
+        },
+        {
+          "name": "set-debugger-auto",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "76883419a4c93e1b79835eccdb18fc278ad67ab36c535b384031b73958d487df",
+          "stderr_sha256": "b392ec828d495cb69c0aa5c56ecf835102b39e3f44c3a53aa04b7c3196e602d4"
+        },
+        {
+          "name": "verify-debugger",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "9bb80e3b6671454918044bb9f731b1688913037e544bcc2a9b2dfa2e5a214530",
+          "stderr_sha256": "9d66ea9eb660bd8fe2e24858b108625f35d2a93da37f7eccacf1a5d4a585faa4"
+        },
+        {
+          "name": "cmd-ver",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "07496cbba7bef678e6732b1552fda0cc41494da42c30c49400c7a502499a9b3e",
+          "stderr_sha256": "8884d1168d7f6e0a0816e2dc99385ee8dd1ce2031a778f350073b45c7b640a25"
+        },
+        {
+          "name": "registry-version",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "c7f9e2e888b34b5b7f94623f12c1f3e8fae23a88466ec7d12298032e2346a8b7",
+          "stderr_sha256": "bce2816ae0c14b4c03536878ae06690e9e1fa42f2d50af1e7cf8cc7779e11fbf"
+        },
+        {
+          "name": "create-device",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "bb9f4b92933108404c44110dd0ca58f292b469ce90053ee70d624f675a7c6700",
+          "stderr_sha256": "8946a3d662df4ada8208db64829ab38d9c6c88b19b2c4dd38e2e05012e62b75f"
+        },
+        {
+          "name": "d3d12-conformance",
+          "exit_code": 1,
+          "timed_out": false,
+          "stdout_sha256": "c92d7f79ba2d5e3a5daecb70f9d8410b74ac30f9c0cf34e1ede8164b4871d5b0",
+          "stderr_sha256": "16915918620ff504da1d4d7a99ef82c03b71ab72c29f5c8634a43ea07a4a8562"
+        },
+        {
+          "name": "wineserver-k",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "1debeebc2e9cf80d7dca28a636c88fc6523f8be718748b0d08508e03775af80b"
+        },
+        {
+          "name": "wineserver-w",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "37d32ea7d07be3bcde80cafade676414d62291910b7fa16f5ebdfb4ea8842706"
+        }
+      ],
+      "renderer_payloads_unchanged": true,
+      "vulkan_or_vkd3d_selected": false,
+      "residual_process_groups": [],
+      "prefix_open_files": false
+    },
+    {
+      "engine": "calimocho-cw26.3-gptk4b3",
+      "receipt_sha256": "abecd07d53e660cbfc1ee5bb8705c8b517a330c14b03ccf44cc23eb8462ed6fb",
+      "first_hresult": "0x00000000",
+      "commands": [
+        {
+          "name": "wineboot",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "bcf0dde76aad76ce4439bcaace51cdaac5cecaa8f7a3a864769c5d56cf1c1526"
+        },
+        {
+          "name": "set-debugger",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "76883419a4c93e1b79835eccdb18fc278ad67ab36c535b384031b73958d487df",
+          "stderr_sha256": "df4ba718f9bf8cbbbb768203d3c18d956cf97a35c622afa67064ad741fb1cd0c"
+        },
+        {
+          "name": "set-debugger-auto",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "76883419a4c93e1b79835eccdb18fc278ad67ab36c535b384031b73958d487df",
+          "stderr_sha256": "91e295199d4d7c06358d4b6fe38502c77d9f3994ca306e54efb1cfbc24c5b74a"
+        },
+        {
+          "name": "verify-debugger",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "9bb80e3b6671454918044bb9f731b1688913037e544bcc2a9b2dfa2e5a214530",
+          "stderr_sha256": "2b91e4fda9af098c521ad4760f16f4e7bd3efffd0f3a76d1ece153015fa865a6"
+        },
+        {
+          "name": "cmd-ver",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "07496cbba7bef678e6732b1552fda0cc41494da42c30c49400c7a502499a9b3e",
+          "stderr_sha256": "ef8dc32e2af42c7d503b26d875c5e2ddcb7cb2ebbf2a14deccfbfe35b2b2c9c9"
+        },
+        {
+          "name": "registry-version",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "c7f9e2e888b34b5b7f94623f12c1f3e8fae23a88466ec7d12298032e2346a8b7",
+          "stderr_sha256": "fbb2ddf1e9277348e932a3e189c8e763e1242ab9c022ba4e41eea4231d190d1e"
+        },
+        {
+          "name": "create-device",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "e91846490cdf2daac74810f5a6bc71b8c54ec7563839c9c712968b2a36aaaadf",
+          "stderr_sha256": "b4e317057e13973343d1e70e1814c522d537ffc5a6460e9b2069918ef1781e4c"
+        },
+        {
+          "name": "wineserver-k",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "bc2ed4b909d18b8dea954595fc7b4d9eac9869fb81792fb9f0730020f4e5ba23"
+        },
+        {
+          "name": "wineserver-w",
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "af86ad32d923e6b6f0f3cd6539ed417dd5937d6b66e7ec2b9c522a5cb4085dbd"
+        }
+      ],
+      "renderer_payloads_unchanged": true,
+      "vulkan_or_vkd3d_selected": false,
+      "residual_process_groups": [],
+      "prefix_open_files": false
+    }
+  ],
+  "conformance": {
+    "exit_code": 1,
+    "passing_summary": false,
+    "first_test_failure": "d3d12.c:893: Got unexpected refcount 3.",
+    "fatal_boundary": "my_get_win_data(hwnd=0x10020) returned 0; no macdrv window data; failed to initialize swapchain"
+  },
+  "probe_sha256": "60267fbfbfd1db1deee301f296036d40cf5d4fd93c5b821583b04023fcbcb363",
+  "game_launched": false,
+  "presentation_qualified": false,
+  "full_graphics_parity": false,
+  "apple_payloads_copied_or_modified": false,
+  "cleanup_verified": true
+}

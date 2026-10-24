@@ -205,14 +205,30 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
         [] if build_all else
         list(PORT_CHECK_TARGETS) if port_check else [
             "loader/wine", "server/wineserver", "dlls/winemac.drv/winemac.so"])
-    steps = (
+    steps = [
         ("configure", [
             str(source / "configure"), "--host=x86_64-apple-darwin",
             "--enable-archs=x86_64,i386", "--disable-tests", "--without-x",
             "--with-freetype", "--with-coreaudio",
         ]),
         ("compile", ["/usr/bin/make", "-j4"] + compile_targets),
-    )
+    ]
+    if winehq_source is not None:
+        interposer_source = REPO / "tools/native_gs_localtime.c"
+        interposer = directory / "libnative-gs-localtime.dylib"
+        receipt["native_gs_interposer_source"] = {
+            "path": str(interposer_source), "sha256": sha256(interposer_source),
+        }
+        receipt["runtime_environment"] = {
+            "DYLD_INSERT_LIBRARIES": str(interposer),
+            "DYLD_FALLBACK_LIBRARY_PATH": f"{freetype / 'lib'}:/usr/lib",
+            "WINEDLLOVERRIDES": "mscoree,mshtml=",
+        }
+        steps.append(("native-gs-interposer", [
+            "/usr/bin/clang", "-arch", "x86_64", "-dynamiclib",
+            "-Wall", "-Wextra", "-Werror", "-o", str(interposer),
+            str(interposer_source),
+        ]))
     for label, command in steps:
         remaining = 1800 - (time.monotonic() - started)
         if remaining <= 0:
@@ -229,6 +245,8 @@ def build(archive, output, freetype, build_all=False, winehq_source=None,
     receipt["artifacts"] = []
     artifacts = (FULL_ARTIFACTS if build_all else
                  PORT_CHECK_ARTIFACTS if port_check else COMPONENT_ARTIFACTS)
+    if winehq_source is not None:
+        artifacts += ("libnative-gs-localtime.dylib",)
     for relative in artifacts:
         path = directory / relative
         if not path.is_file() or not path.stat().st_size:
