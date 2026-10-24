@@ -1243,3 +1243,53 @@ discussion).
 - `docs/build-log.md`: this entry
 - (No code or other doc changes; PK bottles restored to original
   state, no calimocho-side state touched)
+
+## 2026-10-24: Wine 11.20 TEB TLS port-07
+
+### Source and build
+
+- Added the CodeWeavers TEB thread-local-storage seam to the Wine 11.20
+  source port. This initializes `teb_key`, sets it for the first and
+  subsequent threads, and makes `NtCurrentTeb()` use
+  `pthread_getspecific()`.
+- The cloned configured build compiled `dlls/ntdll/ntdll.so`
+  incrementally. The x86_64 Mach-O SHA-256 is
+  `f743ac4549c2e23a02fb77d2a33ca8fd682f0fc344e6e4a1d661667ee3624111`.
+- The focused port tests passed: 5 tests. `git diff --check` passed.
+- A full `make install` retriggered the broader build. Its parallel attempt
+  stalled at `tools/install` PID 23146. The serial retry stalled at PID
+  24673. Only the exact `make` parents were stopped. Both U-state children
+  were left untouched. The candidate install used for the startup attempt
+  was the existing isolated clone with only its `ntdll.so` replaced; the
+  port-06 copy was preserved under `research-wine-originals`.
+
+### Startup and control result
+
+- A fresh port-07 prefix did not initialize. `wineboot --init` PID 25090
+  entered U state with empty stdout and stderr. One prefix-scoped
+  `wineserver -k` attempt, PID 25226, also entered U state. The D3D12 probe
+  was not launched, so there is no port-07 HRESULT, callback result, or
+  runtime qualification.
+- A fresh GPTK control using the selected `apple-gptk-4.0b3` engine record
+  also stopped before prefix creation. Its `wine.real` process, PID 25644,
+  entered U state with empty stdout and stderr. The D3D12 probe was not
+  launched. The earlier `startup-gfx-06-control-02` receipt did reach
+  `D3D12CreateDevice` with `S_OK`, but this fresh control could not repeat
+  that result.
+- The coordinator independently verified that a newly compiled trivial
+  x86_64 executable also entered U state. The current blocker is host
+  Rosetta/OAH translation, not evidence against the TEB port. No further
+  x86_64 binaries were launched after that diagnosis. The coordinator reported
+  `oahd` PID 798 had been running for 12 days. Recovery requires an owner
+  reboot or a privileged `launchctl` action; neither was performed.
+- U-state processes left untouched: PID 14902 (`wineserver -k` from the
+  earlier LLDB run), PID 19500 (`conftest`), PIDs 23146 and 24673
+  (`tools/install`), PID 25090 (port-07 `wineboot`), PID 25226
+  (port-07 `wineserver -k` client), PID 25644 (GPTK control `wine.real`),
+  and PID 25832 (coordinator's x86_64 translation check).
+- GPTK payload hashes still match the prior verified control baseline.
+  Apple payloads were not copied or modified, and no game was launched.
+
+Port-07 has a successful incremental compile and passing source-port tests,
+but remains runtime-unverified. Resume the fresh install and graphics probe
+after the host translation service is available.

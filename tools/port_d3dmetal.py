@@ -26,6 +26,51 @@ def between(text, start, end):
     return start + tail.split(end, 1)[0]
 
 
+def port_thread_teb_key(thread, server, virtual, unix_private):
+    thread = replace_once(
+        thread,
+        "WINE_DECLARE_DEBUG_CHANNEL(seh);\nWINE_DECLARE_DEBUG_CHANNEL(threadname);\n",
+        "WINE_DECLARE_DEBUG_CHANNEL(seh);\nWINE_DECLARE_DEBUG_CHANNEL(threadname);\n"
+        "\npthread_key_t teb_key = 0;\n",
+    )
+    server = replace_once(
+        server,
+        "    if (data->teb)\n"
+        "    {\n"
+        "        init_teb_data( data );\n",
+        "    if (data->teb)\n"
+        "    {\n"
+        "        pthread_setspecific( teb_key, data->teb );\n"
+        "        init_teb_data( data );\n",
+    )
+    thread = replace_once(
+        thread,
+        "TEB * WINAPI NtCurrentTeb(void)\n"
+        "{\n"
+        "    struct thread_data *data = get_thread_data();\n"
+        "    return data ? data->teb : NULL;\n"
+        "}",
+        "TEB * WINAPI NtCurrentTeb(void)\n"
+        "{\n"
+        "    return pthread_getspecific( teb_key );\n"
+        "}",
+    )
+    virtual = replace_once(
+        virtual,
+        "    init_teb( data, ptr );\n    VIRTUAL_DEBUG_DUMP_VIEW( view );\n",
+        "    init_teb( data, ptr );\n"
+        "    pthread_key_create( &teb_key, NULL );\n"
+        "    pthread_setspecific( teb_key, data->teb );\n"
+        "    VIRTUAL_DEBUG_DUMP_VIEW( view );\n",
+    )
+    unix_private = replace_once(
+        unix_private,
+        "extern pthread_key_t thread_data_key;\n",
+        "extern pthread_key_t thread_data_key;\nextern pthread_key_t teb_key;\n",
+    )
+    return thread, server, virtual, unix_private
+
+
 def port(source, donor):
     """Stage all exact-anchor edits before writing any source."""
     driver = "dlls/winemac.drv/"
@@ -229,6 +274,34 @@ typedef CAMetalLayer *macdrv_metal_layer;""")
             wrapper_count += 1
     if wrapper_count != 9:
         raise ValueError(f"Expected nine donor ABI wrappers, found {wrapper_count}")
+
+    for name, anchors in (
+        (ntdll + "unix/thread.c", (
+            "pthread_key_t teb_key = 0;",
+            "pthread_setspecific( teb_key, teb );",
+            "return pthread_getspecific( teb_key );",
+        )),
+        (ntdll + "unix/virtual.c", (
+            "pthread_key_create( &teb_key, NULL );",
+            "pthread_setspecific( teb_key, teb );",
+        )),
+        (ntdll + "unix/unix_private.h", ("extern pthread_key_t teb_key;",)),
+    ):
+        donor_source = donated(name)
+        for anchor in anchors:
+            if anchor not in donor_source:
+                raise ValueError(f"Missing CW TEB-key donor anchor in {name}: {anchor}")
+
+    thread, server, virtual, unix_private = port_thread_teb_key(
+        upstream(ntdll + "unix/thread.c"),
+        upstream(ntdll + "unix/server.c"),
+        upstream(ntdll + "unix/virtual.c"),
+        upstream(ntdll + "unix/unix_private.h"),
+    )
+    changed[ntdll + "unix/thread.c"] = thread
+    changed[ntdll + "unix/server.c"] = server
+    changed[ntdll + "unix/virtual.c"] = virtual
+    changed[ntdll + "unix/unix_private.h"] = unix_private
 
     manifest = []
     for name, content in sorted(changed.items()):
