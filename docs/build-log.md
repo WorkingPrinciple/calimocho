@@ -302,6 +302,56 @@ hashes and prefix. The E_FAIL is the current blocker; this result does not
 establish whether the limitation is Wine's renderer integration, adapter
 creation, or game compatibility.
 
+### startup-gfx-04: redist-first builtin search
+
+A fourth fresh prefix used the installed GPTK `redist/lib/wine` first in
+`WINEDLLPATH`, the requested builtin overrides for D3D12/DXGI, and
+`CX_APPLEGPTK_LIBD3DSHARED_PATH`. Wineboot exited 0 in 5.657 seconds. The
+probe still loaded Wine's `C:\windows\system32\d3d12.dll` and `dxgi.dll` as
+builtins, with no GPTK Unix-module load evidence. The installed GPTK
+`x86_64-unix/{d3d12,d3d12core,dxgi}.so` paths are symlinks to the same
+`libd3dshared.dylib`; their presence in `WINEDLLPATH` does not by itself
+prove those Unix modules were selected.
+
+This is explained by the Wine 11.20 loader source: builtin lookup checks
+`WINEBUILDDIR/dlls/<module>/x86_64-windows` before iterating the directories
+from `WINEDLLPATH`. The candidate build contains its own `d3d12.dll`,
+`d3d12core.dll`, and `dxgi.dll` in those builtin directories. Redist-first
+`WINEDLLPATH` therefore did not select the GPTK PE/Unix pair. The trace
+instead shows Wine's builtin `vulkan-1.dll` and `winevulkan.dll` loading,
+followed by `vkd3d` reporting `Unhandled VkResult -3`. `libd3dshared.dylib`
+also loaded, but the D3D12 probe did not establish entry into GPTK's D3D12
+path.
+
+`D3D12CreateDevice` returned `0x80004005` (`E_FAIL`). The conformance
+executable exited 0 with 3 tests executed and 9 skipped because device
+creation failed; this is not a pass. The 192-byte macdrv callback ABI
+assertion is compiled but was not exercised by this runtime path. The fresh
+prefix was shut down with its prefix-scoped `wineserver -k`; no residual
+build processes remained. GPTK files were not copied or modified, and their
+hashes were unchanged. No game was launched.
+
+| Evidence | Result |
+|---|---|
+| Attempt / local receipt | `startup-gfx-04`; `build/winehq-11.20/metal-port-06/startup-gfx-04/receipt.json` (ignored) |
+| Wine source commit / patched tree SHA-256 | `7298a818b79446bae153b8d5aa27235ab3703bf9` / `72ee65e26bfa957b8217c5c20bc66542b591d19b82be750bfeba011505293960` |
+| Wineboot | exit 0 in 5.657 seconds |
+| Wineboot stderr SHA-256 | `47adc10aa5829a54c38854708a450fd45ae8a248b7da5cb7b461e6386720e193` |
+| First `D3D12CreateDevice` call | `0x80004005` (`E_FAIL`); probe exit 1 |
+| Direct probe stdout / stderr SHA-256 | `f978a10864383f32b30a7f703874dd07846a5a65e5e0721d0b2b282944e65aec` / `22b9437f149bc639bd133c48a9a27fd6138d88052c55244e534d409b5e31cfc7` |
+| GPTK `d3d12.dll` / `dxgi.dll` / `d3d12core.dll` SHA-256 | `02aa673497ff8694b41f976e194a920468e54897f3546ed1cd4c1b3a97179735` / `124015390b8527033bcd6e65af6376fde8fb3923450b63a9dbe0bbef05e63f10` / `1034f5989c8c69496add15f79c04e56ae47cdf2a861098e8b4323bc8835b9e29` |
+| `libd3dshared.dylib` SHA-256 / signature | `e985a9e0b9807856018ee63ac40de3b3baaca7c33568f672d80d89934fbc41f1`; verification passed |
+| D3D12 conformance | exit 0; 3 executed, 9 skipped, 0 assertion failures; device-dependent coverage not reached |
+| Test stdout / stderr SHA-256 | `71386958820b0080d02aabc7670b1e2c73d3c90e5d6068af818d66441f976ced` / `8ca2582f9e1488f4a649661534bbbf8691d90620035a4a87e7d50309994108c1` |
+| Prefix-scoped `wineserver -k` / residual processes | exit 0 / none |
+| GPTK payload hashes before and after | unchanged |
+| Local receipt SHA-256 | `abf97d88ce46bb620b6c939038d0e76bf53117703ddb5da2219449d9781c1604` |
+
+This attempt identifies a loader/build-layout blocker, not a GPTK
+compatibility verdict. The next discriminator must select matching GPTK PE
+and Unix modules without modifying the installed payload; do not repeat
+redist-first `WINEDLLPATH` alone.
+
 ## 2026-05-31 — Session 1: discovery + planning
 
 ### What we learned
