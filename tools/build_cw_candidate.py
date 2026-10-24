@@ -26,9 +26,9 @@ FULL_ARTIFACTS = COMPONENT_ARTIFACTS + tuple(
     for directory, name in (
         ("dlls/ntdll", "ntdll.dll"), ("dlls/kernel32", "kernel32.dll"),
         ("dlls/winemac.drv", "winemac.drv"),
-        ("programs/wineboot", "wineboot.exe"), ("programs/cmd", "cmd.exe"),
+        ("programs/cmd", "cmd.exe"),
     )
-)
+) + ("programs/wineboot/x86_64-windows/wineboot.exe",)
 PORT_CHECK_TARGETS = (
     "loader/wine", "server/wineserver", "dlls/winemac.drv/winemac.so",
     "dlls/ntdll/ntdll.so", "dlls/win32u/win32u.so",

@@ -108,11 +108,36 @@ present in its main branch. The observed upstream main revision is
 revision is `50102f994b406f58f56d5d09f2ad20f9b90390a2`. Neither DXMT revision
 was built. It is not a DX12 option and is not a qualified candidate.
 
-The next latest-Wine full build is underway in
-`build/winehq-11.20/metal-port-06/`; its outcome must be taken from the
-receipt, not inferred from this note. DX11 and DX12 may have separate
-runtime records. The 11.20 port does not depend on DX11 parity or on the
-retired D3D11 override shim.
+The latest-Wine full build in `build/winehq-11.20/metal-port-06/` completed
+configure and `make -j4` with exit code 0. The initial post-build verifier
+then failed because it expected an i386 `wineboot.exe`; this configured
+build produces `wineboot.exe` only for x86_64. The verifier's manifest now
+requires the observed x86_64 `wineboot.exe`, both architecture variants of
+`cmd.exe`, and the selected x86_64/i386 runtime modules. All 14 expected
+nonempty files were independently found and hashed in the unchanged build
+tree. This is complete source compilation, not a runtime startup/self-check.
+
+| Component | Architecture | SHA-256 |
+|---|---|---|
+| loader/wine | x86_64 Mach-O | `5e6e04322ae5c42bf704ff74f9c45263d76410e8ee80ab709aedaae89df7e54b` |
+| wineserver | x86_64 Mach-O | `704425b1692335692475758236af3192b5e268e8cd92a066997233f757b3461f` |
+| winemac.so | x86_64 Mach-O | `9809f7533bcc162a76fa883ee948c80e158a6215d99b5ad8aeabde2be5cc884a` |
+| ntdll.so | x86_64 Mach-O | `e4f5eb509d705dac64006fb53c89dba654359a58b976617c34ac733aa5805249` |
+| win32u.so | x86_64 Mach-O | `316d5741f2a3d663a138b4ba1c50e0bffbfc5f0f07d62598267ac4c02f688698` |
+| ntdll.dll | x86_64 PE | `2e7463c162fae037844166247df9367c6e27bb4f9a12e07f15c6f85be736b857` |
+| kernel32.dll | x86_64 PE | `2bffa00abf00463c674ccda57cf48d8124bbdbf9778e89707ea6566c2395ae2e` |
+| winemac.drv | x86_64 PE | `eb4c1e0362395c5302dd528fe31eb8d167d8bb98aecf27eedff7564ad85406fc` |
+| cmd.exe | x86_64 PE | `69bcf5b6b41bfcccc96ed11c821750e82d84dc04a4c4cfd6aa8044696b8c6178` |
+| ntdll.dll | i386 PE | `f456dd8356a09b3036fc4f23b64e2b232544d6878dec076a0913cc1bd348b5eb` |
+| kernel32.dll | i386 PE | `99b166fd89c662d450f476b2e11ab73393f8555e600e951ada42693d9c325829` |
+| winemac.drv | i386 PE | `b9c15f48cd0560e70a3d70a7c340bc10555fe31c328fb2b58dd854d965d74d9c` |
+| cmd.exe | i386 PE | `785dd3c4ca50bf97207b2a81d68111f111cfb0369e95286d9f42182d3f9d471a` |
+| wineboot.exe | x86_64 PE | `d7fcd1d7c7e6ccab4bc913c87d3a3c85e90109a2a6a337653aa60ae815aa1314` |
+
+The local receipt retains source, transformation, toolchain, command, log,
+linkage and artifact identities. DX11 and DX12 may have separate runtime
+records. The 11.20 port does not depend on DX11 parity or on the retired
+D3D11 override shim.
 
 Known unresolved features include GnuTLS/schannel, Vulkan/MoltenVK and
 GStreamer. No Wine process or Apple payload has been executed, no Apple

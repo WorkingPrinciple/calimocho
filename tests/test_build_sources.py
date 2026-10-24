@@ -180,6 +180,10 @@ class SourceBuildTests(unittest.TestCase):
 
     def test_full_build_is_explicit_and_never_launches_or_installs(self):
         self.archive_source("cw")
+        self.assertIn("programs/wineboot/x86_64-windows/wineboot.exe",
+                      cw.FULL_ARTIFACTS)
+        self.assertNotIn("programs/wineboot/i386-windows/wineboot.exe",
+                         cw.FULL_ARTIFACTS)
 
         def run(command, directory, environment, log, timeout):
             self.assertNotIn("WINEPREFIX", environment)
