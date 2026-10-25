@@ -3287,3 +3287,42 @@ Independent audit checked3915 installed entries/assets, eight changed
 modules,133 typed slots, mode-specific helper and all source/commands,
 including sealed019 predecessor. The once-only recipe was delivered to0ab,
 copying the coordinator. No native020 observation is claimed at handoff.
+
+### Actual020: native XAML uses the local claims export and gets not implemented
+
+The once-only observation retained one matching return: sequence2242,
+AppL256/TID260, ntdll!RtlQueryPackageClaims low32 `0xc0000002`, caller
+original XAML+704cfd. This followed AddCallback's S_OK exit2237 and
+Release2 at2241, and preceded fail-fast relay2245 and the actual
+HRESULT argument0xd0000002 at2246. The exact target handle again observed
+exit0xc0000602. No typed owned-COM matching failure was retained.
+
+The only Run FIXME fingerprints were kernelbase!QuirkIsEnabled at2207
+and2210. Arguments were discarded. They are not proof of the cause.
+Status-return/source/context loss flags were clear. Initialize still did
+not return. No fixture, sampler, window enumeration or screenshot proof.
+The4.386-second collector retained its explicit post-exit drain cutoff,
+not a180-second timeout or a complete EOF trace.
+
+Direct assertions against redacted output verified the export, status,
+caller, event order, exact target exit, limits and two fingerprints.
+Independently checked SHA-256 identities:
+redacted `41756dc14998e5651155452f58e0c1da09931a46dcade1b72b10bc908d62f997`,
+unchanged runtime
+`9edeb4d120c74411aa6216f58a496c175ee75a2a94c32d98bc32911eb6d9990d`,
+separate cleanup analysis
+`d8036b36b2e62fc97055c6674acf84e7ba54ac1469a1675217e867711945fcd7`.
+The analysis binds exact020 stop/wait0, all13 recorded host PIDs absent,
+no prefix open files, matching prefix/source/log identities and unchanged
+012-019 results. No replay.
+
+Static follow-through identifies a concrete table-coverage gap, not
+permission to hand-edit generated behavior. The frozen local claims
+header's only packaged success case requires AttributesPresent=NULL.
+The native helper at704cbc instead passes incoming R9 as PkgClaim and
+its incoming stack pointer as AttributesPresent, with arguments2-6 NULL.
+That shape cannot match the claim-only success case even with genuine
+signed GamingApp context. The runtime token, output values and selected
+generated-table branch were not captured. The coordinator was given this
+exact source/static evidence to obtain an observation-backed generated
+artifact from its Whiny owner. The generated source remains unchanged.
