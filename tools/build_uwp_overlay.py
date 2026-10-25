@@ -14,7 +14,7 @@ from tools.probe_wine_source import run_step, sha256
 BASE = REPO / "build/winehq-11.20/package-launcher-01"
 
 
-def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False, handle_provenance=False, exception_diagnostics=False):
+def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False, handle_provenance=False, exception_diagnostics=False, failfast_diagnostics=False):
     root = Path(root).resolve()
     if not root.is_relative_to(REPO / "build") or root == BASE:
         raise ValueError("Require a new owned009 sibling")
@@ -26,6 +26,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         raise ValueError("Handle provenance requires activation/wait diagnostics")
     if exception_diagnostics and not handle_provenance:
         raise ValueError("Exception diagnostics require handle provenance")
+    if failfast_diagnostics and not exception_diagnostics:
+        raise ValueError("Fail-fast diagnostics require exception diagnostics")
     frozen = BASE / "cell008-receipt.json"
     if sha256(frozen) != "ac5b627263c409b804e3f812160c6dd0ba8d39cec52910255725939de12915bc":
         raise ValueError("Frozen008 receipt changed")
@@ -41,6 +43,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
             raise ValueError("Resume must preserve the handle-provenance mode")
         if "steps" in previous and bool(previous.get("exception_diagnostics")) != exception_diagnostics:
             raise ValueError("Resume must preserve the exception-diagnostic mode")
+        if "steps" in previous and bool(previous.get("failfast_diagnostics")) != failfast_diagnostics:
+            raise ValueError("Resume must preserve the fail-fast diagnostic mode")
     else:
         root.mkdir(exist_ok=False)
         shutil.copytree(BASE / "source", root / "source", symlinks=True)
@@ -86,6 +90,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if exception_diagnostics:
         from tools.port_exception_diagnostics import port as exception_port_source
         exception_port = exception_port_source(root / "source")
+    failfast_port = None
+    if failfast_diagnostics:
+        from tools.port_failfast_diagnostics import port as failfast_port_source
+        failfast_port = failfast_port_source(root / "source")
     attempt = 1
     while (root / ("attempt-%02d" % attempt)).exists():
         attempt += 1
@@ -120,6 +128,11 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if exception_port is not None:
         receipt["exception_diagnostics"] = exception_port
         for group in ("call_diagnostics", "activation_wait_diagnostics", "handle_provenance"):
+            for relative in receipt[group]["files"]:
+                receipt[group]["files"][relative] = sha256(root / "source" / relative)
+    if failfast_port is not None:
+        receipt["failfast_diagnostics"] = failfast_port
+        for group in ("call_diagnostics", "activation_wait_diagnostics", "handle_provenance", "exception_diagnostics"):
             for relative in receipt[group]["files"]:
                 receipt[group]["files"][relative] = sha256(root / "source" / relative)
 
@@ -200,6 +213,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         from tools.port_exception_diagnostics import SOURCES
         for relative in SOURCES:
             receipt["source_inputs"][relative] = sha256(REPO / relative)
+    if failfast_diagnostics:
+        from tools.port_failfast_diagnostics import SOURCES
+        for relative in SOURCES:
+            receipt["source_inputs"][relative] = sha256(REPO / relative)
     receipt["built_files"] = {str(path.relative_to(root)): sha256(path) for path in (
         directory / "server/wineserver", directory / "dlls/ntdll/ntdll.so",
         directory / "dlls/ntdll/x86_64-windows/ntdll.dll",
@@ -224,5 +241,6 @@ if __name__ == "__main__":
     parser.add_argument("--activation-wait-diagnostics", action="store_true")
     parser.add_argument("--handle-provenance", action="store_true")
     parser.add_argument("--exception-diagnostics", action="store_true")
+    parser.add_argument("--failfast-diagnostics", action="store_true")
     args = parser.parse_args()
-    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics, args.handle_provenance, args.exception_diagnostics))
+    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics, args.handle_provenance, args.exception_diagnostics, args.failfast_diagnostics))

@@ -3168,3 +3168,51 @@ assets, eight changed modules, producer blobs, helper/fixture/collector,
 Auto=0 file, exact engine/server/observer commands and sealed017 identity.
 The full recipe was delivered to0ab, copying the coordinator. The fixture
 remains compiled-only, not a second runtime authorization.
+
+### Actual018: corrected registration reached, then native fail-fast
+
+Actual AppL was PID260/TID264, bound by the real protocol handoff rather
+than an assumed PID256. StaticLifetime.AddCallback entered at2233 and
+exited S_OK at2235. Its later Release returned2. No token value,
+callback delivery, RemoveCallback or unknown-slot E_NOTIMPL was observed.
+The former accidental StaticCollection.GetIids call was absent.
+
+Initialize entered but did not return. The final admitted relay was
+RoFailFastWithErrorContextInternal2 from original XAML+33f121. The exact
+target process handle observed exit3221227010 (`0xc0000602`). No
+unhandled-filter record or origin HRESULT was retained. The earlier
+XAML+57765e access violation was not retained in this cell, not proof
+of universal exception-free behavior.
+
+The4.236-second collector ended at its explicit2-second post-exit drain
+limit, with truncation and exit2, not a180-second timeout. Early exit
+preceded20/60 samplers; none attached. Empty window facts do not establish
+zero windows. Screenshot remains unknown. No headless fixture ran.
+
+Independently verified SHA-256 identities:
+redacted `40e6aea8d5d4674022dcf6ed0188f688f52c9851bbe9ffc747f0a2c4092ba1ef`,
+unchanged runtime
+`48f94c034e9dc3e0b03bf1b289fd4c495c1eef2cccfdfa71dec1a8cce1b2e018`,
+separate final analysis
+`73e1a23a81dfbd05b714055c3f22a4c167f06dd72c566dbddc58370c799d6ced`.
+Direct redacted rows confirm slot11 success and the final relay. The
+separate analysis binds prefix-only Auto=0/readback, exact018 stop/wait0,
+all13 recorded host PIDs absent, no prefix open files and unchanged
+012-017 results. No replay or UI acceptance.
+
+### Cell019: observe the actual fail-fast HRESULT
+
+[ADR-0051](ADR/0051-observe-failfast-status-and-error-context.md) records
+the next diagnostic-only cell. Before the existing combase fail-fast,
+retain its HRESULT argument, image-relative caller, last30 admitted
+relays and last30 owned COM events. Originate operations retain argument
+HRESULTs; restricted-error stubs retain their unchanged return HRESULT,
+not an invented error-object status. All message/object content stays
+redacted. Admission is Initialize-through-Run-exit with finite source
+and collector bounds and explicit loss markers.
+
+The fresh `package-uwp-failfast-01` source build and stage succeeded.
+The unchanged observer and fixture compiled; no Wine ran here.
+All224 deterministic host tests passed, including scoped status/caller
+capture, exact tails, type distinctions, privacy and cap regressions.
+Actual019 remains unobserved at this source handoff.

@@ -57,6 +57,11 @@ class CallDiagnostics:
         self.origins = deque(maxlen=128)
         self.exception_limited = set()
         self.exception_policy_pids = set()
+        self.error_context_scope = set()
+        self.error_context = deque(maxlen=512)
+        self.error_context_count = 0
+        self.failfasts = []
+        self.error_context_limited = set()
 
     def observe(self, pid, tid, channel, function, message):
         if channel == "pkgcore" and function == "application_run" and message == "exception-policy no-gpfault-dialog=1":
@@ -102,6 +107,34 @@ class CallDiagnostics:
                     else:
                         value.update(module=item[3], offset=item[4])
                     row["parameters"].append(value)
+        elif channel == "pkgro" and function == "diagnostic_error_context" and pid in self.error_context_scope:
+            if message in ("error-context limited=failfast", "error-context limited=operations"):
+                self.error_context_limited.add(pid)
+                return
+            match = re.fullmatch(
+                r"error-context operation=(RoFailFastWithErrorContextInternal2|RoOriginateError|RoOriginateErrorW|"
+                r"RoOriginateLanguageException|GetRestrictedErrorInfo|SetRestrictedErrorInfo) "
+                r"kind=(argument|return) hresult=([0-9a-f]{8}) module=([A-Za-z0-9_.-]{1,127}) offset=([0-9a-f]{1,16})",
+                message)
+            if not match or int(match[5], 16) > 0xffffffff:
+                return
+            is_return = match[1] in ("GetRestrictedErrorInfo", "SetRestrictedErrorInfo")
+            if (match[2] == "return") != is_return:
+                return
+            fact.update(operation=match[1], hresult_kind=match[2], hresult="0x" + match[3],
+                        caller_module=match[4], caller_offset=match[5],
+                        basis="actual HRESULT argument" if not is_return else "actual existing stub return; no error object decoded")
+            if match[1] == "RoFailFastWithErrorContextInternal2":
+                if len(self.failfasts) < 32:
+                    fact.update(relay_tail=[dict(row) for row in list(self.relays[pid])[-30:]],
+                                interface_tail=[dict(row) for row in
+                                                [row for row in self.interfaces if row["pid"] == pid][-30:]])
+                    self.failfasts.append(fact)
+                else:
+                    self.error_context_limited.add(pid)
+            else:
+                self.error_context.append(fact)
+                self.error_context_count += 1
         elif channel == "pkgro" and function in ("RoOriginateError", "RoOriginateErrorW", "RoOriginateLanguageException"):
             match = re.fullmatch(r"origin operation=(RoOriginateError|RoOriginateErrorW|RoOriginateLanguageException) hresult=([0-9a-f]{8})", message)
             if match and function == match[1]:
@@ -187,6 +220,7 @@ class CallDiagnostics:
                     self.running.add(pid)
                 else:
                     self.running.discard(pid)
+                    self.error_context_scope.discard(pid)
             if match[3] == "exit":
                 fact["hresult" if match[5] == "HRESULT" else "refcount"] = "0x" + match[6]
                 if match[5] == "HRESULT" and int(match[6], 16) & 0x80000000:
@@ -205,6 +239,7 @@ class CallDiagnostics:
                 fact.update(initialize=phase[1] != "0")
                 if phase[1] != "0":
                     self.active.add(pid)
+                    self.error_context_scope.add(pid)
                     fact["xaml_range_known"] = phase[2] == "1"
                 else:
                     self.active.discard(pid)
@@ -328,6 +363,10 @@ class CallDiagnostics:
             "unhandled_filter_exceptions": select(self.exceptions),
             "exception_source_limited": bool(target_pids & self.exception_limited),
             "winrt_error_origins": select(self.origins),
+            "failfast_error_context": select(self.failfasts),
+            "restricted_error_context": select(self.error_context),
+            "error_context_source_limited": bool(target_pids & self.error_context_limited),
+            "error_context_tail_overwritten": max(0, self.error_context_count - self.error_context.maxlen),
             "no_gpfault_dialog_policy_observed": sorted(target_pids & self.exception_policy_pids),
             "basis": "instrumented calls, not a deadlock or unsignalled-event cause determination",
         }

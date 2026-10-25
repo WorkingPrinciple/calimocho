@@ -63,11 +63,11 @@ def prepare(root, producer, cell=13):
         raise ValueError("Require compiled unexecuted state observer")
     if sha256(Path(record["output"])) != record["output_sha256"] or sha256(Path(record["source"])) != record["source_sha256"]:
         raise ValueError("State observer source or binary changed")
-    if cell not in (13, 14, 15, 16, 17, 18):
+    if cell not in (13, 14, 15, 16, 17, 18, 19):
         raise ValueError("Unsupported diagnostic cell")
     extra = SOURCES
     previous, digest = PREVIOUS, "d28d3873654eaf4c563db8cf64ef4b2368176729befb6c72eec847b128a9c39f"
-    if cell in (14, 15, 16, 17, 18):
+    if cell in (14, 15, 16, 17, 18, 19):
         previous = REPO / "build/winehq-11.20/package-uwp-state-01/cell013-receipt.json"
         digest = "a0cf124b6c1040de0cbe180a70c9969612314e95511281cc769d58ee752e0285"
         extra += ("tools/port_call_diagnostics.py", "patches/wine/files/package_call_diagnostics.h",
@@ -81,7 +81,7 @@ def prepare(root, producer, cell=13):
         for header, value in build["call_diagnostics"]["headers"].items():
             if sha256(Path(header)) != value:
                 raise ValueError("Diagnostic ABI header changed")
-    if cell in (15, 16, 17, 18):
+    if cell in (15, 16, 17, 18, 19):
         previous = REPO / "build/winehq-11.20/package-uwp-calltrace-01/cell014-receipt.json"
         digest = "30b6d6514d58ec6ee188768345673abea86d11d5a0254fce38db9f7484646b48"
         from tools.port_activation_wait_diagnostics import SOURCES as ACTIVATION_SOURCES
@@ -91,7 +91,7 @@ def prepare(root, producer, cell=13):
         for relative, value in build["activation_wait_diagnostics"]["files"].items():
             if sha256(root / "source" / relative) != value:
                 raise ValueError("Generated activation/wait source changed")
-    if cell in (16, 17, 18):
+    if cell in (16, 17, 18, 19):
         previous = REPO / "build/winehq-11.20/package-uwp-activation-waits-01/cell015-receipt.json"
         digest = "58eccd9ec5d9aba954eb80251efadb8d8117b2f49aba6088604e981b5b50a122"
         from tools.port_handle_provenance import SOURCES as HANDLE_SOURCES
@@ -105,7 +105,7 @@ def prepare(root, producer, cell=13):
         for relative, value in build["handle_provenance"]["files"].items():
             if sha256(root / "source" / relative) != value:
                 raise ValueError("Generated handle/IPC source changed")
-    if cell in (17, 18):
+    if cell in (17, 18, 19):
         previous = REPO / "build/winehq-11.20/package-uwp-handle-provenance-01/cell016-receipt.json"
         digest = "b55779b754cacf0b091dac907c381a9dcf3133acdbe8169b8f18a226705d38d5"
         from tools.port_exception_diagnostics import SOURCES as EXCEPTION_SOURCES
@@ -115,7 +115,7 @@ def prepare(root, producer, cell=13):
         for relative, value in build["exception_diagnostics"]["files"].items():
             if sha256(root / "source" / relative) != value:
                 raise ValueError("Generated exception source changed")
-    if cell == 18:
+    if cell in (18, 19):
         previous = REPO / "build/winehq-11.20/package-uwp-exception-01/cell017-receipt.json"
         digest = "0a757c6da94c8f6b3b5cabaa3130597c878082a6e9ab861b78b08646efa94389"
         extra += ("tests/test_lifetime19.py",
@@ -124,6 +124,17 @@ def prepare(root, producer, cell=13):
         abi_digest = "8c02195d96ddc0ee346be0019d40c2c9a04ffd5b4c7a243311e89207b2dc88b5"
         if sha256(abi_facts) != abi_digest:
             raise ValueError("Observed native lifetime ABI facts changed")
+    if cell == 19:
+        previous = REPO / "build/winehq-11.20/package-uwp-lifetime19-01/cell018-receipt.json"
+        digest = "e75c54e81fec44d3bcb6984bd648b396b4d27f4dcfa7437e07e44ec62c1f4b45"
+        from tools.port_failfast_diagnostics import SOURCES as FAILFAST_SOURCES
+        extra += FAILFAST_SOURCES + ("tests/test_failfast_diagnostics.py",
+                                    "docs/ADR/0051-observe-failfast-status-and-error-context.md")
+        if "failfast_diagnostics" not in build:
+            raise ValueError("Cell019 requires actual fail-fast diagnostic port")
+        for relative, value in build["failfast_diagnostics"]["files"].items():
+            if sha256(root / "source" / relative) != value:
+                raise ValueError("Generated fail-fast source changed")
     path = freeze(root, producer, cell=cell, predecessor=previous,
                   predecessor_sha256=digest, extra_sources=extra)
     receipt = json.loads(path.read_text())
@@ -151,7 +162,7 @@ def prepare(root, producer, cell=13):
         "Stack frames use basename plus module-relative offsets; unknown mappings are redacted",
         "Snapshot failures/truncation and debugger perturbation remain explicit; no inferred deadlock or UI acceptance",
     ]
-    if cell in (14, 15, 16, 17, 18):
+    if cell in (14, 15, 16, 17, 18, 19):
         receipt["call_diagnostics"] = build["call_diagnostics"]
         receipt["scope"] = "cell014 diagnostic-only complete owned COM vtables, sanitized native-XAML relay and actual wait pairs"
         receipt["preconditions"] += [
@@ -167,7 +178,7 @@ def prepare(root, producer, cell=13):
             "Wait object type and event state are read-only observations before actual wait, not a proven cause",
             "Collector retains fixed diagnostic grammar past ordinary8MiB cutoff; no argument strings, object names or absolute addresses",
         ]
-    if cell in (15, 16, 17, 18):
+    if cell in (15, 16, 17, 18, 19):
         receipt["scope"] = "cell015 public activation entry/result/provider, actual wait object state and thread creation/liveness"
         receipt["activation_wait_diagnostics"] = build["activation_wait_diagnostics"]
         receipt["limitations"] += [
@@ -180,7 +191,7 @@ def prepare(root, producer, cell=13):
             "Creator return-slot metadata is not a recovered full stack or proven semantic call chain; remote-process thread creation is outside this in-process scope",
             "Snapshot alive means observed thread exit status; pending wait entries are correlated separately, not guessed OS thread-state enums",
         ]
-    if cell in (16, 17, 18):
+    if cell in (16, 17, 18, 19):
         receipt["scope"] = "cell016 process-handle identity, event/process creation provenance and IPC attempts"
         receipt["handle_provenance"] = build["handle_provenance"]
         receipt["limitations"] += [
@@ -195,7 +206,7 @@ def prepare(root, producer, cell=13):
             "RPC OpenClientConnection is the actual transport attempt,1024 retained entry/exit events; endpoints and binding strings excluded",
             "No process/broker, event, RPC service or success behavior is synthesized; absent covered calls do not prove absence of all IPC",
         ]
-    if cell in (17, 18):
+    if cell in (17, 18, 19):
         receipt["scope"] = "cell017 real unhandled-filter exception, no debugger dialog and actual target exit"
         receipt["exception_diagnostics"] = build["exception_diagnostics"]
         registration = root / ("aedebug-CELL%03d-FROZEN.reg" % cell)
@@ -220,7 +231,7 @@ def prepare(root, producer, cell=13):
             "Last50 retained admitted relay calls are bound at exception entry; no private exception object, strings or absolute addresses",
             "Fresh private prefix registry change is reversible by removing%03d prefix; sealed predecessors and existing prefixes untouched" % cell,
         ]
-    if cell == 18:
+    if cell in (18, 19):
         receipt["scope"] = "cell018 corrected nineteen-slot native lifetime ABI and unchanged exception observation"
         receipt["limitations"] = [item for item in receipt["limitations"]
                                  if not item.startswith(("Reserved undocumented slot", "122 typed",
@@ -241,6 +252,17 @@ def prepare(root, producer, cell=13):
         ]
         receipt["native_fixture_argv"][-1] = "--static-lifetime"
         receipt["native_fixture_status"] = "compiled headless map and nineteen-slot callback contract fixture, not executed"
+    if cell == 19:
+        receipt["scope"] = "cell019 diagnostic-only fail-fast HRESULT and restricted-error caller context"
+        receipt["failfast_diagnostics"] = build["failfast_diagnostics"]
+        receipt["limitations"] += [
+            "Fail-fast logs actual HRESULT argument and image-relative return site before original RaiseFailFastException; target exit observed separately",
+            "Collector error-context scope starts at Initialize entry and ends at CoreApplication.Run exit; process exit may end it without a Run return",
+            "Last30 admitted relay and last30 owned COM events copied at fail-fast; no raw argument or callback/token output",
+            "RoOriginate operations retain input HRESULT; Get/SetRestrictedErrorInfo retain unchanged actual E_NOTIMPL stub return, not an object HRESULT",
+            "No restricted error objects, strings, stowed exception structures or private message text decoded",
+            "Source caps32 fail-fast and512 other context calls; collector first32 fail-fast plus512 tail with explicit loss counters",
+        ]
     path.write_text(json.dumps(receipt, indent=2) + "\n")
     return path
 
@@ -251,7 +273,7 @@ if __name__ == "__main__":
     parser.add_argument("--producer-commit")
     parser.add_argument("--compile-only", action="store_true")
     parser.add_argument("--resume", action="store_true")
-    parser.add_argument("--cell", type=int, choices=(13, 14, 15, 16, 17, 18), default=13)
+    parser.add_argument("--cell", type=int, choices=(13, 14, 15, 16, 17, 18, 19), default=13)
     args = parser.parse_args()
     if args.compile_only:
         print(json.dumps(compile_observer(args.root, args.resume), indent=2))
