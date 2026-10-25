@@ -107,6 +107,21 @@ Where a game's Calimocho result above differs, both are kept.
 | Brotato | Plays; Chunky unlock kept after relaunch. Also verified through Xode's Play button. |
 | Stardew Valley | Plays; Day 2 and seeds kept after relaunch. |
 
+## Engine release checks, 26 October 2026
+
+Short checks on the release builds, run from the command line in a fresh
+prefix: launch, wait about 60 seconds, then close the game normally. They
+show whether a game still starts on a release; they don't replace the
+results above.
+
+| Game | Release | What we saw |
+|---|---|---|
+| Brotato | 11.20-4.0b3-02 | Menu rendered, still running at 60 s, clean quit. |
+| Halls of Torment | 11.20-4.0b3-02 | Menu rendered, still running at 60 s, clean quit. Better than the earlier Calimocho result above. |
+| Vampire Survivors | 11.20-4.0b3-01 and -02 | Window opens, then the game exits with code 3 after about 20 s. Worse than the earlier Calimocho result above; under investigation. |
+| Balatro | 11.20-4.0b3-01 and -02 | No window; exits after about 30 s. Same as before. |
+| Forza Horizon 6 | 11.20-4.0b3-01 with the Forza-only workarounds (the set used in -02) | Title screen, then Continue with existing progress into free roam ("Explore Japan"). Exit Game from the menu quit cleanly. Driving input wasn't checked in this run. |
+
 ## Counts (24–25 October 2026)
 
 41 games tried on Calimocho: 16 play, 3 reach the menu, 11 open, 8 are
