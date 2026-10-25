@@ -21,6 +21,25 @@ present ALPC APIs have partial or unimplemented behavior. Delayed private
 user32 and combase ordinal imports remain unqualified. Static import
 resolution cannot establish that CoreUICreate or Initialize works.
 
+The retained native DLL's delay-import table also names combase ordinals
+86-88, user32 ordinals 2541, 2669 and 2670, and
+`GetQueueStatusForCoreMessaging` plus `ScheduleCoreMessagingDispatch` from
+`ext-ms-win-rtcore-minuser-private-ext-l1-1-1.dll`. Wine's current combase
+exports those ordinals as `CoCreateObjectInContext`,
+`CoDeactivateObject` and `CoDecodeProxy`. The matching native combase export
+table is not available, so those names are only the Wine-side bindings, not
+verified native function identities. Do not assign aliases or implement
+ordinal behavior from those names.
+
+Wine marks the three user32 ordinals as stubs, with corresponding win32u
+syscall stubs. The API-set schema has no host for the imported
+`...private-ext-l1-1-1` family. These imports are delay-loaded, so they are
+call-time gaps rather than initial module-load failures. The inspected
+`CoreUICreate` thunk and `CoreUICreateEx` body do not directly reference
+these IAT entries; `CoreUICreateEx` calls an internal helper, and transitive
+reachability from that helper is unproven. Static call sites elsewhere in
+CoreMessaging do not establish that these imports run during creation.
+
 Full mandatory-import inspection also finds missing
 `ucrtbase!__C_specific_handler_noexcept`. Public export metadata in the
 retained native CRT, SHA-256

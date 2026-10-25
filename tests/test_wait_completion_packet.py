@@ -28,6 +28,7 @@ class WaitCompletionPacketTests(unittest.TestCase):
             "dlls/ntdll/unix/sync.c", "server/object.h", "server/thread.c",
             "server/protocol.def", "server/completion.c",
             "dlls/ucrtbase/ucrtbase.spec",
+            "dlls/combase/combase.spec",
         )
         with tempfile.TemporaryDirectory(dir=REPO / "build") as directory:
             source = Path(directory) / "source"
@@ -40,6 +41,13 @@ class WaitCompletionPacketTests(unittest.TestCase):
             completion = (source / "server/completion.c").read_text()
             self.assertIn("wait_packet_dequeued(msg);\n        free( msg );", completion)
             self.assertEqual(completion.count("wait_packet_dequeued(msg);"), 2)
+            spec = (source / "dlls/combase/combase.spec").read_text()
+            for ordinal in (86, 87, 88):
+                self.assertIn(
+                    f"{ordinal} stub -noname __wine_unsupported_coremessaging_ordinal_{ordinal}",
+                    spec)
+            self.assertEqual(first["ordinal_guards"]["ordinals"], [86, 87, 88])
+            self.assertIsNone(first["ordinal_guards"]["native_function_names"])
             (source.parent / "CELL025-FROZEN").touch()
             with self.assertRaisesRegex(ValueError, "unfrozen owned"):
                 port(source)

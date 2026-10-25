@@ -281,7 +281,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
                          "patches/wine/files/package_call_diagnostics.h",
                          "patches/wine/files/package_relay_diagnostics.h",
                          "patches/wine/files/package_wait_diagnostics.h",
-                         "patches/wine/files/package_address_diagnostics.h"):
+                         "patches/wine/files/package_address_diagnostics.h",
+                         "patches/wine/contracts/istaticlifetime-diagnostics.json",
+                         "patches/wine/files/whiny_diagnostics_17b0e613_942a_422d_904c_f90dc71a7dae.h",
+                         "patches/wine/files/istaticlifetime-relay-filter.txt"):
             receipt["source_inputs"][relative] = sha256(REPO / relative)
     if activation_wait_diagnostics:
         from tools.port_activation_wait_diagnostics import SOURCES

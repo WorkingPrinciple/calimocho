@@ -143,3 +143,32 @@ def qualify(native, install, source):
             "resolved_module_sha256": identities, "delayed_imports_unqualified": delayed,
             "core_ui_create_rva": pe.exports().get("CoreUICreate"),
             "scope": "Static public import/forwarder resolution only, not implementation or runtime acceptance"}
+
+
+def qualify_ordinal_guards(install):
+    path = Path(install) / "lib/wine/x86_64-windows/combase.dll"
+    pe = PE(path)
+    exports = pe.exports()
+    guards = []
+    targets = set()
+    for ordinal in (86, 87, 88):
+        rva = exports[ordinal]
+        if not isinstance(rva, int) or any(
+                isinstance(name, str) and value == rva for name, value in exports.items()):
+            raise ValueError("Combase ordinal guard aliases a named API")
+        offset = pe.raw(rva)
+        code = pe.data[offset:offset + 22]
+        if (code[:7] != bytes.fromhex("4883ec28488d0d")
+                or code[11:14] != bytes.fromhex("488d15") or code[18] != 0xe8):
+            raise ValueError("Combase ordinal is not the generated x64 Wine stub")
+        module = pe.string(rva + 11 + struct.unpack_from("<i", code, 7)[0])
+        identifier = pe.string(rva + 18 + struct.unpack_from("<i", code, 14)[0])
+        if module.lower() != "combase.dll" or identifier != (
+                "__wine_unsupported_coremessaging_ordinal_" + str(ordinal)):
+            raise ValueError("Combase stub identifiers changed")
+        targets.add(rva + 23 + struct.unpack("<i", pe.data[offset + 19:offset + 23])[0])
+        guards.append({"ordinal": ordinal, "rva": rva, "diagnostic_identifier": identifier})
+    if len(targets) != 1:
+        raise ValueError("Combase guards do not call the same generated stub handler")
+    return {"sha256": sha256(path), "guards": guards,
+            "scope": "Static x64 Wine-generated unimplemented stubs; no native ABI or runtime success"}

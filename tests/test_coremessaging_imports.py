@@ -6,7 +6,7 @@ import unittest
 
 from tools.build_uwp_overlay import REPO
 from tools.probe_wine_source import sha256
-from tools.qualify_coremessaging_imports import PE, qualify
+from tools.qualify_coremessaging_imports import PE, qualify, qualify_ordinal_guards
 
 
 class CoreMessagingImportTests(unittest.TestCase):
@@ -57,3 +57,25 @@ class CoreMessagingImportTests(unittest.TestCase):
             path.write_bytes(data)
             with self.assertRaisesRegex(ValueError, "Require AMD64"):
                 PE(path)
+
+    def test_guarded_combase_preserves_other_ordinals_and_all_named_exports(self):
+        guarded = REPO / "build/winehq-11.20/package-uwp-coremessaging-guard-01/install"
+        before = PE(self.root / "install/lib/wine/x86_64-windows/combase.dll").exports()
+        after = PE(guarded / "lib/wine/x86_64-windows/combase.dll").exports()
+        self.assertEqual({n for n in before if isinstance(n, str)},
+                         {n for n in after if isinstance(n, str)})
+
+        def names(exports, ordinal):
+            return {n for n, value in exports.items()
+                    if isinstance(n, str) and value == exports[ordinal]}
+
+        for ordinal in (n for n in before if isinstance(n, int)):
+            if ordinal in (86, 87, 88):
+                self.assertFalse(names(after, ordinal))
+                self.assertEqual(names(before, ordinal), names(after, ordinal + 270))
+            else:
+                self.assertEqual(names(before, ordinal), names(after, ordinal))
+        result = qualify_ordinal_guards(guarded)
+        self.assertEqual([g["ordinal"] for g in result["guards"]], [86, 87, 88])
+        with self.assertRaisesRegex(ValueError, "aliases a named API"):
+            qualify_ordinal_guards(self.root / "install")

@@ -1,5 +1,6 @@
 """Generate exact typed diagnostic vtables and redacted relay/wait hooks in owned Wine source."""
 from pathlib import Path
+import json
 import re
 import shutil
 import subprocess
@@ -10,6 +11,13 @@ from tools.probe_wine_source import sha256
 
 BASE = REPO / "build/winehq-11.20/package-uwp-state-01"
 FILES = REPO / "patches/wine/files"
+WHINY_CONTRACT = REPO / "patches/wine/contracts/istaticlifetime-diagnostics.json"
+WHINY_INTERFACE = "17b0e613-942a-422d-904c-f90dc71a7dae"
+WHINY_HEADER = FILES / "whiny_diagnostics_17b0e613_942a_422d_904c_f90dc71a7dae.h"
+WHINY_RELAY_FILTER = FILES / "istaticlifetime-relay-filter.txt"
+WHINY_WX11_COMMIT = "fe9ebc055ed857d7d63072539659a8f404064d02"
+WHINY_CONTRACT_SHA256 = "1abcef2cfc5e9c20e00bcb12e35966427ced0c89b63b0414cc7458a5e6d0b9cb"
+WHINY_HEADER_SHA256 = "69ed5cd3007f42506b61cdce7d034bf7d9f25394efdfe6f7dac8a2dcd3787fe0"
 
 
 def slots(header, interface):
@@ -52,15 +60,75 @@ def instrument(source, relative, definitions, inputs, coverage):
     text = path.read_text()
     text = text.replace("static struct core core;", '#include "package_call_diagnostics.h"\nstatic struct core core;', 1) if "struct core" in text else text.replace(
         "#define DISPATCH_MESSAGE", '#include "package_call_diagnostics.h"\n#define DISPATCH_MESSAGE', 1)
+    whiny_install = "whiny_diag_17B0E613_942A_422D_904C_F90DC71A7DAE_install"
+    if relative.endswith("core_application.c"):
+        include = (
+            '#define WHINY_DIAG_LOG(object, method, phase, iid, result, kind) \\\n'
+            '    diagnostic_interface("StaticLifetime", method, phase, iid, (ULONG)(result), \\\n'
+            '        (!strcmp(method, "AddRef") || !strcmp(method, "Release")) ? "ULONG" : "HRESULT")\n'
+            "#include <string.h>\n"
+            '#include "whiny_diagnostics_17b0e613_942a_422d_904c_f90dc71a7dae.h"\n'
+            "#undef WHINY_DIAG_LOG\n")
+        marker = '#include "package_call_diagnostics.h"'
+        if text.count(marker) != 1:
+            raise ValueError("Missing common diagnostic header include")
+        text = text.replace(marker, marker + "\n" + include, 1)
+        text = text.replace("static struct core core;",
+                            "static struct core core;\n"
+                            "static INIT_ONCE lifetime_diagnostics_once = INIT_ONCE_STATIC_INIT;\n"
+                            "static BOOL CALLBACK install_lifetime_diagnostics(PINIT_ONCE, void *, void **);", 1)
     for interface, table, header, label in definitions:
-        generated, names = wrappers(header, interface, table, label)
+        names = [method[1] for method in slots(header, interface)]
         inputs[str(header)] = sha256(header)
         pattern = r"static const " + interface + "Vtbl " + table + r" = \{.*?\n\};"
         matches = list(re.finditer(pattern, text, re.S))
         if len(matches) != 1:
             raise ValueError("Unexpected implementation vtable " + table)
         match = matches[0]
+        if label == "StaticLifetime":
+            contract = json.loads(WHINY_CONTRACT.read_text())
+            generated_text = WHINY_HEADER.read_text()
+            contract_hash = sha256(WHINY_CONTRACT)
+            expected = "/* contract sha256 " + contract_hash + " interface 17B0E613-942A-422D-904C-F90DC71A7DAE slots 19 */"
+            if (contract_hash != WHINY_CONTRACT_SHA256
+                    or sha256(WHINY_HEADER) != WHINY_HEADER_SHA256
+                    or contract["native_profile"]["iid"].lower() != WHINY_INTERFACE
+                    or generated_text.splitlines()[1] != expected
+                    or len(names) != 19
+                    or [op["entry"]["slot"] for op in contract["operations"]] != list(range(3, 19))
+                    or [op["name"] for op in contract["operations"]] != names[3:]):
+                raise ValueError("Whiny WX-11 header, contract and source ABI do not match")
+            implementation = match[0].replace("static const ", "static ", 1)
+            text = text[:match.start()] + implementation + text[match.end():]
+            table_declaration = implementation
+            insertion = text.index(table_declaration) + len(table_declaration)
+            initializer = (
+                "\nstatic BOOL CALLBACK install_lifetime_diagnostics(PINIT_ONCE once, void *parameter, void **context)\n"
+                "{\n"
+                "    (void)once;\n"
+                "    (void)parameter;\n"
+                "    (void)context;\n"
+                "    " + whiny_install + "((void **)&lifetime_vtable);\n"
+                "    return TRUE;\n"
+                "}\n")
+            text = text[:insertion] + initializer + text[insertion:]
+            expose = "else if (IsEqualGUID(iid, &IID_IStaticLifetime)) *out = &core.IStaticLifetime_iface;"
+            if text.count(expose) != 1:
+                raise ValueError("Missing static lifetime interface exposure seam")
+            text = text.replace(expose,
+                "else if (IsEqualGUID(iid, &IID_IStaticLifetime))\n"
+                "    {\n"
+                "        if (!InitOnceExecuteOnce(&lifetime_diagnostics_once, install_lifetime_diagnostics, NULL, NULL))\n"
+                "            return E_FAIL;\n"
+                "        *out = &core.IStaticLifetime_iface;\n"
+                "    }", 1)
+            inputs[str(WHINY_HEADER)] = sha256(WHINY_HEADER)
+            coverage[label] = names
+            continue
         implementation = match[0].replace("Vtbl " + table, "Vtbl implementation_" + table, 1)
+        generated, generated_names = wrappers(header, interface, table, label)
+        if names != generated_names:
+            raise ValueError("Diagnostic method order changed while generating " + interface)
         text = text[:match.start()] + implementation + "\n" + generated + text[match.end():]
         coverage[label] = names
     if "CoreApplication" in coverage and relative.endswith("core_application.c"):
@@ -71,6 +139,8 @@ def instrument(source, relative, definitions, inputs, coverage):
                             + old + "\n        __wine_pkg_diagnostic_phase(3, NULL);", 1)
     path.write_text(text)
     shutil.copy2(FILES / "package_call_diagnostics.h", path.parent / "package_call_diagnostics.h")
+    if relative.endswith("core_application.c"):
+        shutil.copy2(WHINY_HEADER, path.parent / WHINY_HEADER.name)
 
 
 def port(source):
@@ -189,6 +259,15 @@ def port(source):
             "    return result;\n}\n")
     sync.write_text(text)
     return {"headers": inputs, "interfaces": coverage,
+            "whiny_wx11": {"commit": WHINY_WX11_COMMIT, "contract": str(WHINY_CONTRACT),
+                           "contract_sha256": sha256(WHINY_CONTRACT), "header": str(WHINY_HEADER),
+                           "header_sha256": sha256(WHINY_HEADER), "relay_filter": str(WHINY_RELAY_FILTER),
+                           "relay_filter_sha256": sha256(WHINY_RELAY_FILTER), "slot_count": 19,
+                           "wrapped_slots": list(range(19)), "passthrough_slots": [],
+                           "relay_filter_reason": "COM vtable methods are not DLL relay exports",
+                           "contract_role": "diagnostic-emitter input only; not runtime profile evidence",
+                           "pointer_input_limit": "u64 preserves x64 ABI words but is not a source-level pointer type"},
             "files": {relative: sha256(source / relative) for relative in (
                 "dlls/twinapi.appcore/core_application.c", "dlls/windows.ui/corewindow_host.c",
+                "dlls/twinapi.appcore/whiny_diagnostics_17b0e613_942a_422d_904c_f90dc71a7dae.h",
                 "dlls/ntdll/relay.c", "dlls/ntdll/ntdll.spec", "dlls/ntdll/unix/sync.c", "dlls/ntdll/loader.c")}}

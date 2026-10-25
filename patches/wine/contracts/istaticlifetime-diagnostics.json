@@ -1,0 +1,1018 @@
+{
+  "schema": "whiny.adapter-contract.v3",
+  "contract_id": "com.calimocho.static_lifetime_diagnostics",
+  "contract_version": "1.0.0",
+  "profile": "com-x64-v1",
+  "target": {
+    "family": "com-server",
+    "architecture": "x86-64",
+    "relative_path": "twinapi.appcore.dll",
+    "sha256": "1a5ec6e883d898e18a0f374d824e3e2683d134889bab5c39be0c1b2f88e531ff"
+  },
+  "native_profile": {
+    "kind": "com",
+    "iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+    "controlling_iunknown_iid": "00000000-0000-0000-C000-000000000046",
+    "query_interface": "controlling-iunknown-identity",
+    "refcount": "lease-addref-release",
+    "apartment": "mta",
+    "activation": "registration-free-manifest",
+    "manifest_path": "activation/WvbScalarObject.reg",
+    "manifest_sha256": "abababababababababababababababababababababababababababababababab",
+    "callback": {
+      "lifetime": "lease-bound",
+      "unregister": "required-before-release",
+      "ordering": "registration-order",
+      "executor": "declared-apartment",
+      "reentrancy": "forbidden",
+      "cancellation": "cooperative-bounded",
+      "allocator_pairing": "contract-declared"
+    },
+    "admitted_interface_iids": [
+      "17b0e613-942a-422d-904c-f90dc71a7dae"
+    ]
+  },
+  "dependencies": [],
+  "types": {
+    "i32": {
+      "kind": "scalar",
+      "encoding": "i32-le"
+    },
+    "u32": {
+      "kind": "scalar",
+      "encoding": "u32-le"
+    },
+    "u64": {
+      "kind": "scalar",
+      "encoding": "u64-le"
+    },
+    "i64": {
+      "kind": "scalar",
+      "encoding": "i64-le"
+    },
+    "u8": {
+      "kind": "scalar",
+      "encoding": "u8"
+    }
+  },
+  "wire_schemas": [
+    {
+      "id": 1074000001,
+      "size": 12,
+      "fields": [
+        {
+          "name": "iidCount",
+          "type_id": "u32",
+          "offset": 0
+        },
+        {
+          "name": "iids",
+          "type_id": "u64",
+          "offset": 4
+        }
+      ]
+    },
+    {
+      "id": 1074000002,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000003,
+      "size": 8,
+      "fields": [
+        {
+          "name": "className",
+          "type_id": "u64",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000004,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000005,
+      "size": 4,
+      "fields": [
+        {
+          "name": "trustLevel",
+          "type_id": "u32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000006,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000007,
+      "size": 8,
+      "fields": [
+        {
+          "name": "value",
+          "type_id": "u64",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000008,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000009,
+      "size": 8,
+      "fields": [
+        {
+          "name": "value",
+          "type_id": "u64",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000010,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000011,
+      "size": 12,
+      "fields": [
+        {
+          "name": "index",
+          "type_id": "u32",
+          "offset": 0
+        },
+        {
+          "name": "value",
+          "type_id": "u64",
+          "offset": 4
+        }
+      ]
+    },
+    {
+      "id": 1074000012,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000013,
+      "size": 12,
+      "fields": [
+        {
+          "name": "index",
+          "type_id": "u32",
+          "offset": 0
+        },
+        {
+          "name": "value",
+          "type_id": "u64",
+          "offset": 4
+        }
+      ]
+    },
+    {
+      "id": 1074000014,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000015,
+      "size": 8,
+      "fields": [
+        {
+          "name": "value",
+          "type_id": "u64",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000016,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000017,
+      "size": 16,
+      "fields": [
+        {
+          "name": "callback",
+          "type_id": "u64",
+          "offset": 0
+        },
+        {
+          "name": "token",
+          "type_id": "i64",
+          "offset": 8
+        }
+      ]
+    },
+    {
+      "id": 1074000018,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000019,
+      "size": 8,
+      "fields": [
+        {
+          "name": "token",
+          "type_id": "i64",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000020,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000021,
+      "size": 12,
+      "fields": [
+        {
+          "name": "index",
+          "type_id": "u32",
+          "offset": 0
+        },
+        {
+          "name": "value",
+          "type_id": "u64",
+          "offset": 4
+        }
+      ]
+    },
+    {
+      "id": 1074000022,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000023,
+      "size": 1,
+      "fields": [
+        {
+          "name": "value",
+          "type_id": "u8",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000024,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000025,
+      "size": 16,
+      "fields": [
+        {
+          "name": "key",
+          "type_id": "u64",
+          "offset": 0
+        },
+        {
+          "name": "value",
+          "type_id": "u64",
+          "offset": 8
+        }
+      ]
+    },
+    {
+      "id": 1074000026,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000027,
+      "size": 12,
+      "fields": [
+        {
+          "name": "index",
+          "type_id": "u32",
+          "offset": 0
+        },
+        {
+          "name": "value",
+          "type_id": "u64",
+          "offset": 4
+        }
+      ]
+    },
+    {
+      "id": 1074000028,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000029,
+      "size": 12,
+      "fields": [
+        {
+          "name": "object",
+          "type_id": "u64",
+          "offset": 0
+        },
+        {
+          "name": "value",
+          "type_id": "u32",
+          "offset": 8
+        }
+      ]
+    },
+    {
+      "id": 1074000030,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": 1074000031,
+      "size": 12,
+      "fields": [
+        {
+          "name": "index",
+          "type_id": "u32",
+          "offset": 0
+        },
+        {
+          "name": "value",
+          "type_id": "u64",
+          "offset": 4
+        }
+      ]
+    },
+    {
+      "id": 1074000032,
+      "size": 4,
+      "fields": [
+        {
+          "name": "result",
+          "type_id": "i32",
+          "offset": 0
+        }
+      ]
+    }
+  ],
+  "operations": [
+    {
+      "id": 1,
+      "name": "GetIids",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 3
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000001,
+      "response_schema_id": 1074000002,
+      "parameters": [
+        {
+          "name": "iidCount",
+          "type_id": "u32",
+          "direction": "out",
+          "sensitivity": "public"
+        },
+        {
+          "name": "iids",
+          "type_id": "u64",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 2,
+      "name": "GetRuntimeClassName",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 4
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000003,
+      "response_schema_id": 1074000004,
+      "parameters": [
+        {
+          "name": "className",
+          "type_id": "u64",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 3,
+      "name": "GetTrustLevel",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 5
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000005,
+      "response_schema_id": 1074000006,
+      "parameters": [
+        {
+          "name": "trustLevel",
+          "type_id": "u32",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 4,
+      "name": "Reserved",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 6
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000007,
+      "response_schema_id": 1074000008,
+      "parameters": [
+        {
+          "name": "value",
+          "type_id": "u64",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 5,
+      "name": "GetCollection",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 7
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000009,
+      "response_schema_id": 1074000010,
+      "parameters": [
+        {
+          "name": "value",
+          "type_id": "u64",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 6,
+      "name": "Slot8",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 8
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000011,
+      "response_schema_id": 1074000012,
+      "parameters": [
+        {
+          "name": "index",
+          "type_id": "u32",
+          "direction": "in",
+          "sensitivity": "public"
+        },
+        {
+          "name": "value",
+          "type_id": "u64",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 7,
+      "name": "Slot9",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 9
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000013,
+      "response_schema_id": 1074000014,
+      "parameters": [
+        {
+          "name": "index",
+          "type_id": "u32",
+          "direction": "in",
+          "sensitivity": "public"
+        },
+        {
+          "name": "value",
+          "type_id": "u64",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 8,
+      "name": "Slot10",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 10
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000015,
+      "response_schema_id": 1074000016,
+      "parameters": [
+        {
+          "name": "value",
+          "type_id": "u64",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 9,
+      "name": "AddCallback",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 11
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000017,
+      "response_schema_id": 1074000018,
+      "parameters": [
+        {
+          "name": "callback",
+          "type_id": "u64",
+          "direction": "in",
+          "sensitivity": "public"
+        },
+        {
+          "name": "token",
+          "type_id": "i64",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 10,
+      "name": "RemoveCallback",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 12
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000019,
+      "response_schema_id": 1074000020,
+      "parameters": [
+        {
+          "name": "token",
+          "type_id": "i64",
+          "direction": "in",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 11,
+      "name": "Slot13",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 13
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000021,
+      "response_schema_id": 1074000022,
+      "parameters": [
+        {
+          "name": "index",
+          "type_id": "u32",
+          "direction": "in",
+          "sensitivity": "public"
+        },
+        {
+          "name": "value",
+          "type_id": "u64",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 12,
+      "name": "Slot14",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 14
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000023,
+      "response_schema_id": 1074000024,
+      "parameters": [
+        {
+          "name": "value",
+          "type_id": "u8",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 13,
+      "name": "Slot15",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 15
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000025,
+      "response_schema_id": 1074000026,
+      "parameters": [
+        {
+          "name": "key",
+          "type_id": "u64",
+          "direction": "in",
+          "sensitivity": "public"
+        },
+        {
+          "name": "value",
+          "type_id": "u64",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 14,
+      "name": "Slot16",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 16
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000027,
+      "response_schema_id": 1074000028,
+      "parameters": [
+        {
+          "name": "index",
+          "type_id": "u32",
+          "direction": "in",
+          "sensitivity": "public"
+        },
+        {
+          "name": "value",
+          "type_id": "u64",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 15,
+      "name": "Slot17",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 17
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000029,
+      "response_schema_id": 1074000030,
+      "parameters": [
+        {
+          "name": "object",
+          "type_id": "u64",
+          "direction": "in",
+          "sensitivity": "public"
+        },
+        {
+          "name": "value",
+          "type_id": "u32",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    },
+    {
+      "id": 16,
+      "name": "Slot18",
+      "entry": {
+        "kind": "com-method",
+        "interface_iid": "17b0e613-942a-422d-904c-f90dc71a7dae",
+        "slot": 18
+      },
+      "calling_convention": "com",
+      "timeout_ms": 5000,
+      "request_schema_id": 1074000031,
+      "response_schema_id": 1074000032,
+      "parameters": [
+        {
+          "name": "index",
+          "type_id": "u32",
+          "direction": "in",
+          "sensitivity": "public"
+        },
+        {
+          "name": "value",
+          "type_id": "u64",
+          "direction": "out",
+          "sensitivity": "public"
+        }
+      ],
+      "result_type_id": "i32",
+      "managed": null,
+      "native_error": {
+        "source": "hresult",
+        "success": "nonnegative",
+        "output_validity": "success-only",
+        "fault_error": 2147500037,
+        "invalid_input_error": 2147942487,
+        "insufficient_buffer_error": 2147942522
+      }
+    }
+  ],
+  "unsupported": [
+    "aggregation",
+    "callbacks",
+    "async",
+    "arbitrary query-interface",
+    "custom marshaling",
+    "winrt activation",
+    "diagnostic-emitter input only: native_profile is required format scaffolding, not verified runtime evidence"
+  ]
+}

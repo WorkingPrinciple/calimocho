@@ -1,5 +1,7 @@
 """Add genuine server wait packets and explicit unsupported native dependencies."""
+import hashlib
 from pathlib import Path
+import re
 import shutil
 
 from tools.build_launcher_overlay import REPO
@@ -62,6 +64,40 @@ PROTOCOL = """
 @END
 """
 
+ORDINAL_GUARDS = """
+# Reserved unsupported native CoreMessaging ordinal imports, not native function names.
+86 stub -noname __wine_unsupported_coremessaging_ordinal_86
+87 stub -noname __wine_unsupported_coremessaging_ordinal_87
+88 stub -noname __wine_unsupported_coremessaging_ordinal_88
+"""
+
+
+def guard_combase_ordinals(path):
+    text = path.read_text()
+    original = text
+    if original.startswith(ORDINAL_GUARDS + "\n"):
+        original = original[len(ORDINAL_GUARDS) + 1:]
+    elif original.endswith(ORDINAL_GUARDS):
+        original = original[:-len(ORDINAL_GUARDS)]
+    original = re.sub(r"^\d+ ", "@ ", original, flags=re.M)
+    if hashlib.sha256(original.encode()).hexdigest() != (
+            "4f7580702a341f8003b48c87fa65904f476d0c8d9102d9edd64e8b7855ac47b0"):
+        raise ValueError("Unexpected combase baseline export allocation")
+    rows = []
+    ordinal = 0
+    for line in original.splitlines(keepends=True):
+        if line.startswith("@ "):
+            ordinal += 1
+            # Preserve every other ordinal; only the three colliding named APIs move.
+            assigned = ordinal + 270 if ordinal in (86, 87, 88) else ordinal
+            line = str(assigned) + line[1:]
+        rows.append(line)
+    generated = "".join(rows) + ORDINAL_GUARDS
+    if text not in (original, ORDINAL_GUARDS + "\n" + original, generated):
+        raise ValueError("Unexpected guarded combase export allocation")
+    if text != generated:
+        path.write_text(generated)
+
 
 def port(source):
     source = Path(source).resolve(strict=True)
@@ -81,6 +117,8 @@ def port(source):
             raise ValueError("Unexpected CoreMessaging seam: " + relative)
         changed.add(relative)
 
+    guard_combase_ordinals(source / "dlls/combase/combase.spec")
+    changed.add("dlls/combase/combase.spec")
     change("include/winternl.h", "NTSYSAPI NTSTATUS  WINAPI NtAlpcAcceptConnectPort",
            PROTOTYPES + "\nNTSYSAPI NTSTATUS  WINAPI NtAlpcAcceptConnectPort")
     change("dlls/ntdll/ntdll.spec", "@ stdcall -syscall NtAllocateReserveObject",
@@ -127,5 +165,10 @@ def port(source):
         shutil.copy2(REPO / "patches/wine/files" / original, source / relative)
         changed.add(relative)
     return {"files": {relative: sha256(source / relative) for relative in sorted(changed)},
-            "scope": "server-owned event/timer/semaphore/process/thread wait packets; five explicit unsupported exports",
-            "limitations": "Other waitable types and in-process-sync-only targets fail explicitly; no native execution"}
+            "scope": "server-owned event/timer/semaphore/process/thread wait packets; five explicit unsupported exports; combase ordinal 86-88 failure guards",
+            "ordinal_guards": {
+                "module": "combase.dll", "ordinals": [86, 87, 88],
+                "behavior": "Wine unimplemented-export exception, never a status-shaped success",
+                "native_function_names": None,
+            },
+            "limitations": "Other waitable types and in-process-sync-only targets fail explicitly; user32 dispatcher and private API-set gaps remain unsupported; no native execution"}

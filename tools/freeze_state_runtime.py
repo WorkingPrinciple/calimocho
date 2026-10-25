@@ -57,6 +57,10 @@ def compile_observer(root, resume=False):
 
 
 def prepare(root, producer, cell=13):
+    requested_cell = cell
+    # Cell026 carries the same diagnostic contract into a fresh run namespace.
+    if cell == 26:
+        cell = 25
     root = Path(root).resolve(strict=True)
     record = json.loads((root / "state-observer-build.json").read_text())
     if record["exit_code"] or record["runtime_executed"]:
@@ -71,10 +75,22 @@ def prepare(root, producer, cell=13):
         previous = REPO / "build/winehq-11.20/package-uwp-state-01/cell013-receipt.json"
         digest = "a0cf124b6c1040de0cbe180a70c9969612314e95511281cc769d58ee752e0285"
         extra += ("tools/port_call_diagnostics.py", "patches/wine/files/package_call_diagnostics.h",
-                  "patches/wine/files/package_relay_diagnostics.h", "patches/wine/files/package_wait_diagnostics.h")
+                  "patches/wine/files/package_relay_diagnostics.h", "patches/wine/files/package_wait_diagnostics.h",
+                  "patches/wine/contracts/istaticlifetime-diagnostics.json",
+                  "patches/wine/files/whiny_diagnostics_17b0e613_942a_422d_904c_f90dc71a7dae.h",
+                  "patches/wine/files/istaticlifetime-relay-filter.txt")
         build = json.loads((root / "build-receipt.json").read_text())
         if "call_diagnostics" not in build:
             raise ValueError("Cell014 requires actual diagnostic source port")
+        whiny = build["call_diagnostics"].get("whiny_wx11")
+        if not whiny or whiny["commit"] != "fe9ebc055ed857d7d63072539659a8f404064d02":
+            raise ValueError("Cell014 requires the WX-11-generated StaticLifetime diagnostics")
+        if (sha256(Path(whiny["contract"])) != whiny["contract_sha256"]
+                or sha256(Path(whiny["header"])) != whiny["header_sha256"]
+                or sha256(Path(whiny["relay_filter"])) != whiny["relay_filter_sha256"]):
+            raise ValueError("WX-11 emitter inputs changed")
+        if whiny["slot_count"] != 19 or whiny["wrapped_slots"] != list(range(19)) or whiny["passthrough_slots"]:
+            raise ValueError("WX-11 interface coverage changed")
         for relative, value in build["call_diagnostics"]["files"].items():
             if sha256(root / "source" / relative) != value:
                 raise ValueError("Generated diagnostic source changed")
@@ -214,7 +230,30 @@ def prepare(root, producer, cell=13):
         if PE(root / "install/lib/wine/x86_64-windows/ucrtbase.dll").exports().get(
                 "__C_specific_handler_noexcept") != pins["observed_noexcept_forwarder"]:
             raise ValueError("Observed AMD64 CRT forwarder not reproduced")
-    path = freeze(root, producer, cell=cell, predecessor=previous,
+    cell026 = {}
+    if requested_cell == 26:
+        extra += ("docs/ADR/0058-fail-unsupported-coremessaging-ordinals-explicitly.md",)
+        from tools.qualify_coremessaging_imports import qualify_ordinal_guards
+        cell026["ordinal_guard_qualification"] = qualify_ordinal_guards(root / "install")
+        inspection = root / "whiny-coremessaging-inspect.json"
+        inspected = json.loads(inspection.read_text())
+        if inspected["sha256"] != pins["sha256"]:
+            raise ValueError("Whiny inspected a different CoreMessaging input")
+        if inspected["wine_build"]["sources"] != [str(root / "source")] or (
+                inspected["wine_build"]["installs"] != [str(root / "install/lib/wine/x86_64-windows")]):
+            raise ValueError("Whiny inspection is not bound to this candidate")
+        if any(not row["delayed"] for row in inspected["imports"]
+               if row["wine"]["status"] not in ("implemented", "native-override")):
+            raise ValueError("Whiny reports a new mandatory import gap")
+        cell026["whiny_inspection"] = {"path": str(inspection), "sha256": sha256(inspection),
+                                      "status": inspected["status"],
+                                      "wine_statuses": inspected["summary"]["wine_statuses"]}
+        resume = Path("/Users/dragoshont/.copilot/session-state/0ab735d8-8917-47c8-ab05-4c047158e199/files/owner-resume-20261025-1542.json")
+        resume_digest = "0494ca577f87491f5a6df940c6aa8b95bc13d470e19c69dd71024ecf4aff8c44"
+        if sha256(resume) != resume_digest:
+            raise ValueError("Relayed owner decision record changed")
+        cell026.update(cell="026", owner_resume_sha256=resume_digest, owner_resume_record=str(resume))
+    path = freeze(root, producer, cell=requested_cell, predecessor=previous,
                   predecessor_sha256=digest, extra_sources=extra)
     receipt = json.loads(path.read_text())
     observer = receipt["target_observer"]
@@ -245,7 +284,7 @@ def prepare(root, producer, cell=13):
         receipt["call_diagnostics"] = build["call_diagnostics"]
         receipt["scope"] = "cell014 diagnostic-only complete owned COM vtables, sanitized native-XAML relay and actual wait pairs"
         receipt["preconditions"] += [
-            "Fresh%03d once only; all changed modules and compiled diagnostic helper must match this receipt" % cell,
+            "Fresh%03d once only; all changed modules and compiled diagnostic helper must match this receipt" % requested_cell,
             "No game/input/window control; same actual AppL256/native16302 recipe and180s cap",
         ]
         receipt["limitations"] += [
@@ -403,11 +442,11 @@ def prepare(root, producer, cell=13):
             "Existing API-set suffix-family mapping unchanged; exact missing user32 export alone is added",
         ]
     if cell == 25:
-        receipt["scope"] = "cell025 native-only CoreMessaging with genuine wait packets; static-qualified, runtime held"
+        receipt["scope"] = "cell%03d native-only CoreMessaging with genuine wait packets; static-qualified, runtime held" % requested_cell
         receipt["runtime_execution_hold"] = "User-directed screen stop; distinct explicit cell025 user resume required before any Wine/fixture/app launch"
         receipt["preconditions"][0] = receipt["runtime_execution_hold"]
         receipt["preconditions"].append(
-            "Execution owner must verify and copy only native_coremessaging into this fresh025 prefix, then read back exact SHA before activation; no proprietary input in Calimocho install")
+            "Execution owner must verify and copy only native_coremessaging into this fresh%03d prefix, then read back exact SHA before activation; no proprietary input in Calimocho install" % requested_cell)
         receipt["coremessaging_prerequisites"] = build["coremessaging_prerequisites"]
         receipt["generated_source_sha256"].update(build["coremessaging_prerequisites"]["files"])
         receipt["native_coremessaging"] = {
@@ -438,6 +477,15 @@ def prepare(root, producer, cell=13):
             "Native CoreMessaging same file/product version as original XAML is compatible-candidate evidence, not fresh signature or host-build-chain proof",
             "No025 native execution, UI/Bridge acceptance or general screen/VM resume; consumed024 decision is not025 authorization",
         ]
+    if requested_cell == 26:
+        receipt.update(cell026)
+        receipt["runtime_execution_hold"] = "Execution owner must independently reconcile retained owner decision for once-only026; source lane does not grant runtime authority"
+        receipt["preconditions"][0] = receipt["runtime_execution_hold"]
+        receipt["limitations"] += [
+            "Combase86-88 are explicit unsupported ordinal exports, not inferred native names or dispatcher implementations",
+            "All other combase ordinals preserved; three colliding named exports moved to356-358",
+            "Private user32 dispatcher ordinals and unhosted API-set remain unsupported; actual first reached call is unobserved",
+        ]
     path.write_text(json.dumps(receipt, indent=2) + "\n")
     return path
 
@@ -448,7 +496,7 @@ if __name__ == "__main__":
     parser.add_argument("--producer-commit")
     parser.add_argument("--compile-only", action="store_true")
     parser.add_argument("--resume", action="store_true")
-    parser.add_argument("--cell", type=int, choices=(13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25), default=13)
+    parser.add_argument("--cell", type=int, choices=(13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26), default=13)
     args = parser.parse_args()
     if args.compile_only:
         print(json.dumps(compile_observer(args.root, args.resume), indent=2))

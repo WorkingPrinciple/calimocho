@@ -1,6 +1,7 @@
 import hashlib
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -10,7 +11,10 @@ from tools.build_minidump_overlay import inventory
 from tools.build_uwp_overlay import REPO
 from tools.diagnose_package_activation import ActivationTrace, CallDiagnostics, collect
 from tools.freeze_launcher_runtime import checked_assets
-from tools.port_call_diagnostics import BASE, slots, wrappers
+from tools.port_call_diagnostics import (
+    BASE, WHINY_CONTRACT, WHINY_CONTRACT_SHA256, WHINY_HEADER, WHINY_HEADER_SHA256,
+    WHINY_INTERFACE, WHINY_RELAY_FILTER, WHINY_WX11_COMMIT, instrument, slots, wrappers,
+)
 from tools.probe_wine_source import sha256
 
 
@@ -54,6 +58,111 @@ int main(void)
             subprocess.run(["/usr/bin/clang", "-Wall", "-Wextra", "-Werror",
                             str(path / "classifier.c"), "-o", str(path / "classifier")], check=True)
             subprocess.run([str(path / "classifier")], check=True)
+
+    def test_whiny_wx11_static_lifetime_vtable_is_bound_and_forwarded(self):
+        contract = json.loads(WHINY_CONTRACT.read_text())
+        self.assertEqual(sha256(WHINY_CONTRACT), WHINY_CONTRACT_SHA256)
+        self.assertEqual(sha256(WHINY_HEADER), WHINY_HEADER_SHA256)
+        self.assertEqual(contract["native_profile"]["iid"].lower(), WHINY_INTERFACE)
+        self.assertEqual(WHINY_WX11_COMMIT, "fe9ebc055ed857d7d63072539659a8f404064d02")
+        header = ROOT.parent / "package-uwp-lifetime19-01/diagnostic-abi/package_activation.h"
+        names = [method[1] for method in slots(header, "IStaticLifetime")]
+        self.assertEqual(len(names), 19)
+        self.assertEqual([operation["name"] for operation in contract["operations"]], names[3:])
+        self.assertIn("static void whiny_diag_17B0E613_942A_422D_904C_F90DC71A7DAE_install", WHINY_HEADER.read_text())
+        self.assertEqual(WHINY_RELAY_FILTER.read_text(), "")
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            source = path / "dlls/twinapi.appcore/core_application.c"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "static struct core core;\n"
+                "static const IStaticLifetimeVtbl lifetime_vtable = {\n"
+                + ", ".join("method_" + str(index) for index in range(19))
+                + "\n};\n"
+                "else if (IsEqualGUID(iid, &IID_IStaticLifetime)) *out = &core.IStaticLifetime_iface;\n")
+            inputs, coverage = {}, {}
+            instrument(source.parents[2], "dlls/twinapi.appcore/core_application.c",
+                       (("IStaticLifetime", "lifetime_vtable", header, "StaticLifetime"),),
+                       inputs, coverage)
+            ported = source.read_text()
+            self.assertIn("static IStaticLifetimeVtbl lifetime_vtable", ported)
+            self.assertIn("InitOnceExecuteOnce(&lifetime_diagnostics_once", ported)
+            self.assertLess(ported.index("InitOnceExecuteOnce(&lifetime_diagnostics_once"),
+                            ported.index("*out = &core.IStaticLifetime_iface"))
+            self.assertIn("whiny_diag_17B0E613_942A_422D_904C_F90DC71A7DAE_install((void **)&lifetime_vtable)",
+                          ported)
+            self.assertIn('"StaticLifetime", method, phase, iid', ported)
+            self.assertEqual(len(coverage["StaticLifetime"]), 19)
+            self.assertEqual(sha256(source.parent / WHINY_HEADER.name), WHINY_HEADER_SHA256)
+
+            (path / "windows.h").write_text(
+                "#ifndef TEST_WINDOWS_H\n#define TEST_WINDOWS_H\n"
+                "#include <stddef.h>\n#include <stdint.h>\n"
+                "typedef int32_t HRESULT; typedef uint32_t ULONG; typedef int BOOL;\n"
+                "typedef struct { uint32_t a, b; uint16_t c, d; uint8_t e[8]; } GUID;\n"
+                "#define STDMETHODCALLTYPE\n#endif\n")
+            program = r"""
+#include <assert.h>
+#include <stdint.h>
+#include <string.h>
+#include "windows.h"
+static unsigned entries, exits, refs;
+static uint64_t forwarded;
+static int64_t forwarded_token;
+static ULONG final_result;
+static char final_kind[16];
+static HRESULT STDMETHODCALLTYPE add_callback(void *self, uint64_t callback, int64_t *token)
+{
+    assert(!self);
+    forwarded = callback;
+    forwarded_token = *token;
+    *token = 73;
+    return (HRESULT)0x80004001;
+}
+static uint32_t STDMETHODCALLTYPE add_ref(void *self) { assert(!self); return 9; }
+static void diagnostic_interface(const char *object, const char *method, const char *phase,
+                                 const GUID *iid, ULONG result, const char *kind)
+{
+    assert(!strcmp(object, "StaticLifetime"));
+    assert(!iid);
+    if (!strcmp(method, "AddCallback")) {
+        if (!strcmp(phase, "enter")) ++entries;
+        else if (!strcmp(phase, "exit")) { ++exits; final_result = result; }
+        else assert(0);
+    } else if (!strcmp(method, "AddRef")) {
+        if (!strcmp(phase, "exit")) {
+            ++refs;
+            final_result = result;
+            strcpy(final_kind, kind);
+        } else assert(!strcmp(phase, "enter"));
+    } else assert(0);
+}
+#define WHINY_DIAG_LOG(object, method, phase, iid, result, kind) \
+    diagnostic_interface("StaticLifetime", method, phase, iid, (ULONG)(result), \
+        (!strcmp(method, "AddRef") || !strcmp(method, "Release")) ? "ULONG" : "HRESULT")
+#include "whiny_diagnostics_17b0e613_942a_422d_904c_f90dc71a7dae.h"
+int main(void)
+{
+    uint64_t object = 0;
+    int64_t token = 12;
+    whiny_diag_17B0E613_942A_422D_904C_F90DC71A7DAE_original[11] = (void *)add_callback;
+    whiny_diag_17B0E613_942A_422D_904C_F90DC71A7DAE_original[1] = (void *)add_ref;
+    assert(whiny_diag_17B0E613_942A_422D_904C_F90DC71A7DAE_AddCallback(
+        NULL, (uint64_t)(uintptr_t)&object, &token) == (HRESULT)0x80004001);
+    assert(forwarded == (uint64_t)(uintptr_t)&object && forwarded_token == 12 && token == 73);
+    assert(entries == 1 && exits == 1 && final_result == 0x80004001);
+    assert(whiny_diag_17B0E613_942A_422D_904C_F90DC71A7DAE_AddRef(NULL) == 9);
+    assert(refs == 1 && final_result == 9 && !strcmp(final_kind, "ULONG"));
+    return 0;
+}
+"""
+            (path / "test.c").write_text(program)
+            subprocess.run(["/usr/bin/clang", "-Wall", "-Wextra", "-Werror", "-Wno-unused-function",
+                            "-I", str(path), "-I", str(WHINY_HEADER.parent),
+                            str(path / "test.c"), "-o", str(path / "test")], check=True)
+            subprocess.run([str(path / "test")], check=True)
 
     def test_frozen014_producer_install_commands_and_unchanged_native_recipe(self):
         path = ROOT / "cell014-receipt.json"

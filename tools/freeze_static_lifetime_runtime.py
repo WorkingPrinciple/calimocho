@@ -37,7 +37,7 @@ def freeze(root, producer, *, cell=12, predecessor=PREVIOUS,
         if blob != (REPO / relative).read_bytes():
             raise ValueError("Producer source changed: " + relative)
         sources[relative] = hashlib.sha256(blob).hexdigest()
-    if cell not in (12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25) or sha256(predecessor) != predecessor_sha256:
+    if cell not in (12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26) or sha256(predecessor) != predecessor_sha256:
         raise ValueError("Sealed predecessor recipe changed or unsupported cell")
     previous = json.loads(predecessor.read_text())
     label = "%03d" % cell
@@ -92,7 +92,7 @@ def freeze(root, producer, *, cell=12, predecessor=PREVIOUS,
                                    indent=2) + "\n")
     entry["environment"]["WINEDLLOVERRIDES"] = previous["environment"]["WINEDLLOVERRIDES"]
     entry["name"] = "calimocho-wine11.20-static-lifetime-diagnostic" + {
-        12: "", 13: "-state", 14: "-calltrace", 15: "-activation-waits", 16: "-handle-provenance", 17: "-exception", 18: "-lifetime19", 19: "-failfast", 20: "-status", 21: "-claims-site-b", 22: "-claims-thread-token", 23: "-claims-packaged-thread", 24: "-onecore-transform", 25: "-native-coremessaging"}[cell]
+        12: "", 13: "-state", 14: "-calltrace", 15: "-activation-waits", 16: "-handle-provenance", 17: "-exception", 18: "-lifetime19", 19: "-failfast", 20: "-status", 21: "-claims-site-b", 22: "-claims-thread-token", 23: "-claims-packaged-thread", 24: "-onecore-transform", 25: "-native-coremessaging", 26: "-native-coremessaging-ordinal-guards"}[cell]
     entry["version"] += " + genuine IStaticLifetime map (UNQUALIFIED)"
     entry["integrity"] = {"status": "unchanged", "manifest_path": str(manifest),
                           "manifest_sha256": sha256(manifest)}

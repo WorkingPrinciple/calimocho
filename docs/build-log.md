@@ -3,6 +3,72 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: explicit CoreMessaging ordinal guards for cell026
+
+ADR-0058 reserves combase86-88 as Wine unimplemented-export stubs, with
+explicitly synthetic diagnostic names. The retained native combase export
+table does not name these ordinals. This prevents calling the unrelated Wine
+CoCreateObjectInContext, CoDeactivateObject or CoDecodeProxy implementation,
+without guessing a native ABI or success result.
+
+An initial source-only attempt inserted ordinal guards before automatic
+exports. Static PE inspection found that it shifted other ordinals. The
+regression check rejected that allocation. The corrected port explicitly
+preserves all other ordinals and moves only the three colliding named APIs
+to356-358. Both attempts remain in the isolated build's retained logs and
+staging attempts. No runtime was executed.
+
+The fresh `package-uwp-coremessaging-guard-01` build and stage retain all prior
+diagnostics and the generated WX-11 lifetime wrappers. Focused host checks
+pass21 tests, including staged export allocation, explicit stub identifiers,
+wait-packet ownership/cancellation and generated-wrapper forwarding. Whiny
+inspection of native88c7b4d6 against this source and install reports235
+implemented imports,13 stubs and2 unhosted imports. All15 gaps are delayed.
+The output status is `partial`, not runtime acceptance.
+
+The user32 queue/IOCP initialization stubs and private minuser API-set remain
+unsupported. No broad API-set redirect, guessed scheduling operation or
+exception suppression was added. The fresh cell026 namespace is separate
+from held025. The execution owner must reconcile its retained owner decision
+before any bounded run; this source lane performs no activation or input.
+
+## 2026-10-25: WX-11 lifetime diagnostics and delay-import assessment
+
+Adopted the WX-11 producer's generated wrappers for the nineteen-slot
+`IStaticLifetime` vtable. Contract
+`patches/wine/contracts/istaticlifetime-diagnostics.json` is emitter input
+only, not runtime profile evidence. Contract SHA-256 is
+`1abcef2cfc5e9c20e00bcb12e35966427ced0c89b63b0414cc7458a5e6d0b9cb`;
+generated header SHA-256 is
+`69ed5cd3007f42506b61cdce7d034bf7d9f25394efdfe6f7dac8a2dcd3787fe0`.
+The header covers slots0-18. The relay filter is empty because COM vtable
+methods are not DLL relay exports.
+
+The focused `test_call_diagnostics` and `test_lifetime19` suites pass
+thirteen tests. Python syntax checks and `git diff --check` pass. A fresh
+`package-uwp-wx11-adoption-01` source tree configured and built
+`wineserver`, ntdll, twinapi.appcore and windows.ui, plus the launcher
+header and object. Its receipt reports
+`built-not-staged-not-executed`, with `runtime_executed:false`; no Wine
+application or prefix was run.
+
+The new static delay-import review is recorded in ADR-0057. Wine's combase
+ordinals86-88 bind to its own `CoCreateObjectInContext`,
+`CoDeactivateObject` and `CoDecodeProxy` exports, but the matching native
+combase names remain unknown. The relevant user32 and win32u ordinals are
+stubs, and Wine has no API-set host for the imported
+`ext-ms-win-rtcore-minuser-private-ext-l1-1-1` family. The inspected
+CoreUICreate/CoreUICreateEx path has no direct call to those delay-import
+slots, while transitive reachability remains unproven. No speculative
+ordinal mapping or CoreMessaging implementation was added.
+
+The same source review confirms that kernelbase defaults `AeDebug\Auto` to
+TRUE when the key is absent and uses `winedbg --auto` as the default
+command. Therefore a missing 32-bit AeDebug key does not itself disable
+autostart; after an unhandled exception it can start winedbg. The
+confirmation dialog is only used when `Auto` is false. No prefix registry
+was changed.
+
 ## 2026-10-25: superseded object cleanup during the screen hold
 
 At the owner's request, removed only32483 regular `.o` intermediate files
