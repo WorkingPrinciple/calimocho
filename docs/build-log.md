@@ -3159,3 +3159,12 @@ its frozen122-slot shape, not the new table.
 
 Native018 progress remains unobserved until the exclusive runtime owner
 executes the newly frozen recipe once in its fresh private prefix.
+
+The source producer is `d65bf3c17d547aeda6c3230bfec9a1abb3fad8f4`.
+Frozen018 receipt SHA-256 is
+`e75c54e81fec44d3bcb6984bd648b396b4d27f4dcfa7437e07e44ec62c1f4b45`.
+An independent post-freeze audit checked all3915 installed entries and
+assets, eight changed modules, producer blobs, helper/fixture/collector,
+Auto=0 file, exact engine/server/observer commands and sealed017 identity.
+The full recipe was delivered to0ab, copying the coordinator. The fixture
+remains compiled-only, not a second runtime authorization.
