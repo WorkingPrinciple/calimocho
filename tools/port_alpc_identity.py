@@ -75,11 +75,29 @@ def port(source):
         """int token_alpc_identity( struct token *token, const struct sid *user,
                           const struct security_descriptor *sd, const struct generic_map *mapping )
 {
-    unsigned int status, granted;
+    const struct acl *dacl;
+    const struct ace *ace;
+    unsigned int i, granted = 0, denied = 0;
+    int present;
 
     if (user) return equal_sid( token->user, user );
-    return token_access_check( token, sd, 1, NULL, NULL, mapping, &granted, &status ) == STATUS_SUCCESS &&
-           status == STATUS_SUCCESS && (granted & 1);
+    /* Server security requirements are checked like a kernel access check for port connect (1).
+     * That check does not require an owner or group, and ownership never grants access 1, so only
+     * the DACL and the token's restricting SIDs decide the result. */
+    dacl = sd_get_dacl( sd, &present );
+    if (!present || !dacl) granted = 1;
+    else for (i = 0, ace = ace_first( dacl ); i < dacl->count; i++, ace = ace_next( ace ))
+    {
+        const struct sid *sid = (const struct sid *)(ace + 1);
+        unsigned int mask = map_access( ace->mask, mapping ) & 1;
+
+        if (ace->flags & INHERIT_ONLY_ACE || !mask) continue;
+        if (ace->type == ACCESS_DENIED_ACE_TYPE && token_sid_present( token, sid, TRUE ))
+            denied |= mask & ~granted;
+        else if (ace->type == ACCESS_ALLOWED_ACE_TYPE && token_sid_present( token, sid, FALSE ))
+            granted |= mask & ~denied;
+    }
+    return (token_restricted_access( token, sd, mapping, granted ) & 1) != 0;
 }
 
 const struct acl *token_get_default_dacl(""")

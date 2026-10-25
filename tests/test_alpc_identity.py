@@ -38,7 +38,7 @@ class AlpcIdentityTests(unittest.TestCase):
             client = (source / "dlls/ntdll/unix/alpc.c").read_text()
             self.assertIn("packed ? packed->sd_len : 0", client)
             self.assertNotIn("if (sd || client_attr", client)
-            self.assertIn("token_access_check( token, sd, 1", (source / "server/token.c").read_text())
+            self.assertIn("return (token_restricted_access( token, sd, mapping, granted ) & 1) != 0;", (source / "server/token.c").read_text())
             token = (source / "server/token.c").read_text()
             start = token.index("static unsigned int token_access_check(")
             end = token.index("\nconst struct acl *token_get_default_dacl", start)

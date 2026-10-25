@@ -4166,3 +4166,13 @@ so it re-arms its wait with a wait completion packet on the port, and our
 wineserver refused ALPC ports as wait-packet targets. Cell037 accepts
 them and adds bounded, redacted ALPC and fail-fast telemetry (ADR-0070).
 A host test reproduces the refusal and the fix. Not proven: no runtime run.
+
+## 2026-10-25: cell037 server identity mismatch, cell038
+
+Cell037 re-armed the registrar port wait (association status 0). Both app
+connects then failed with STATUS_SERVER_SID_MISMATCH. CoreMessaging requires
+the CoreMessagingRegistrar service SID through a DACL-only descriptor with
+no owner or group. Our check used the user-mode access check, which rejects
+such a descriptor as invalid. Cell038 evaluates port connect access from
+the DACL and restricting SIDs only (ADR-0071). Host tests cover the
+registrar shape and the rejection cases. Not proven: no runtime run.

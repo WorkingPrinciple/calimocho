@@ -161,6 +161,45 @@ int main(void) {
     entry(&acl,ACCESS_ALLOWED_ACE_TYPE,restrictor,1);
     assert(token_alpc_identity(&full,NULL,&sd,&map));
     --acl.count;
+    {
+        /* Registrar shape: DACL-only server requirement (no owner or group) granting port
+           connect (1) to the service SID, which the write-restricted service token holds as an
+           enabled group and as a restricting SID. */
+        struct sid service={1,{80}};
+        struct acl service_acl={0};
+        struct security_descriptor ownerless={NULL,NULL,&service_acl,1};
+        struct group member={.attrs=SE_GROUP_ENABLED_BY_DEFAULT|SE_GROUP_ENABLED,.sid=service};
+        struct token registrar,plain;
+        struct generic_map alpc={READ_CONTROL|1,READ_CONTROL|1,READ_CONTROL|SYNCHRONIZE,0x1f0001};
+        unsigned granted=0,status=0;
+        init(&registrar,&user);init(&plain,&user);
+        entry(&service_acl,ACCESS_ALLOWED_ACE_TYPE,service,1);
+        assert(token_access_check(&source,&ownerless,1,NULL,NULL,&map,&granted,&status)==STATUS_INVALID_SECURITY_DESCR);
+        assert(token_add_restrictions(&registrar,&source,&service,1,8));
+        assert(!token_alpc_identity(&registrar,NULL,&ownerless,&alpc));
+        list_add_tail(&registrar.groups,&member.entry);
+        assert(token_alpc_identity(&registrar,NULL,&ownerless,&alpc));
+        member.attrs|=SE_GROUP_USE_FOR_DENY_ONLY;
+        assert(!token_alpc_identity(&registrar,NULL,&ownerless,&alpc));
+        member.attrs&=~SE_GROUP_USE_FOR_DENY_ONLY;
+        assert(!token_alpc_identity(&plain,NULL,&ownerless,&alpc));
+        struct token strict;init(&strict,&user);
+        assert(token_add_restrictions(&strict,&source,&restrictor,1,0));
+        list_add_tail(&strict.groups,&member.entry);
+        assert(!token_alpc_identity(&strict,NULL,&ownerless,&alpc));
+        list_remove(&member.entry);
+        entry(&service_acl,ACCESS_DENIED_ACE_TYPE,service,1);
+        service_acl.entries[1]=service_acl.entries[0];
+        service_acl.entries[0]=(struct entry){{ACCESS_DENIED_ACE_TYPE,0,1},service};
+        list_add_tail(&registrar.groups,&member.entry);
+        assert(!token_alpc_identity(&registrar,NULL,&ownerless,&alpc));
+        service_acl.entries[0].ace.flags=INHERIT_ONLY_ACE;
+        assert(token_alpc_identity(&registrar,NULL,&ownerless,&alpc));
+        list_remove(&member.entry);
+        ownerless.present=0;
+        assert(token_alpc_identity(&plain,NULL,&ownerless,&alpc));
+        cleanup(&registrar);cleanup(&plain);cleanup(&strict);
+    }
 #endif
     assert(check(&write,&sd,&map,1)==1);
     assert(!check(&write,&sd,&map,2));
