@@ -3,6 +3,43 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: source-only ALPC transport, no cell027 admission
+
+ADR-0059 adds an opt-in ALPC transport source port from the pinned
+historical Wine commit. The port replaces weak pending references,
+preserves asynchronous connect replies, consumes synchronous connect
+signals, matches outstanding reply IDs, retains undersized receive
+messages, cleans up failed handles and checks existing handle access.
+It does not import the old fake work-on-behalf ticket, PID-based
+impersonation or reply-mismatch suppression.
+
+The first source build exposed conflicting old private structure types
+and reply flags against Wine11.20. Its log is retained under
+`package-alpc-transport-01/attempt-01`. An intermediate build exposed
+obsolete object-operation names; that log is retained under
+`package-alpc-transport-02/attempt-01`. Corrected source-only builds
+`package-alpc-transport-03` and `package-alpc-transport-04` complete.
+The latter binds the final creator-access rules and generated source.
+No Wine process, service, prefix, fixture or application was executed.
+
+The focused transport, wait-packet, ordinal, diagnostic and freezer
+suites pass22 tests. The transport harness executes the actual generated
+server handlers under address and undefined-behavior sanitizers. It does
+not execute a Wine client or prove native registrar compatibility.
+
+Every transport-only build explicitly has `registrar_qualified:false`;
+the runtime freezer rejects it. Descriptor matching, restricted service
+tokens, authenticated message impersonation, synchronous message requests
+and dispatch integration remain unqualified. There is no new cell027
+receipt or runtime registry.
+
+The prior service-token constructor was not retained. A fresh read-only
+native token observation has now arrived, SHA-256
+`6afa5ecde2142102e7b7dfd019fc45242673e03d32ad87b2658aba72992114a3`.
+It is evidence for the next source step, not an installed token or a
+permission change. Its measured Windows/CoreMessaging version differs
+from the candidate's native component; that distinction is preserved.
+
 ## 2026-10-25: explicit CoreMessaging ordinal guards for cell026
 
 ADR-0058 reserves combase86-88 as Wine unimplemented-export stubs, with

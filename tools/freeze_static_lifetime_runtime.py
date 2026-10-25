@@ -29,6 +29,10 @@ def freeze(root, producer, *, cell=12, predecessor=PREVIOUS,
     root = Path(root).resolve(strict=True)
     if not root.is_relative_to(REPO / "build") or any(root.glob("*FROZEN*")):
         raise ValueError("Require an unfrozen owned012 sibling")
+    build_path = root / "build-receipt.json"
+    build = json.loads(build_path.read_text())
+    if "alpc_transport" in build:
+        raise ValueError("Transport-only ALPC builds are not registrar-qualified or runtime-admissible")
     producer = subprocess.check_output(
         ["git", "rev-parse", "--verify", producer + "^{commit}"], cwd=REPO, text=True).strip()
     sources = {}
@@ -54,8 +58,6 @@ def freeze(root, producer, *, cell=12, predecessor=PREVIOUS,
         raise ValueError("Target handle observer changed")
     stage_path = root / "staging-receipt.json"
     stage = json.loads(stage_path.read_text())
-    build_path = root / "build-receipt.json"
-    build = json.loads(build_path.read_text())
     if (stage["runtime_executed"] or stage["status"] != "staged-not-runtime-qualified"
             or build["runtime_executed"] or build["status"] != "built-not-staged-not-executed"
             or sha256(build_path) != stage["build_receipt_sha256"]

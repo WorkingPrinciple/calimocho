@@ -14,7 +14,7 @@ from tools.probe_wine_source import run_step, sha256
 BASE = REPO / "build/winehq-11.20/package-launcher-01"
 
 
-def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False, handle_provenance=False, exception_diagnostics=False, failfast_diagnostics=False, status_diagnostics=False, claims_site_b=False, claims_thread_token=False, claims_packaged_thread=False, onecore_transform=False, coremessaging_prerequisites=False):
+def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False, handle_provenance=False, exception_diagnostics=False, failfast_diagnostics=False, status_diagnostics=False, claims_site_b=False, claims_thread_token=False, claims_packaged_thread=False, onecore_transform=False, coremessaging_prerequisites=False, alpc_transport=False):
     root = Path(root).resolve()
     if not root.is_relative_to(REPO / "build") or root == BASE:
         raise ValueError("Require a new owned009 sibling")
@@ -40,6 +40,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         raise ValueError("OneCore query requires retained023 claims and diagnostics")
     if coremessaging_prerequisites and not onecore_transform:
         raise ValueError("CoreMessaging prerequisites require retained024 query and diagnostics")
+    if alpc_transport and (not coremessaging_prerequisites or resume):
+        raise ValueError("ALPC transport requires a fresh CoreMessaging source sibling")
     frozen = BASE / "cell008-receipt.json"
     if sha256(frozen) != "ac5b627263c409b804e3f812160c6dd0ba8d39cec52910255725939de12915bc":
         raise ValueError("Frozen008 receipt changed")
@@ -147,6 +149,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if coremessaging_prerequisites:
         from tools.port_coremessaging_prerequisites import port as coremessaging_source
         coremessaging_port = coremessaging_source(root / "source")
+    alpc_port = None
+    if alpc_transport:
+        from tools.port_alpc_transport import port as alpc_source
+        alpc_port = alpc_source(root / "source")
     attempt = 1
     while (root / ("attempt-%02d" % attempt)).exists():
         attempt += 1
@@ -204,6 +210,13 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         for group in ("call_diagnostics", "activation_wait_diagnostics", "handle_provenance",
                       "exception_diagnostics", "failfast_diagnostics", "status_diagnostics",
                       "claims_packaged_thread", "onecore_transform"):
+            for relative in receipt[group]["files"]:
+                receipt[group]["files"][relative] = sha256(root / "source" / relative)
+    if alpc_port is not None:
+        receipt["alpc_transport"] = alpc_port
+        for group in ("call_diagnostics", "activation_wait_diagnostics", "handle_provenance",
+                      "exception_diagnostics", "failfast_diagnostics", "status_diagnostics",
+                      "claims_packaged_thread", "onecore_transform", "coremessaging_prerequisites"):
             for relative in receipt[group]["files"]:
                 receipt[group]["files"][relative] = sha256(root / "source" / relative)
 
@@ -269,6 +282,9 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
                           "-Wl,--wine-builtin", str(launcher / "windows.system.launcher.spec"),
                           *objects, *map(str, libraries), "-o", str(root / "windows.system.launcher.dll")])
     receipt["status"] = "built-not-staged-not-executed"
+    if alpc_port is not None:
+        for relative in receipt["alpc_transport"]["files"]:
+            receipt["alpc_transport"]["files"][relative] = sha256(root / "source" / relative)
     receipt["source_inputs"] = {
         str(path.relative_to(REPO)): sha256(path) for path in (
             REPO / "tools/port_uwp_activation.py", REPO / "tools/build_uwp_overlay.py",
@@ -326,6 +342,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         from tools.port_coremessaging_prerequisites import SOURCES
         for relative in SOURCES:
             receipt["source_inputs"][relative] = sha256(REPO / relative)
+    if alpc_transport:
+        from tools.port_alpc_transport import SOURCES
+        for relative in SOURCES:
+            receipt["source_inputs"][relative] = sha256(REPO / relative)
     receipt["built_files"] = {str(path.relative_to(root)): sha256(path) for path in (
         directory / "server/wineserver", directory / "dlls/ntdll/ntdll.so",
         directory / "dlls/ntdll/x86_64-windows/ntdll.dll",
@@ -363,5 +383,6 @@ if __name__ == "__main__":
     parser.add_argument("--claims-packaged-thread", action="store_true")
     parser.add_argument("--onecore-transform", action="store_true")
     parser.add_argument("--coremessaging-prerequisites", action="store_true")
+    parser.add_argument("--alpc-transport", action="store_true")
     args = parser.parse_args()
-    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics, args.handle_provenance, args.exception_diagnostics, args.failfast_diagnostics, args.status_diagnostics, args.claims_site_b, args.claims_thread_token, args.claims_packaged_thread, args.onecore_transform, args.coremessaging_prerequisites))
+    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics, args.handle_provenance, args.exception_diagnostics, args.failfast_diagnostics, args.status_diagnostics, args.claims_site_b, args.claims_thread_token, args.claims_packaged_thread, args.onecore_transform, args.coremessaging_prerequisites, args.alpc_transport))
