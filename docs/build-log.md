@@ -3097,3 +3097,33 @@ read-only. The separate analysis establishes exact-prefix stop/wait0,
 all13 recorded host PIDs absent and open-file check clear. The runtime
 receipt itself is not rewritten to claim later quiescence. Original
 native/module hashes and012-016 results remained unchanged. No replay.
+
+### Cell018 investigation: admitted lifetime table is too short
+
+Read-only disassembly of the exact original native XAML input
+(`16302bfe...`) identifies helper577790's IID atf2dd40 as17b0e613.
+The native consumer invokes slot11(callback, token-storage), and its
+paired cleanup invokes slot12(token). The temporary callback released
+at57765b is not the method's object out-parameter.
+
+Frozen017 twinapi SHA-256 is
+`ba8b06b756fbfb33cfacf0f42c9bc4cbf235a046fab9985951d51f68b6339b5d`.
+Its lifetime table starts at RVA10ec0 and has8 entries. The collection
+table immediately follows at10f00. Lifetime slot11 therefore reads the
+collection's slot3, GetIids at7560. Its real instructions write a32-bit
+count2 through the native callback pointer and an IID allocation through
+token storage, corrupting the callback vtable before native Release.
+Two deterministic static regressions verify the exact consumer call
+shapes, IID bytes, frozen table adjacency and corrupting GetIids writes.
+
+This corrects the earlier inference that a successful statics method
+returned a garbage object out-parameter. The cause is admission of an
+incomplete ABI for this native consumer. The pinned public C++/WinRT
+header really declares only8 slots, so that reference alone cannot
+establish the full OS-private interface contract. The coordinator requested
+actual Windows read-only vtable evidence before the018 source fix.
+The VM evidence owner reports a19-slot interface in version10.0.26100.9711
+(not the VM OS build number), with11/12 callback/token forwarding.
+That preliminary report is not yet full slot/ownership acceptance.
+No guessed padding, interface success, native replay or prefix mutation
+has occurred during this investigation.
