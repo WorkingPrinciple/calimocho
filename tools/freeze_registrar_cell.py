@@ -1,4 +1,4 @@
-"""Cell027-029 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
+"""Cell027-030 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
 import importlib
 import json
 from pathlib import Path
@@ -88,8 +88,8 @@ def registration_text():
 
 
 def add_registrar_handoff(root, receipt, cell=27):
-    if cell not in (27, 28, 29):
-        raise ValueError("Registrar handoff supports cells027-029")
+    if cell not in (27, 28, 29, 30):
+        raise ValueError("Registrar handoff supports cells027-030")
     label = "%03d" % cell
     root = Path(root)
     registration = root / ("registrar-CELL%s-FROZEN.reg" % label)
@@ -150,6 +150,12 @@ def add_registrar_handoff(root, receipt, cell=27):
         "Cell026 ran a stale win32u.so whose renumbered server requests did not match its server; cell027 rebuilds it and the stager now rejects that mismatch",
         "Source/build and host tests only; registrar admission, NavigateToView and UI are unobserved",
     ]
+    if cell >= 30:
+        # Cell029 showed a loaded host needs ~47 s for first boot with the mac driver.
+        receipt["setup_wineboot_timeout_seconds"] = 120
+        receipt["preconditions"] += [
+            "Bound the driver's setup wineboot -u by setup_wineboot_timeout_seconds; setup uses the run environment with the mac driver, as in cell027",
+        ]
     if cell >= 28:
         receipt["limitations"] += [
             "Cell027: sc start CoreMessagingRegistrar did not return within45 s under WINEDEBUG=-all; cause unobserved. Wine SCM does not start DependOnService, so RpcSs is not a start wait",
@@ -163,7 +169,8 @@ SETUP_ARGVS = ("framework_registration_argv", "launcher_registration_argv", "nat
 
 
 def add_headless_setup(receipt):
-    """Cell029: keep winemac.drv out of the setup session; only the server_start session uses it."""
+    """Cell029 only: winemac.drv=d setup. Superseded in cell030: explorer /desktop hangs after imm32 with
+    the driver disabled, because a disabled module is not Wine's null driver fallback."""
     if "prefix_init_argv" in receipt:
         raise ValueError("Headless setup already applied")
     overrides = receipt["environment"]["WINEDLLOVERRIDES"] + ";winemac.drv=d"

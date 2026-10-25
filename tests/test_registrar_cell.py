@@ -93,7 +93,7 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 self.handoff(root, 28)
             with self.assertRaises(ValueError):
-                self.handoff(root, 30)
+                self.handoff(root, 31)
 
     def test_cell029_setup_is_headless_and_session_steps_are_not(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -114,6 +114,18 @@ class RegistrarCellTest(unittest.TestCase):
                 self.assertEqual(receipt[key], argv, key)
             with self.assertRaisesRegex(ValueError, "already"):
                 add_headless_setup(receipt)
+
+    def test_cell030_restores_mac_driver_setup_with_timeout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            wine, receipt = self.handoff(Path(directory), 30)
+            self.assertEqual(receipt["setup_wineboot_timeout_seconds"], 120)
+            self.assertNotIn("prefix_init_argv", receipt)
+            self.assertNotIn("setup_environment", receipt)
+            for key in SETUP_ARGVS:
+                self.assertEqual(receipt[key][:3], wine, key)
+            # Cell028 services diagnostics are kept.
+            self.assertEqual(receipt["services_start_argv"][2:4], ["-e", "WINEDEBUG=" + SERVICES_WINEDEBUG])
+            self.assertIn("services_diagnostics", receipt)
 
 
 if __name__ == "__main__":

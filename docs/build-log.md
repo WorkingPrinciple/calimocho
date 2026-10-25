@@ -4010,3 +4010,21 @@ driver. The display driver choice is a volatile key, so it ends with
 the setup server. The services, registrar and activation steps keep the
 mac driver. Activation can still hit the same race if its main thread
 stalls for more than 5 seconds.
+
+## 2026-10-25: cell029 headless setup hang, cell030 setup timeout
+
+Cell029's headless setup hung. The coordinator's throwaway first-boot
+tests on the cell027 and cell029 installs showed the cause: with
+`winemac.drv=d`, both builds hang. wineboot and the wine.inf rundll32
+each start `explorer.exe /desktop`, which freezes after loading imm32.
+A disabled driver module is not Wine's null display driver fallback, so
+the cell029 approach could not work.
+
+With the mac driver, the cell027 install finished `wineboot -u` in 46.7
+seconds, even though explorer hit the 5 second Cocoa start race. The
+host was loaded (ecosystemd near 90% CPU, WindowServer near 45%, and
+another Wine lane).
+
+Cell030 returns to cell027's setup and adds
+`setup_wineboot_timeout_seconds: 120` for the driver's setup
+`wineboot -u`. It keeps the cell028 services diagnostics.
