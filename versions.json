@@ -1,5 +1,13 @@
 {
   "_doc": "Single source of truth for upstream URLs + sha256 pins. Read by scripts/fetch-sources.sh and .github/workflows/upstream-watch.yml.",
+  "whiny_claims_packaged_thread": {
+    "path": "patches/wine/files/package_claims_packaged_thread_generated.h",
+    "sha256": "9978669c98676693e3424653c214dae182d0a6c87f4b996c992632eb002d748a",
+    "producer": "Whiny r9, main 98f23b6",
+    "observations_sha256": "3e6c9074923d1f9a1e16ff18c8e927e3ab1678dc9c3e1ccc446c6311e0dd8009",
+    "packaged_reference_sha256": "0a5fee773716fc80d0661f08bb2a27602d38d13ba713eed07d7889306389d07b",
+    "scope": "Observed signed GamingApp -6 claim-only, all-null and claim-plus-attributes shapes; unchanged generated source"
+  },
   "whiny_claims_thread_token": {
     "path": "patches/wine/files/package_claims_thread_token_generated.h",
     "sha256": "5acbb35eaa18c874272e91a1169b997373496aa6277f9ccbb7f3bcc3d840b9ed",

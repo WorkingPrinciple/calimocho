@@ -3,6 +3,19 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: observed packaged effective-token sibling023
+
+The producer completed the genuine packaged-token-6 reference after owner
+sign-in. ADR-0055 records its native Site B success5/3/3 and the observed
+claim-only/all-null success. Guest reference SHA-256 is
+`0a5fee773716fc80d0661f08bb2a27602d38d13ba713eed07d7889306389d07b`.
+This lane received and byte-verified the unchanged Whiny r9 artifact,
+SHA-256 `9978669c98676693e3424653c214dae182d0a6c87f4b996c992632eb002d748a`.
+The genuine predicate and022 telemetry wrapper remain unchanged. No alias,
+forced context or broad fallback is added. Host checks compile the actual
+wrapper, context and generated source, verifying exact outputs/canaries,
+claim-only/all-null behavior and unknown-context/shape failures.
+
 ## 2026-10-25: effective-token claims sibling022
 
 The producer's static follow-through identifies token-6 at both native
