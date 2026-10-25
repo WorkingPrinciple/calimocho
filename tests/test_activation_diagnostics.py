@@ -11,6 +11,60 @@ from tools.diagnose_package_activation import ActivationTrace, collect
 
 
 class ActivationDiagnosticsTests(unittest.TestCase):
+    def test_xaml_path_is_retained_only_for_exact_receipt_allowlist(self):
+        path = r"C:\windows\system32\Windows.UI.Xaml.dll"
+        trace = ActivationTrace({path: {"path": path, "source": "prefix-system32"}})
+        trace.stderr('0064:0070:trace:loaddll:build_module Loaded L"' + path + '" at 1234: native')
+        trace.stderr('0064:0070:trace:loaddll:build_module Loaded L"Z:\\SECRET\\Microsoft.UI.Xaml.dll" at 1234: builtin')
+        self.assertEqual(trace.loads[0]["path"], path)
+        self.assertEqual(trace.loads[0]["source"], "prefix-system32")
+        self.assertEqual(trace.loads[0]["kind"], "native")
+        self.assertEqual(trace.loads[1]["path"], "unrecognized-redacted")
+        trace.stderr('0064:0070:trace:loaddll:build_module Loaded L"' +
+                     path.replace("\\", "\\\\") + '" at 1234: builtin')
+        self.assertEqual(trace.loads[-1]["source"], "prefix-system32")
+        self.assertEqual(trace.loads[-1]["kind"], "builtin")
+        self.assertNotIn("SECRET", str(trace.verdict()))
+
+    def test_target_observer_survives_ce_eof_and_records_only_matching_pid_exit(self):
+        script = (
+            "import sys\n"
+            "print('calimocho-activation child_pid 100',flush=True)\n"
+            "print('0064:0070:trace:pkglaunch:activate_route route scheme=L\"msxboxl\" "
+            "app=L\"Microsoft.Xbox.AppL\" pid=200 result=00000000 missing=none',file=sys.stderr,flush=True)\n"
+        )
+        observer_script = (
+            "import sys,time\n"
+            "assert sys.argv[2:4]==['IMAGE','Microsoft.Xbox.AppL']\n"
+            "time.sleep(0.15)\n"
+            "print('calimocho-target pid='+sys.argv[1]+' state=exited code=9')\n"
+        )
+        result = collect([sys.executable, "-c", script], dict(os.environ), Path.cwd(),
+                         seconds=2, post_exit_seconds=0.05, target_observer={
+                             "argv": [sys.executable, "-c", observer_script],
+                             "image": "IMAGE", "app_id": "Microsoft.Xbox.AppL"})
+        self.assertEqual(result["protocol_target_observation"]["state"], "exited")
+        self.assertEqual(result["protocol_target_observation"]["pid"], 200)
+        self.assertEqual(result["protocol_target_observation"]["exit_code"], 9)
+        self.assertEqual(result["protocol_target_state"], "exited")
+        self.assertFalse(result["collector_timeout"])
+
+    def test_target_observer_bound_is_unknown_and_never_target_exit(self):
+        script = (
+            "import sys\n"
+            "print('calimocho-activation child_pid 100',flush=True)\n"
+            "print('0064:0070:trace:pkglaunch:activate_route route scheme=L\"msxboxl\" "
+            "app=L\"Microsoft.Xbox.AppL\" pid=200 result=00000000 missing=none',file=sys.stderr,flush=True)\n"
+        )
+        result = collect([sys.executable, "-c", script], dict(os.environ), Path.cwd(),
+                         seconds=0.15, target_observer={
+                             "argv": [sys.executable, "-c", "import time;time.sleep(5)"],
+                             "image": "IMAGE", "app_id": "Microsoft.Xbox.AppL"})
+        self.assertTrue(result["collector_timeout"])
+        self.assertTrue(result["trace_truncated"])
+        self.assertEqual(result["protocol_target_observation"]["state"], "unknown")
+        self.assertNotIn("exit_code", result["protocol_target_observation"])
+
     def test_uwp_window_and_missing_interface_are_child_bound_and_content_redacted(self):
         trace = ActivationTrace()
         trace.stdout("calimocho-activation child_pid 100")

@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -25,7 +26,11 @@ class ActivationTrace:
         r"^([0-9a-f]+):([0-9a-f]+):(err|trace|fixme):([A-Za-z0-9_]+):"
         r"([A-Za-z0-9_]+) (.*)", re.IGNORECASE)
 
-    def __init__(self):
+    @staticmethod
+    def module_path_key(path):
+        return re.sub(r"\\+", r"\\", path.replace("/", "\\")).lower()
+
+    def __init__(self, module_paths=None):
         self.metadata = {}
         self.loads = []
         self.errors = 0
@@ -39,6 +44,8 @@ class ActivationTrace:
         self.protocol_results = []
         self.window_facts = []
         self.activation_delivery = []
+        self.module_paths = {self.module_path_key(key): value
+                             for key, value in (module_paths or {}).items()}
 
     def append_fact(self, target, fact):
         if len(target) < 128:
@@ -64,6 +71,10 @@ class ActivationTrace:
             module = path.replace("/", "\\").rsplit("\\", 1)[-1].lower()
             if module in ("windows.ui.xaml.dll", "microsoft.ui.xaml.dll", "xboxpcappce.exe", "xboxpcapp.exe"):
                 event = {"pid": int(pid, 16), "module": module, "kind": kind}
+                if module in ("windows.ui.xaml.dll", "microsoft.ui.xaml.dll"):
+                    known = self.module_paths.get(self.module_path_key(path))
+                    event.update(path=known["path"] if known else "unrecognized-redacted",
+                                 source=known["source"] if known else "unrecognized-redacted")
                 if event not in self.loads and len(self.loads) < 128:
                     self.loads.append(event)
         if re.match(r"^[0-9a-f]+:[0-9a-f]+:err:", line, re.IGNORECASE):
@@ -253,9 +264,10 @@ class ActivationTrace:
         }
 
 
-def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2):
+def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2,
+            module_paths=None, target_observer=None):
     """Drain both streams; retain only allowlisted metadata and module-load facts."""
-    trace = ActivationTrace()
+    trace = ActivationTrace(module_paths)
     started = time.monotonic()
     buffers = {"stdout": b"", "stderr": b""}
     discarding = {"stdout": False, "stderr": False}
@@ -264,14 +276,51 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2):
     drain_limited = False
     exit_seen_at = None
     exit_basis = None
+    observer = None
+    target_pid = None
+    target_result = {"state": "not-started"}
+    target_exit_at = None
     with subprocess.Popen(argv, env=environment, cwd=cwd, stdin=subprocess.DEVNULL,
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE) as process:
         with selectors.DefaultSelector() as selector:
             selector.register(process.stdout, selectors.EVENT_READ, "stdout")
             selector.register(process.stderr, selectors.EVENT_READ, "stderr")
             try:
-                while selector.get_map():
+                while selector.get_map() or (observer is not None and target_result["state"] == "observing"):
                     now = time.monotonic()
+                    verdict = trace.verdict()
+                    if target_observer and target_pid is None:
+                        routes = [fact for fact in verdict["protocol_results"]
+                                  if fact["child_pid"] > 0 and fact["hresult"] == "0x00000000"
+                                  and fact["app_id"] == target_observer["app_id"]]
+                        if routes:
+                            target_pid = routes[0]["child_pid"]
+                            remaining = max(1, min(180, math.ceil(seconds - (now - started))))
+                            observer = subprocess.Popen(
+                                target_observer["argv"] + [str(target_pid), target_observer["image"],
+                                                           target_observer["app_id"], str(remaining)],
+                                env=environment, cwd=cwd, stdin=subprocess.DEVNULL,
+                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                            target_result = {"pid": target_pid, "state": "observing"}
+                    if observer is not None and observer.poll() is not None and target_result["state"] == "observing":
+                        output = observer.communicate(timeout=1)[0]
+                        match = re.fullmatch(
+                            rb"calimocho-target pid=([0-9]+) state=exited code=([0-9]+)\r?\n", output)
+                        if observer.returncode == 0 and match and int(match[1]) == target_pid:
+                            target_result = {"pid": target_pid, "state": "exited",
+                                             "exit_code": int(match[2]), "basis": "exact-image-token-process-handle"}
+                            target_exit_at = now
+                        else:
+                            target_result = {"pid": target_pid, "state": "unknown",
+                                             "observer_exit": observer.returncode}
+                            failure = re.fullmatch(
+                                rb"calimocho-target pid=([0-9]+) state="
+                                rb"(open-failed|identity-mismatch|bound-reached|wait-failed)(?: error=([0-9]+))?\r?\n",
+                                output)
+                            if failure and int(failure[1]) == target_pid:
+                                target_result["reason"] = failure[2].decode("ascii")
+                                if failure[3]:
+                                    target_result["error"] = int(failure[3])
                     if exit_seen_at is None:
                         if process.poll() is not None:
                             exit_seen_at, exit_basis = now, "helper-process-exit"
@@ -280,7 +329,12 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2):
                     # A direct CE exit is not an AppL exit. Keep draining within the
                     # original finite budget when our exact Launcher recorded a child.
                     handoff = any(fact["child_pid"] > 0 and fact["hresult"] == "0x00000000"
-                                  for fact in trace.verdict()["protocol_results"])
+                                  for fact in verdict["protocol_results"])
+                    if target_exit_at is not None and now - target_exit_at >= post_exit_seconds:
+                        drain_limited = True
+                        trace.truncated = True
+                        exit_basis = "protocol-target-handle-exit"
+                        break
                     if exit_seen_at is not None and not handoff and now - exit_seen_at >= post_exit_seconds:
                         drain_limited = True
                         trace.truncated = True
@@ -291,7 +345,10 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2):
                         if process.poll() is None:
                             process.kill()
                         break
-                    for key, _ in selector.select(timeout=0.1):
+                    ready = selector.select(timeout=0.1) if selector.get_map() else ()
+                    if not selector.get_map():
+                        time.sleep(0.05)
+                    for key, _ in ready:
                         chunk = os.read(key.fileobj.fileno(), 65536)
                         if not chunk:
                             selector.unregister(key.fileobj)
@@ -317,10 +374,22 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2):
                             discarding[stream] = True
                             trace.truncated = True
             finally:
+                if observer is not None:
+                    if observer.poll() is None:
+                        observer.kill()  # Only this invocation's observer, never the target.
+                    observer.wait(timeout=5)
+                    if observer.stdout:
+                        observer.stdout.close()
+                    if target_result["state"] == "observing":
+                        target_result = {"pid": target_pid, "state": "unknown", "reason": "observation-bound"}
                 if process.poll() is None:
                     process.kill()  # This collector's helper only, never a name-based kill.
                 process.wait(timeout=5)
         result = trace.verdict()
+        if target_observer:
+            result["protocol_target_observation"] = target_result
+            if target_result["state"] == "exited":
+                result["protocol_target_state"] = "exited"
         result.update(helper_exit=process.returncode, collector_timeout=timed_out,
                       elapsed_seconds=time.monotonic() - started, bytes_drained=seen,
                       post_exit_drain_limited=drain_limited, post_exit_basis=exit_basis,
@@ -347,6 +416,10 @@ def main():
         if field in receipt:
             if hashlib.sha256(Path(receipt[field]).read_bytes()).hexdigest() != receipt[field + "_sha256"]:
                 raise ValueError(f"Receipt hash mismatch: {field}")
+    if "target_observer" in receipt:
+        observer = receipt["target_observer"]
+        if hashlib.sha256(Path(observer["path"]).read_bytes()).hexdigest() != observer["sha256"]:
+            raise ValueError("Receipt hash mismatch: target observer")
     install = Path(receipt["install"])
     for relative, digest in (
         ("bin/wine", "wine_sha256"), ("bin/wineserver", "wineserver_sha256"),
@@ -360,7 +433,12 @@ def main():
     environment.pop("CALIMOCHO_PACKAGE_REGISTRATION", None)
     environment.update(receipt["environment"])
     # Setup and server registration remain explicit Xbox-owner steps, not hidden actions.
-    result = collect(receipt["activation_argv"], environment, receipt["cwd"])
+    seconds = receipt.get("collector_limit_seconds", 60)
+    if not isinstance(seconds, int) or isinstance(seconds, bool) or not 1 <= seconds <= 180:
+        raise ValueError("Collector observation bound must be an integer from1 to180 seconds")
+    result = collect(receipt["activation_argv"], environment, receipt["cwd"], seconds=seconds,
+                     module_paths=receipt.get("xaml_module_paths"),
+                     target_observer=receipt.get("target_observer"))
     with args.output.open("x") as output:
         json.dump(result, output, indent=2)
         output.write("\n")

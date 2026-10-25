@@ -3,6 +3,27 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: native XAML loader discriminator after actual009 handoff
+
+The actual009 redacted evidence was read and hash-checked as
+`5b11eb94534ba745c2394e1a55f7105a51504674f4292d029d98fa6c853eb58b`
+at `xbox-calimocho-packaged-20261025-009/evidence/activation-redacted.json`
+under `xodus-runs`. Launcher started the observed `msxboxl` AppL target
+PID256 with S_OK and native XboxPcApp.exe loaded. Its first captured factory
+failure was Windows.UI.Xaml.Application, IID
+`06499997-f7b4-45fe-b763-7577d1d3cb4a`, CLASS_E_CLASSNOTAVAILABLE with a
+registered class. The loader explicitly reported builtin Windows.UI.Xaml.dll.
+CE exit0 after124 milliseconds was not AppL exit. The60-second capture was
+truncated, with no activation delivery or window facts.
+
+ADR-0042 records the approved recipe-only correction. The retained002/003
+override adds only `windows.ui.xaml=n`; their identical one-class imports
+set only the Application DllPath. Both imports were read/hash-checked,
+as was the retained original native DLL input16302bfe. No binary was copied,
+rewritten or executed by this source lane. The next receipt keeps the exact
+frozen009 engine, adds explicit per-prefix loader selection and uses a new
+bounded AppL handle observer. Unknown module paths remain redacted.
+
 ## 2026-10-25: cell009 process-bound UWP and real CoreWindow candidate
 
 Xbox0ab subsequently ran frozen008. Its redacted evidence was read and
