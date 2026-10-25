@@ -4,7 +4,8 @@ import unittest
 from pathlib import Path
 
 from tools.build_uwp_overlay import REPO
-from tools.freeze_registrar_cell import (IMAGE_PATH, SERVICES_WINEDEBUG, add_registrar_handoff, registrar_sources,
+from tools.freeze_registrar_cell import (IMAGE_PATH, SERVICES_WINEDEBUG, SETUP_ARGVS, add_headless_setup,
+                                         add_registrar_handoff, registrar_sources,
                                          registrar_stack_build, registration_text)
 from tools.freeze_static_lifetime_runtime import REGISTRAR_STACK
 
@@ -56,6 +57,10 @@ class RegistrarCellTest(unittest.TestCase):
                    "changed_modules": [], "preconditions": [], "limitations": [],
                    "launcher_argv": wine + ["start"]}
         receipt.update({key: {"files": {}} for key in REGISTRAR_STACK})
+        receipt["environment"] = {"WINEDLLOVERRIDES": "mscoree=;coremessaging=n", "WINEDEBUG": "-all"}
+        for key in ("framework_registration_argv", "native_xaml_registration_argv", "aedebug_registration_argv"):
+            receipt[key] = wine + ["regedit", "/S", key]
+        receipt["activation_argv"] = wine + ["probe.exe"]
         add_registrar_handoff(root, receipt, cell)
         return wine, receipt
 
@@ -88,7 +93,27 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 self.handoff(root, 28)
             with self.assertRaises(ValueError):
-                self.handoff(root, 29)
+                self.handoff(root, 30)
+
+    def test_cell029_setup_is_headless_and_session_steps_are_not(self):
+        with tempfile.TemporaryDirectory() as directory:
+            wine, receipt = self.handoff(Path(directory), 29)
+            before = {key: list(receipt[key]) for key in ("services_start_argv", "registrar_start_argv",
+                                                          "registrar_query_argv", "activation_argv", "launcher_argv")}
+            environment = dict(receipt["environment"])
+            add_headless_setup(receipt)
+            headless = ["-e", "WINEDLLOVERRIDES=mscoree=;coremessaging=n;winemac.drv=d"]
+            self.assertEqual(receipt["prefix_init_argv"], wine[:2] + headless + wine[2:] + ["wineboot", "-u"])
+            for key in SETUP_ARGVS:
+                self.assertEqual(receipt[key][:4], wine[:2] + headless, key)
+                self.assertEqual(receipt[key][4], wine[2], key)
+            self.assertEqual(receipt["setup_environment"]["WINEDLLOVERRIDES"], headless[1].split("=", 1)[1])
+            # The server_start session (services, registrar, activation) keeps the mac driver.
+            self.assertEqual(receipt["environment"], environment)
+            for key, argv in before.items():
+                self.assertEqual(receipt[key], argv, key)
+            with self.assertRaisesRegex(ValueError, "already"):
+                add_headless_setup(receipt)
 
 
 if __name__ == "__main__":

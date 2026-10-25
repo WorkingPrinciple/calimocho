@@ -3984,3 +3984,29 @@ timeout, because services.exe outlives wineboot.
 
 Separate observation, not fixed here: the FreeType load warnings suggest
 SIP-protected `/usr/bin/arch` strips `DYLD_FALLBACK_LIBRARY_PATH`.
+
+## 2026-10-25: cell028 setup crash in winemac, cell029 headless setup
+
+Cell028 stopped at the driver's `wineboot -u`, which hung past 45
+seconds. Two processes in the log aborted in winemac's `run_cocoa_app`
+with `-[__NSArrayM lock]` and `-[NSColorSpace lock]: unrecognized
+selector`.
+
+This is not a cell028 change. `winemac.so` is byte-identical to
+cell027, and the only source difference is `programs/services/services.c`.
+The cause is an upstream Wine timing race. `macdrv_start_cocoa_app`
+waits 5 seconds for the main thread. On timeout it releases its lock and
+returns, but the run loop source still points to its stack startup
+info. When the busy main thread finally runs `run_cocoa_app`, it sends
+`lock` to memory now holding another object. A main thread stalled for
+more than 5 seconds fits a loaded host: another lane's wineserver was
+running at the same time.
+
+Cell029 keeps the display driver out of the setup session. The receipt
+adds `prefix_init_argv` (`wineboot -u`) and `setup_environment`. That
+argv and every registration argv carry `WINEDLLOVERRIDES=...;winemac.drv=d`
+through `arch -e`, so explorer falls back to Wine's null display
+driver. The display driver choice is a volatile key, so it ends with
+the setup server. The services, registrar and activation steps keep the
+mac driver. Activation can still hit the same race if its main thread
+stalls for more than 5 seconds.

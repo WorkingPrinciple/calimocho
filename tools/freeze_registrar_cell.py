@@ -1,4 +1,4 @@
-"""Cell027/028 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
+"""Cell027-029 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
 import importlib
 import json
 from pathlib import Path
@@ -88,8 +88,8 @@ def registration_text():
 
 
 def add_registrar_handoff(root, receipt, cell=27):
-    if cell not in (27, 28):
-        raise ValueError("Registrar handoff supports cells027-028")
+    if cell not in (27, 28, 29):
+        raise ValueError("Registrar handoff supports cells027-029")
     label = "%03d" % cell
     root = Path(root)
     registration = root / ("registrar-CELL%s-FROZEN.reg" % label)
@@ -155,3 +155,35 @@ def add_registrar_handoff(root, receipt, cell=27):
             "Cell027: sc start CoreMessagingRegistrar did not return within45 s under WINEDEBUG=-all; cause unobserved. Wine SCM does not start DependOnService, so RpcSs is not a start wait",
             "Cell028 adds diagnostics only (scoped WINEDEBUG and two services traces around registrar process creation); the token and start path are unchanged",
         ]
+
+
+# Setup-session steps that run before the setup server stop; none needs a display.
+SETUP_ARGVS = ("framework_registration_argv", "launcher_registration_argv", "native_xaml_registration_argv",
+               "aedebug_registration_argv", "registrar_registration_argv", "registrar_readback_argv")
+
+
+def add_headless_setup(receipt):
+    """Cell029: keep winemac.drv out of the setup session; only the server_start session uses it."""
+    if "prefix_init_argv" in receipt:
+        raise ValueError("Headless setup already applied")
+    overrides = receipt["environment"]["WINEDLLOVERRIDES"] + ";winemac.drv=d"
+    setup = dict(receipt["environment"], WINEDLLOVERRIDES=overrides)
+    wine = receipt["launcher_registration_argv"][:3]
+    if wine[:2] != ["/usr/bin/arch", "-x86_64"]:
+        raise ValueError("Unexpected setup launcher prefix")
+    receipt["setup_environment"] = setup
+    receipt["prefix_init_argv"] = wine + ["wineboot", "-u"]
+    headless = ["-e", "WINEDLLOVERRIDES=" + overrides]
+    for key in ("prefix_init_argv",) + SETUP_ARGVS:
+        argv = receipt[key]
+        if argv[:3] != wine:
+            raise ValueError("Setup argv does not use the frozen wine: " + key)
+        receipt[key] = argv[:2] + headless + argv[2:]
+    receipt["preconditions"] += [
+        "Run prefix_init_argv in place of the driver's own wineboot -u, with setup_environment; it and every SETUP argv carry winemac.drv=d through arch -e, so the setup session loads Wine's null display driver",
+        "Stop the setup server after the registrations as before; the display driver choice is volatile and the server_start session (services, registrar, activation) uses the mac driver with environment unchanged",
+    ]
+    receipt["limitations"] += [
+        "Cell028 wineboot -u aborted in winemac run_cocoa_app: macdrv_start_cocoa_app gives up after5 s and returns while the main thread still holds a pointer to its stack startup info, so a late run_cocoa_app sends lock to a freed object. This is an upstream Wine timing race under a stalled main thread, not a cell028 change (winemac.so is byte-identical to cell027)",
+        "Headless setup avoids that race only for setup; the activation step still starts the mac driver and can hit it if its main thread stalls over5 s",
+    ]
