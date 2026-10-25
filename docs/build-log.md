@@ -28,6 +28,40 @@ eight changed modules,133 typed COM slots, build steps, producer source blobs,
 observer/collector commands, unchanged context files and sealed020 receipt.
 All235 host tests pass. The source fixture remains compiled only.
 
+Actual021 ran once through the exclusive runtime owner with no progression.
+The redacted evidence was independently read and SHA-256 checked as
+`281c6ca9dedf63f000d7b58f530d2e4c577e653a328cc73563e06613119ddd0f`.
+Its single matching return is still RtlQueryPackageClaims low32 C0000002,
+original XAML+704cfd, sequence2246. Fail-fast entry2250 records argument
+D0000002 and hook caller ntdll+10e03; the separate preceding direct relay2249
+records XAML+33f121. Keep these caller observations distinct.
+
+Actual target PID256/TID260 exits C0000602 through the exact-image,
+admitted-token process handle. Initialize enters without exit. Slot11
+AddCallback exits S_OK at2241; no failing owned-COM HRESULT or E_NOTIMPL
+is retained. The same two QuirkIsEnabled FIXME fingerprints appear at2211
+and2214 with no retained loss. Collection takes4.184 seconds and ends at
+the explicit post-target-exit drain cutoff, truncated, not the180-second cap.
+No20/60 samples, debugger attachment, fixture execution or UI proof exist.
+
+The runtime owner verifies the actual prefix ntdll matches021 and retains
+a private byte-exact r6 source snapshot. This does not establish the actual
+token, pointer shape, context decision, generated branch or why Site B
+remains unmatched. Do not replay021 unchanged or broaden success predicates.
+The next useful changed discriminator would retain sanitized argument-shape,
+genuine local context and selected-cell facts, not infer success from source.
+The separate final analysis SHA-256 is
+`24521e2a9b7bc50542c0fb82a3af2cdaf259d91de31ab8a571222018189ac71b`.
+It was independently read and checked against its bound redacted, runtime,
+preflight, screenshot-status and generated-source snapshot hashes.
+The runtime receipt SHA-256 is
+`52fd67d8d73ef0be9880e61cd26869aadd557bbb2163b6b5b05432e330dc62fc`.
+Exact021 stop/wait exit0, all13 recorded host PIDs absent and lsof exit1
+with zero prefix rows establish the recorded post-receipt cleanup.
+Auto0 import/readback and no-GPFault marker256 are verified. The final
+analysis also confirms012-020 result hashes unchanged. This closes the
+021 integration experiment with a negative runtime result, not a fix.
+
 ## 2026-10-25: observed native factory matrix and supported-only011 recipe
 
 Xbox0ab executed the owned810-class headless matrix against the retained
