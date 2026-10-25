@@ -3,6 +3,27 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: truthful no-device GameInput sibling (native check pending)
+
+ADR-0039 records the owner's Witcher input/haptics evidence and the exact
+GameInput API gap. The new source implements separate typed v0/v1/v2
+interfaces, initialization, empty reading/device results, managed callback
+tokens, QPC timestamps and an empty dispatcher. It does not advertise a
+physical device, guess a COM class ID or expand the AGS5.4 module to AGS6.
+
+The isolated `metal-port-11e-gameinput-04` build replaces only the x64
+GameInput DLL on a copy of frozen 11d. The retained receipt binds compiler,
+Wine build tools, link archives, interface IDL, source and full inventory.
+The expanded headless probe and all three source vtables compile with
+warnings treated as errors. Host checks inspect the actual four PE exports,
+native preference and single-file deployed difference.
+
+The native baseline/candidate fixture has not run. Its scheduler slot is
+queued behind Ode game testing. No prefix or game was started for this
+GameInput work, and no runtime or Witcher acceptance is claimed. A later
+Witcher recipe must embed its own `gameinput=b` override while retaining the
+owner's native AGS shim. Frozen 11d and the Xbox cell007 snapshot are unchanged.
+
 ## 2026-10-25: opt-in Wine-built AGS5.4 sibling
 
 ADR-0037 records the DIRT5 owner's source-bound native-AGS null-string path
