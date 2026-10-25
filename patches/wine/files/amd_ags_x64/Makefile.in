@@ -1,0 +1,6 @@
+MODULE = amd_ags_x64.dll
+EXTRADLLFLAGS = -Wb,--prefer-native
+IMPORTS = d3d12
+
+SOURCES = \
+	main.c

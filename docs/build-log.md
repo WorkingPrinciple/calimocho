@@ -3,6 +3,23 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: opt-in Wine-built AGS5.4 sibling
+
+ADR-0037 records the DIRT5 owner's source-bound native-AGS null-string path
+and the minimal four-export builtin. Its API version is 5.4.1; driver and
+software strings are empty, devices and extensions are zero. Standard D3D12
+creation is forwarded unchanged, and device destruction releases one reference.
+Native AGS remains preferred without the separate DIRT5/GPTK builtin override.
+
+The source harness initially failed with the module absent, then passed.
+The first real Wine PE compile exposed incompatible `config.h`/CRT headers
+and a missing `stdarg.h`; those were corrected in the second isolated output.
+`metal-port-11d-ags54-02` adds only the x64 AGS builtin and the two minidump
+forwarders to a new copy of the frozen private-Metal base. Its registry is
+explicitly unqualified and retains no inherited graphics/TLS acceptance.
+The owner was asked for a bounded passive regression slot. No DIRT5 run or
+title-screen result for this actual builtin is claimed.
+
 ## 2026-10-25: bounded cell005 activation diagnostics
 
 The Xbox owner's cell004 result was a zero helper exit without observed CE
