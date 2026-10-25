@@ -17,8 +17,18 @@ and a missing `stdarg.h`; those were corrected in the second isolated output.
 `metal-port-11d-ags54-02` adds only the x64 AGS builtin and the two minidump
 forwarders to a new copy of the frozen private-Metal base. Its registry is
 explicitly unqualified and retains no inherited graphics/TLS acceptance.
-The owner was asked for a bounded passive regression slot. No DIRT5 run or
-title-screen result for this actual builtin is claimed.
+The scheduler granted a windowless slot. The installed AGS/minidump probe
+passed actual initialization, D3D12 device creation, destruction with zero
+remaining references and both exact dbghelp forwarders. HTTPS returned200;
+expired HTTPS produced expected12157/12037 rejection with validation enabled.
+All three prefix servers were stopped/waited and open-file/process-group checks
+were clean. Foreground, renderer payloads and baseline remained unchanged.
+
+The first chain had completed AGS01 before a competing Forza server blocked
+TLS02. Its retained receipt corrected an initial overly broad pre-spawn-refusal
+report. After the scheduler cleared the lane, only TLS02/03 ran, not another
+AGS replay. Graphics remains blocked by the non-overlap guard; no Dock
+transparency exception, desktop control or DIRT5 title-screen claim was made.
 
 ## 2026-10-25: bounded cell005 activation diagnostics
 
@@ -39,6 +49,13 @@ Both fixture servers were stopped and waited. No Xbox or game ran here.
 The delivered cell004 engine, registry, helper and snapshot remain unchanged.
 Cell005 uses a new helper and receipt with a fresh owned prefix; actual CE,
 XAML and handoff outcomes await the Xbox owner's run.
+
+The returned cell005 result now establishes CE PID240 creation/resume with
+verified metadata, native CE loading and exit0 after about89ms. No XAML load
+was observed. Capture stayed open until60s with only8756bytes, so missing
+EOF, not the byte bound, made the result incomplete. Collector rc0 was a bug;
+the next revision returns nonzero for incomplete capture, bounds post-exit
+draining and preserves structured error/handoff facts without raw traces.
 
 ## 2026-10-25: explicit local package identity and installed verification
 

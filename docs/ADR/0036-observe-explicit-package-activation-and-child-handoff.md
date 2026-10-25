@@ -86,3 +86,29 @@ the collector rather than writing raw helper stderr to an evidence file.
 It checks the helper, collector, registry and core deployed engine hashes
 before activation. The app result is written with exclusive creation, never
 over an earlier receipt.
+
+## Cell005 correction
+
+The real cell005 run created and resumed CE PID 240 with verified server
+metadata. It loaded the native CE executable and exited zero at
+`00:47:29.009Z`, about 89 milliseconds after creation. Only that module load
+was observed, not XAML. Stream EOF was not received within 60 seconds, despite
+only 8,756 bytes. This does not establish why the stream stayed open or an
+application hang. Returning zero from the collector on that incomplete
+capture was wrong.
+
+The next collector records structured PID/channel/function error fingerprints,
+fixed message classes and explicitly labelled numeric statuses. Process-create
+facts retain returned child PIDs and allowlisted Xbox image basenames.
+Sync entry traces retain only the named-object namespace class; they do not
+establish that an existing object was successfully opened. AppLifecycle
+activation is classified without retaining arbitrary class names. The child
+adds sync/combase tracing and combase FIXME events, because this source's
+RoGetActivationFactory entry is a FIXME.
+
+After helper process exit, or the complete child-exit record if earlier, the
+collector drains for two seconds. The receipt identifies which observation
+started that bound. Missing EOF then yields a separate post-exit-drain limit,
+truncated/unknown evidence and a nonzero collector result. This is not proof
+of a leaking handle or the owning process. It does not raise a byte limit that
+was never reached. Existing cell005 evidence and helper bytes are preserved.

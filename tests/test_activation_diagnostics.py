@@ -1,6 +1,10 @@
 import os
+import hashlib
+import json
 from pathlib import Path
+import subprocess
 import sys
+import tempfile
 import unittest
 
 from tools.diagnose_package_activation import ActivationTrace, collect
@@ -49,6 +53,34 @@ class ActivationDiagnosticsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             trace.stdout("calimocho-activation child_pid 101")
 
+    def test_error_fingerprint_and_handoff_discard_free_text(self):
+        trace = ActivationTrace()
+        trace.stderr("00f0:00f4:err:module:import_dll Library SECRET.dll not found, status c0000135 token=SECRET")
+        trace.stderr('00f0:00f4:trace:process:NtCreateUserProcess L"Z:\\private\\XboxPcApp.exe" pid 0100 tid 0104 handles 0x4/0x8 SECRET')
+        trace.stderr('00f0:00f4:trace:sync:NtOpenMutant access 0x1, name L"\\BaseNamedObjects\\SECRET"')
+        trace.stderr('00f0:00f4:fixme:combase:RoGetActivationFactory ("Microsoft.Windows.AppLifecycle.AppInstance", SECRET): semi-stub')
+        result = trace.verdict()
+        self.assertEqual(result["error_fingerprints"][0]["function"], "import_dll")
+        self.assertEqual(result["error_fingerprints"][0]["message_class"], "module-not-found")
+        self.assertEqual(result["handoff_facts"][0]["child_pid"], 256)
+        self.assertEqual(result["sync_facts"][0]["name_class"], "base-named-object")
+        self.assertEqual(result["activation_facts"][0]["activation_class"], "app-lifecycle")
+        self.assertNotIn("SECRET", str(result))
+
+    def test_post_exit_drain_is_bounded_and_not_collector_timeout(self):
+        script = (
+            "import subprocess,sys,time\n"
+            "subprocess.Popen([sys.executable,'-c','import time; time.sleep(0.6)'])\n"
+            "print('calimocho-activation exit_observed_utc 2026-10-25T00:00:00Z')\n"
+            "print('calimocho-activation elapsed_ms 91',flush=True)\n"
+        )
+        result = collect([sys.executable, "-c", script], dict(os.environ), Path.cwd(),
+                         seconds=3, post_exit_seconds=0.1)
+        self.assertTrue(result["post_exit_drain_limited"])
+        self.assertTrue(result["trace_truncated"])
+        self.assertFalse(result["collector_timeout"])
+        self.assertEqual(result["capture_end"], "post-exit-drain-limit")
+
     def test_collector_drains_large_redacted_output_and_keeps_final_metadata(self):
         script = (
             "import sys, time\n"
@@ -71,6 +103,45 @@ class ActivationDiagnosticsTests(unittest.TestCase):
         self.assertTrue(observed["collector_timeout"])
         self.assertNotEqual(observed["helper_exit"], 0)
         self.assertFalse(observed["created"])
+
+    def test_cli_returns_nonzero_for_truncated_capture_despite_exit_zero(self):
+        collector = Path(__file__).resolve().parents[1] / "tools/diagnose_package_activation.py"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            install = root / "install"
+            for filename in ("bin/wine", "bin/wineserver", "lib/wine/x86_64-windows/ntdll.dll"):
+                path = install / filename
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"test identity")
+            dummy = root / "identity"
+            dummy.write_bytes(b"test identity")
+            digest = hashlib.sha256(dummy.read_bytes()).hexdigest()
+            script = (
+                "import sys\n"
+                "sys.stderr.write('PRIVATE'*1600000+'\\n');sys.stderr.flush()\n"
+                "print('calimocho-activation child_pid 100')\n"
+                "print('calimocho-activation resume_status 00000000')\n"
+            )
+            receipt = {
+                "helper": str(dummy), "helper_sha256": digest,
+                "registry": str(dummy), "registry_sha256": digest,
+                "diagnostic_collector": str(collector),
+                "diagnostic_collector_sha256": hashlib.sha256(collector.read_bytes()).hexdigest(),
+                "install": str(install), "wine_sha256": digest, "wineserver_sha256": digest,
+                "ntdll_sha256": digest, "environment": {}, "cwd": str(root),
+                "activation_argv": [sys.executable, "-c", script],
+            }
+            source = root / "receipt.json"
+            source.write_text(json.dumps(receipt))
+            output = root / "observed.json"
+            result = subprocess.run([sys.executable, str(collector), str(source),
+                                     "--output", str(output)],
+                                    capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 2, result.stderr)
+            observed = json.loads(output.read_text())
+            self.assertEqual(observed["helper_exit"], 0)
+            self.assertTrue(observed["trace_truncated"])
+            self.assertNotIn("PRIVATE", output.read_text())
 
 
 if __name__ == "__main__":

@@ -21,6 +21,9 @@ class ActivationTrace:
     LOAD = re.compile(
         r'^([0-9a-f]+):[0-9a-f]+:trace:loaddll:build_module Loaded L"([^"]+)"'
         r' at [0-9a-fx]+: (native|builtin)', re.IGNORECASE)
+    EVENT = re.compile(
+        r"^([0-9a-f]+):([0-9a-f]+):(err|trace|fixme):([A-Za-z0-9_]+):"
+        r"([A-Za-z0-9_]+) (.*)", re.IGNORECASE)
 
     def __init__(self):
         self.metadata = {}
@@ -28,6 +31,16 @@ class ActivationTrace:
         self.errors = 0
         self.process_events = 0
         self.truncated = False
+        self.error_fingerprints = []
+        self.handoff_facts = []
+        self.sync_facts = []
+        self.activation_facts = []
+
+    def append_fact(self, target, fact):
+        if len(target) < 128:
+            target.append(fact)
+        else:
+            self.truncated = True
 
     def stdout(self, line):
         prefix = "calimocho-activation "
@@ -53,6 +66,73 @@ class ActivationTrace:
             self.errors += 1
         if re.match(r"^[0-9a-f]+:[0-9a-f]+:trace:process:", line, re.IGNORECASE):
             self.process_events += 1
+        event = self.EVENT.match(line)
+        if not event:
+            return
+        pid, tid, level, channel, function, message = event.groups()
+        fact = {"pid": int(pid, 16), "tid": int(tid, 16),
+                "channel": channel, "function": function}
+        if level == "err":
+            message_class = "other-redacted"
+            for marker, category in (
+                ("not found", "module-not-found"), ("failed to load", "load-failed"),
+                ("not supported", "unsupported"), ("not implemented", "unimplemented"),
+                ("failed", "operation-failed"),
+            ):
+                if marker in message.lower():
+                    message_class = category
+                    break
+            fact["message_class"] = message_class
+            # Only explicitly labelled numeric statuses are retained; never message text.
+            fact["statuses"] = re.findall(
+                r"\b(?:status|hr|hresult|error|err)\s*[=:]?\s*(0x[0-9a-f]{1,8}|[0-9a-f]{8})\b",
+                message, flags=re.IGNORECASE)[:8]
+            self.append_fact(self.error_fingerprints, fact)
+        elif channel == "process":
+            if function == "NtCreateUserProcess":
+                created = re.search(r"\bpid ([0-9a-f]+) tid ([0-9a-f]+) handles ", message)
+                if created:
+                    fact["child_pid"] = int(created[1], 16)
+                    fact["child_tid"] = int(created[2], 16)
+                    fact["operation"] = "native-process-created"
+                else:
+                    fact["operation"] = "native-process-create-attempt"
+            elif function in ("CreateProcessInternalW", "CreateProcessW", "CreateProcessAsUserW"):
+                created = re.search(r"started process pid ([0-9a-f]+) tid ([0-9a-f]+)", message)
+                fact["operation"] = "win32-process-created" if created else "win32-process-call"
+                if created:
+                    fact["child_pid"] = int(created[1], 16)
+            elif function in ("NtTerminateProcess", "RtlExitUserProcess", "ExitProcess"):
+                fact["operation"] = "process-exit-call"
+                code = re.search(r"(?:status|code)\s*[=:]?\s*(0x[0-9a-f]+|[0-9a-f]{8})", message)
+                if code:
+                    fact["exit_status"] = code[1]
+            else:
+                return
+            for basename in ("XboxPcAppCE.exe", "XboxPcApp.exe"):
+                if re.search(r"(?:^|[\\\" ])" + re.escape(basename) + r'(?:[" ]|$)', message, re.I):
+                    fact["image"] = basename
+            self.append_fact(self.handoff_facts, fact)
+        elif channel == "sync" and function in (
+                "NtCreateMutant", "NtOpenMutant", "NtCreateEvent", "NtOpenEvent"):
+            if "name (null)" in message:
+                fact["name_class"] = "unnamed"
+            elif "\\BaseNamedObjects\\" in message:
+                fact["name_class"] = "base-named-object"
+            elif "Global\\" in message:
+                fact["name_class"] = "global"
+            elif "Local\\" in message:
+                fact["name_class"] = "local"
+            else:
+                fact["name_class"] = "other-redacted"
+            # Entry traces do not establish success or ERROR_ALREADY_EXISTS.
+            fact["outcome"] = "not-observed"
+            self.append_fact(self.sync_facts, fact)
+        elif function in ("RoGetActivationFactory", "RoActivateInstance"):
+            fact["activation_class"] = "app-lifecycle" if (
+                "Microsoft.Windows.AppLifecycle." in message or
+                "Windows.ApplicationModel.AppInstance" in message) else "other-redacted"
+            self.append_fact(self.activation_facts, fact)
 
     def verdict(self):
         pid_text = self.metadata.get("child_pid", "")
@@ -68,12 +148,16 @@ class ActivationTrace:
             "module_loads": self.loads,
             "error_events": self.errors,
             "process_trace_events": self.process_events,
+            "error_fingerprints": self.error_fingerprints,
+            "handoff_facts": self.handoff_facts,
+            "sync_facts": self.sync_facts,
+            "activation_facts": self.activation_facts,
             "raw_trace_persisted": False,
             "trace_truncated": self.truncated,
         }
 
 
-def collect(argv, environment, cwd, seconds=60):
+def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2):
     """Drain both streams; retain only allowlisted metadata and module-load facts."""
     trace = ActivationTrace()
     started = time.monotonic()
@@ -81,6 +165,9 @@ def collect(argv, environment, cwd, seconds=60):
     discarding = {"stdout": False, "stderr": False}
     seen = 0
     timed_out = False
+    drain_limited = False
+    exit_seen_at = None
+    exit_basis = None
     with subprocess.Popen(argv, env=environment, cwd=cwd, stdin=subprocess.DEVNULL,
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE) as process:
         with selectors.DefaultSelector() as selector:
@@ -89,6 +176,15 @@ def collect(argv, environment, cwd, seconds=60):
             try:
                 while selector.get_map():
                     now = time.monotonic()
+                    if exit_seen_at is None:
+                        if process.poll() is not None:
+                            exit_seen_at, exit_basis = now, "helper-process-exit"
+                        elif "elapsed_ms" in trace.metadata and "exit_observed_utc" in trace.metadata:
+                            exit_seen_at, exit_basis = now, "child-exit-record"
+                    if exit_seen_at is not None and now - exit_seen_at >= post_exit_seconds:
+                        drain_limited = True
+                        trace.truncated = True
+                        break
                     if now - started >= seconds:
                         timed_out = True
                         trace.truncated = True
@@ -126,7 +222,10 @@ def collect(argv, environment, cwd, seconds=60):
                 process.wait(timeout=5)
         result = trace.verdict()
         result.update(helper_exit=process.returncode, collector_timeout=timed_out,
-                      elapsed_seconds=time.monotonic() - started, bytes_drained=seen)
+                      elapsed_seconds=time.monotonic() - started, bytes_drained=seen,
+                      post_exit_drain_limited=drain_limited, post_exit_basis=exit_basis,
+                      capture_end="post-exit-drain-limit" if drain_limited else (
+                          "collector-timeout" if timed_out else "stream-eof"))
         return result
 
 
@@ -162,7 +261,8 @@ def main():
         json.dump(result, output, indent=2)
         output.write("\n")
     print(json.dumps(result, indent=2))
-    return 0 if result["created"] and result["resumed"] and result["helper_exit"] == 0 else 2
+    return 0 if (result["created"] and result["resumed"] and result["helper_exit"] == 0
+                 and not result["trace_truncated"] and not result["collector_timeout"]) else 2
 
 
 if __name__ == "__main__":

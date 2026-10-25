@@ -185,7 +185,8 @@ static int activate(const WCHAR *blob_path, const WCHAR *executable, BOOL fixtur
         UNICODE_STRING name, value;
         status = RtlCreateEnvironment(TRUE, &environment);
         RtlInitUnicodeString(&name, L"WINEDEBUG");
-        RtlInitUnicodeString(&value, L"err+all,trace+process,trace+loaddll,+pid,+tid");
+        RtlInitUnicodeString(&value,
+            L"err+all,trace+process,trace+loaddll,trace+sync,trace+combase,fixme+combase,+pid,+tid");
         if (!status) status = RtlSetEnvironmentVariable(&environment, &name, &value);
         if (status)
         {
