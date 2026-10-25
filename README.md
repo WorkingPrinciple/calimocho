@@ -225,3 +225,5 @@ or use the recipe above.
   copy of Apple's Game Porting Toolkit.
 - Release notes, contents and licence details:
   [`docs/release/11.20-4.0b3-02.md`](docs/release/11.20-4.0b3-02.md).
+- Tested games, with what we actually saw:
+  [`docs/TESTED-GAMES.md`](docs/TESTED-GAMES.md).
