@@ -3048,3 +3048,16 @@ restoring the prior error mode on return. See
 It records real unhandled-filter metadata, safe typed/redacted parameters,
 last50 admitted relay calls and separate WinRT error-origin HRESULTs.
 No C++ object layout or exception HRESULT is guessed.
+
+The isolated source build and eight-module stage completed without Wine
+execution. The source producer is
+`bbb8dddf85b21a07ee5c8d2a9adac3571e57cada`.
+Frozen017 receipt SHA-256 is
+`0a757c6da94c8f6b3b5cabaa3130597c878082a6e9ab861b78b08646efa94389`.
+The fresh build retained existing enum-case/resource-parser warnings,
+not new diagnostic warnings. The frozen audit binds all3915 installed
+entries/assets, original native recipe, exact source/helper/collector
+identities, per-prefix registry file,180-second cap and sealed016 predecessor.
+All214 deterministic host tests pass. The frozen017 receipt and exact
+registry import/readback requirement were sent to0ab, copying the coordinator.
+Actual017 remains unobserved at this source handoff.
