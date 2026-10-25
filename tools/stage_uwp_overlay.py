@@ -69,6 +69,8 @@ def stage(root, resume=False):
     command = [compiler, "-I" + str(root / "source/include"),
                *compile_flags(root / "build/include"), "-D_UCRT", "-municode",
                str(REPO / "tests/package_activation_probe.c")]
+    if "call_diagnostics" in build:
+        command.append("-DCALIMOCHO_CALL_DIAGNOSTICS")
     command += [str(root / "build/dlls" / module / "x86_64-windows" / ("lib" + module + ".a"))
                 for module in ("ntdll", "kernelbase", "combase")]
     # kernelbase was unchanged, so use the frozen framework build's import library.

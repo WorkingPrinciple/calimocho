@@ -14,7 +14,7 @@ from tools.probe_wine_source import run_step, sha256
 BASE = REPO / "build/winehq-11.20/package-launcher-01"
 
 
-def build(root, resume=False):
+def build(root, resume=False, call_diagnostics=False):
     root = Path(root).resolve()
     if not root.is_relative_to(REPO / "build") or root == BASE:
         raise ValueError("Require a new owned009 sibling")
@@ -26,6 +26,9 @@ def build(root, resume=False):
     if resume:
         if not (root / "build-receipt.json").is_file():
             raise ValueError("Resume requires this builder's receipt")
+        previous = json.loads((root / "build-receipt.json").read_text())
+        if "steps" in previous and bool(previous.get("call_diagnostics")) != call_diagnostics:
+            raise ValueError("Resume must preserve the diagnostic build mode")
     else:
         root.mkdir(exist_ok=False)
         shutil.copytree(BASE / "source", root / "source", symlinks=True)
@@ -53,6 +56,12 @@ def build(root, resume=False):
         spec = ui / "windows.ui.spec"
         spec.write_text(spec.read_text() + "\n@ stdcall __wine_create_core_window(ptr)\n")
     record = root / "build-receipt.json"
+    if not record.exists():
+        record.write_text(json.dumps({"status": "source-port-incomplete", "runtime_executed": False}) + "\n")
+    diagnostic_port = None
+    if call_diagnostics:
+        from tools.port_call_diagnostics import port as diagnostic_port_source
+        diagnostic_port = diagnostic_port_source(root / "source")
     attempt = 1
     while (root / ("attempt-%02d" % attempt)).exists():
         attempt += 1
@@ -72,6 +81,8 @@ def build(root, resume=False):
     env["ac_cv_lib_soname_gnutls"] = "@rpath/libgnutls.30.dylib"
     receipt = {"status": "incomplete", "runtime_executed": False, "steps": [],
                "predecessor_receipt_sha256": sha256(frozen)}
+    if diagnostic_port is not None:
+        receipt["call_diagnostics"] = diagnostic_port
 
     def run(name, command, budget=300, cwd=directory):
         step = run_step(command, cwd, env, logs / (name + ".log"), budget)
@@ -126,6 +137,12 @@ def build(root, resume=False):
             REPO / "patches/wine/files/corewindow_host.c",
             REPO / "patches/wine/files/package_activation.idl",
             REPO / "patches/wine/files/package_activation_record.h")}
+    if call_diagnostics:
+        for relative in ("tools/port_call_diagnostics.py",
+                         "patches/wine/files/package_call_diagnostics.h",
+                         "patches/wine/files/package_relay_diagnostics.h",
+                         "patches/wine/files/package_wait_diagnostics.h"):
+            receipt["source_inputs"][relative] = sha256(REPO / relative)
     receipt["built_files"] = {str(path.relative_to(root)): sha256(path) for path in (
         directory / "server/wineserver", directory / "dlls/ntdll/ntdll.so",
         directory / "dlls/ntdll/x86_64-windows/ntdll.dll",
@@ -140,5 +157,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--call-diagnostics", action="store_true")
     args = parser.parse_args()
-    print(build(args.root, args.resume))
+    print(build(args.root, args.resume, args.call_diagnostics))

@@ -37,7 +37,7 @@ def freeze(root, producer, *, cell=12, predecessor=PREVIOUS,
         if blob != (REPO / relative).read_bytes():
             raise ValueError("Producer source changed: " + relative)
         sources[relative] = hashlib.sha256(blob).hexdigest()
-    if cell not in (12, 13) or sha256(predecessor) != predecessor_sha256:
+    if cell not in (12, 13, 14) or sha256(predecessor) != predecessor_sha256:
         raise ValueError("Sealed predecessor recipe changed or unsupported cell")
     previous = json.loads(predecessor.read_text())
     label = "%03d" % cell
@@ -91,7 +91,7 @@ def freeze(root, producer, *, cell=12, predecessor=PREVIOUS,
     manifest.write_text(json.dumps({"files": stage["files"], "basis": "source/build integrity, not native acceptance"},
                                    indent=2) + "\n")
     entry["environment"]["WINEDLLOVERRIDES"] = previous["environment"]["WINEDLLOVERRIDES"]
-    entry["name"] = "calimocho-wine11.20-static-lifetime-diagnostic" + ("-state" if cell == 13 else "")
+    entry["name"] = "calimocho-wine11.20-static-lifetime-diagnostic" + {12: "", 13: "-state", 14: "-calltrace"}[cell]
     entry["version"] += " + genuine IStaticLifetime map (UNQUALIFIED)"
     entry["integrity"] = {"status": "unchanged", "manifest_path": str(manifest),
                           "manifest_sha256": sha256(manifest)}
@@ -147,7 +147,7 @@ def freeze(root, producer, *, cell=12, predecessor=PREVIOUS,
             "Use retained original native XAML input and558 supported011 mappings, no native DLL rewrite",
             "Import framework_registration_argv, launcher_registration_argv, native_xaml_registration_argv",
             "Stop/wait setup server, then start server_start using explicit host-only table",
-            "Execute bounded collector/target observer; clean only012 prefix and retain proof",
+            "Execute bounded collector/target observer; clean only" + label + " prefix and retain proof",
         ],
         limitations=[item for item in previous["limitations"]
                      if item != "Same frozen009 install, not a new engine or rebuilt ABI"] + [

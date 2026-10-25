@@ -142,7 +142,9 @@ class StateDiagnosticsTests(unittest.TestCase):
         stage = json.loads((root / "staging-receipt.json").read_text())
         observer = json.loads((root / "state-observer-build.json").read_text())
         for path, digest in build["source_inputs"].items():
-            self.assertEqual(sha256(REPO / path), digest)
+            frozen = json.loads((root / "cell013-receipt.json").read_text())
+            blob = subprocess.check_output(["git", "show", frozen["producer_commit"] + ":" + path], cwd=REPO)
+            self.assertEqual(hashlib.sha256(blob).hexdigest(), digest)
         self.assertEqual(inventory(root / "install"), stage["files"])
         self.assertEqual(sha256(Path(observer["source"])), observer["source_sha256"])
         self.assertEqual(sha256(Path(observer["output"])), observer["output_sha256"])

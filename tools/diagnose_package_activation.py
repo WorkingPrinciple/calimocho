@@ -1,5 +1,6 @@
 """Collect bounded activation evidence without persisting raw application traces."""
 import argparse
+from collections import deque
 import hashlib
 import json
 import math
@@ -10,6 +11,149 @@ import selectors
 import subprocess
 import tempfile
 import time
+
+
+class CallDiagnostics:
+    """Fixed metadata only; preserve a bounded relay tail at actual wait entry."""
+    IID = r"(?:none|\{[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\})"
+    OBJECTS = r"(?:CoreFactory|CoreApplication|CoreApplicationView|StaticLifetime|StaticCollection|CoreWindow|CoreDispatcher)"
+    WAIT = r"(?:NtWaitForSingleObject|NtWaitForMultipleObjects|NtSignalAndWaitForSingleObject)"
+    COMMON = frozenset("QueryInterface AddRef Release GetIids GetRuntimeClassName GetTrustLevel".split())
+    METHODS = {
+        "CoreFactory": frozenset(("ActivateInstance",)),
+        "CoreApplication": frozenset("get_Id add_Suspending remove_Suspending add_Resuming remove_Resuming get_Properties GetCurrentView Run RunWithActivationFactories".split()),
+        "CoreApplicationView": frozenset("get_CoreWindow add_Activated remove_Activated get_IsMain get_IsHosted".split()),
+        "StaticLifetime": frozenset(("Reserved", "GetCollection")),
+        "StaticCollection": frozenset("Lookup get_Size HasKey GetView Insert Remove Clear".split()),
+        "CoreDispatcher": frozenset("get_HasThreadAccess ProcessEvents RunAsync RunIdleAsync".split()),
+        "CoreWindow": frozenset("get_AutomationHostProvider get_Bounds get_CustomProperties get_Dispatcher get_FlowDirection put_FlowDirection get_IsInputEnabled put_IsInputEnabled get_PointerCursor put_PointerCursor get_PointerPosition get_Visible Activate Close GetAsyncKeyState GetKeyState ReleasePointerCapture SetPointerCapture".split())
+        | frozenset(prefix + event for prefix in ("add_", "remove_") for event in (
+            "Activated AutomationProviderRequested CharacterReceived Closed InputEnabled KeyDown KeyUp "
+            "PointerCaptureLost PointerEntered PointerExited PointerMoved PointerPressed PointerReleased "
+            "TouchHitTesting PointerWheelChanged SizeChanged VisibilityChanged").split()),
+    }
+
+    def __init__(self):
+        self.interfaces = deque(maxlen=65536)
+        self.first_failures = []
+        self.interface_count = self.sequence = 0
+        self.counts, self.relays, self.first_no_interface, self.first_not_implemented = {}, {}, {}, {}
+        self.active = set()
+        self.pending = {}
+        self.completed = deque(maxlen=32)
+        self.source_limited = set()
+        self.storage_limited = False
+        self.phases = deque(maxlen=32)
+
+    def observe(self, pid, tid, channel, function, message):
+        if channel not in ("pkgiface", "pkgrelay", "pkgwait"):
+            return
+        if pid not in self.counts:
+            if len(self.counts) >= 8:
+                self.storage_limited = True
+                return
+            self.counts[pid] = {"interfaces": 0, "relays": 0}
+            self.relays[pid] = deque(maxlen=300)
+        self.sequence += 1
+        fact = {"pid": pid, "tid": tid, "sequence": self.sequence}
+        if channel == "pkgiface" and function == "diagnostic_interface":
+            match = re.fullmatch(
+                r"interface object=(" + self.OBJECTS + r") method=([A-Za-z_][A-Za-z0-9_]{0,63}) "
+                r"phase=(enter|exit) iid=(" + self.IID + r") kind=(HRESULT|ULONG) result=([0-9a-f]{8})",
+                message)
+            if not match or (match[2] == "QueryInterface") != (match[4] != "none"):
+                return
+            if match[2] not in self.COMMON | self.METHODS[match[1]]:
+                return
+            if (match[5] == "ULONG") != (match[2] in ("AddRef", "Release")):
+                return
+            fact.update(object=match[1], method=match[2], phase=match[3], iid=match[4])
+            if match[3] == "exit":
+                fact["hresult" if match[5] == "HRESULT" else "refcount"] = "0x" + match[6]
+                if match[5] == "HRESULT" and int(match[6], 16) & 0x80000000:
+                    if len(self.first_failures) < 32:
+                        self.first_failures.append(dict(fact))
+                    if match[6] == "80004002":
+                        self.first_no_interface.setdefault(pid, dict(fact))
+                    if match[6] == "80004001":
+                        self.first_not_implemented.setdefault(pid, dict(fact))
+            self.interface_count += 1
+            self.counts[pid]["interfaces"] += 1
+            self.interfaces.append(fact)
+        elif channel == "pkgrelay":
+            phase = re.fullmatch(r"phase initialize=(1 xaml=([01])|0)", message)
+            if function == "__wine_pkg_diagnostic_phase" and phase:
+                fact.update(initialize=phase[1] != "0")
+                if phase[1] != "0":
+                    self.active.add(pid)
+                    fact["xaml_range_known"] = phase[2] == "1"
+                else:
+                    self.active.discard(pid)
+                self.phases.append(fact)
+                return
+            if pid not in self.active:
+                return
+            if function == "diagnostic_relay" and message == "relay limited=1":
+                self.source_limited.add(pid)
+                return
+            match = re.fullmatch(
+                r"relay module=(combase|twinapi\.appcore|windows\.ui|coremessaging|ntdll) "
+                r"export=([A-Za-z_][A-Za-z0-9_]{0,127}) caller=Windows\.UI\.Xaml\.dll offset=([0-9a-f]{1,8})",
+                message, re.IGNORECASE)
+            if function == "diagnostic_relay" and match:
+                fact.update(module=match[1].lower(), export=match[2], caller_module="Windows.UI.Xaml.dll",
+                            caller_offset=match[3])
+                self.relays[pid].append(fact)
+                self.counts[pid]["relays"] += 1
+        elif channel == "pkgwait" and pid in self.active:
+            entry = re.fullmatch(r"wait method=(" + self.WAIT + r") phase=enter id=([0-9]{1,10}) "
+                                 r"count=([0-9]{1,10}) alertable=([01]) infinite=([01])", message)
+            exited = re.fullmatch(r"wait method=(" + self.WAIT + r") phase=exit id=([0-9]{1,10}) result=([0-9a-f]{8})", message)
+            obj = re.fullmatch(r"object id=([0-9]{1,10}) slot=([0-9]{1,2}) handle=([0-9a-f]{1,8}) "
+                              r"type=(unknown|event|mutant|thread|process|semaphore|timer|alpc|port) query=([0-9a-f]{8})", message)
+            event = re.fullmatch(r"event id=([0-9]{1,10}) slot=([0-9]{1,2}) query=([0-9a-f]{8}) signaled=([01])", message)
+            if entry and function == entry[1]:
+                key = (pid, tid, entry[2])
+                if len(self.pending) >= 64:
+                    self.storage_limited = True
+                    return
+                fact.update(method=entry[1], id=int(entry[2]), count=int(entry[3]),
+                            alertable=entry[4] == "1", infinite=entry[5] == "1",
+                            objects=[], events=[], relay_tail=[dict(row) for row in self.relays[pid]],
+                            relay_source_limited=pid in self.source_limited)
+                self.pending[key] = fact
+            elif exited and function == exited[1]:
+                row = self.pending.pop((pid, tid, exited[2]), None)
+                if row and row["method"] == exited[1]:
+                    row.update(exit_sequence=self.sequence, result="0x" + exited[3])
+                    self.completed.append(row)
+            elif obj and function == "diagnostic_wait":
+                row = self.pending.get((pid, tid, obj[1]))
+                if row and len(row["objects"]) < 64:
+                    row["objects"].append({"slot": int(obj[2]), "handle": "0x" + obj[3],
+                                           "type": obj[4], "query_status": "0x" + obj[5]})
+            elif event and function == "diagnostic_wait":
+                row = self.pending.get((pid, tid, event[1]))
+                if row and len(row["events"]) < 64:
+                    row["events"].append({"slot": int(event[2]), "query_status": "0x" + event[3],
+                                          "signaled": event[4] == "1" if event[3] == "00000000" else None})
+
+    def result(self, target_pids):
+        select = lambda rows: [row for row in rows if row["pid"] in target_pids]
+        return {
+            "interface_events": select(self.interfaces), "first_interface_failures": select(self.first_failures),
+            "first_e_nointerface": select(self.first_no_interface.values()),
+            "first_e_notimpl": select(self.first_not_implemented.values()),
+            "interface_events_seen": sum(self.counts.get(pid, {}).get("interfaces", 0) for pid in target_pids),
+            "interface_tail_overwritten": max(0, self.interface_count - self.interfaces.maxlen),
+            "initialize_phases": select(self.phases),
+            "relay_tail": [row for pid in sorted(target_pids) for row in self.relays.get(pid, ())],
+            "relay_calls_seen": sum(self.counts.get(pid, {}).get("relays", 0) for pid in target_pids),
+            "relay_source_limited": bool(target_pids & self.source_limited),
+            "waits_without_retained_exit": select(self.pending.values()),
+            "recent_completed_waits": select(self.completed), "wait_storage_limited": self.storage_limited,
+            "basis": "instrumented calls, not a deadlock or unsignalled-event cause determination",
+        }
 
 
 class ActivationTrace:
@@ -46,6 +190,7 @@ class ActivationTrace:
         self.window_facts = []
         self.activation_delivery = []
         self.progress = []
+        self.calls = CallDiagnostics()
         self.module_paths = {self.module_path_key(key): value
                              for key, value in (module_paths or {}).items()}
 
@@ -87,6 +232,7 @@ class ActivationTrace:
         if not event:
             return
         pid, tid, level, channel, function, message = event.groups()
+        self.calls.observe(int(pid, 16), int(tid, 16), channel, function, message)
         fact = {"pid": int(pid, 16), "tid": int(tid, 16),
                 "channel": channel, "function": function}
         if channel in ("pkgcore", "pkgwindow"):
@@ -249,7 +395,7 @@ class ActivationTrace:
                 "Windows.ApplicationModel.AppInstance" in message) else "other-redacted"
             self.append_fact(self.activation_facts, fact)
 
-    def verdict(self):
+    def verdict(self, include_calls=True):
         pid_text = self.metadata.get("child_pid", "")
         pid = int(pid_text) if pid_text.isdecimal() else None
         loaded = any(e["pid"] == pid and e["module"] in ("windows.ui.xaml.dll", "microsoft.ui.xaml.dll")
@@ -278,6 +424,7 @@ class ActivationTrace:
             "activation_delivery": [fact for fact in self.activation_delivery if fact["pid"] == pid or fact["pid"] in target_pids],
             "window_facts": [fact for fact in self.window_facts if fact["pid"] == pid or fact["pid"] in target_pids],
             "method_progress": [fact for fact in self.progress if fact["pid"] == pid or fact["pid"] in target_pids],
+            "call_diagnostics": self.calls.result(target_pids) if include_calls else None,
             "protocol_results": routes,
             "protocol_target_loads": target_loads,
             "protocol_target_exit_calls": target_exits,
@@ -399,7 +546,7 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2,
             try:
                 while selector.get_map() or (observer is not None and target_result["state"] == "observing"):
                     now = time.monotonic()
-                    verdict = trace.verdict()
+                    verdict = trace.verdict(include_calls=False)
                     if target_observer and target_pid is None:
                         routes = [fact for fact in verdict["protocol_results"]
                                   if fact["child_pid"] > 0 and fact["hresult"] == "0x00000000"
@@ -470,7 +617,6 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2,
                         seen += len(chunk)
                         if seen > 8 * 1024 * 1024 and key.data == "stderr":
                             trace.truncated = True
-                            continue  # Still drain; never block the child on a full pipe.
                         stream = key.data
                         parts = (buffers[stream] + chunk).split(b"\n")
                         buffers[stream] = parts.pop()
@@ -480,6 +626,10 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2,
                                 trace.truncated = True
                                 continue
                             line = part.decode("utf-8", errors="replace").rstrip("\r")
+                            if seen > 8 * 1024 * 1024 and stream == "stderr" and not re.match(
+                                    r"^[0-9a-f]+:[0-9a-f]+:trace:(?:pkgiface|pkgrelay|pkgwait|pkgcore|pkgwindow|pkglaunch):",
+                                    line, re.IGNORECASE):
+                                continue
                             getattr(trace, stream)(line)
                         if len(buffers[stream]) > 16384:
                             buffers[stream] = b""

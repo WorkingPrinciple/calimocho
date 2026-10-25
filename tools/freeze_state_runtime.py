@@ -56,16 +56,33 @@ def compile_observer(root, resume=False):
     return record
 
 
-def prepare(root, producer):
+def prepare(root, producer, cell=13):
     root = Path(root).resolve(strict=True)
     record = json.loads((root / "state-observer-build.json").read_text())
     if record["exit_code"] or record["runtime_executed"]:
         raise ValueError("Require compiled unexecuted state observer")
     if sha256(Path(record["output"])) != record["output_sha256"] or sha256(Path(record["source"])) != record["source_sha256"]:
         raise ValueError("State observer source or binary changed")
-    path = freeze(root, producer, cell=13, predecessor=PREVIOUS,
-                  predecessor_sha256="d28d3873654eaf4c563db8cf64ef4b2368176729befb6c72eec847b128a9c39f",
-                  extra_sources=SOURCES)
+    if cell not in (13, 14):
+        raise ValueError("Unsupported diagnostic cell")
+    extra = SOURCES
+    previous, digest = PREVIOUS, "d28d3873654eaf4c563db8cf64ef4b2368176729befb6c72eec847b128a9c39f"
+    if cell == 14:
+        previous = REPO / "build/winehq-11.20/package-uwp-state-01/cell013-receipt.json"
+        digest = "a0cf124b6c1040de0cbe180a70c9969612314e95511281cc769d58ee752e0285"
+        extra += ("tools/port_call_diagnostics.py", "patches/wine/files/package_call_diagnostics.h",
+                  "patches/wine/files/package_relay_diagnostics.h", "patches/wine/files/package_wait_diagnostics.h")
+        build = json.loads((root / "build-receipt.json").read_text())
+        if "call_diagnostics" not in build:
+            raise ValueError("Cell014 requires actual diagnostic source port")
+        for relative, value in build["call_diagnostics"]["files"].items():
+            if sha256(root / "source" / relative) != value:
+                raise ValueError("Generated diagnostic source changed")
+        for header, value in build["call_diagnostics"]["headers"].items():
+            if sha256(Path(header)) != value:
+                raise ValueError("Diagnostic ABI header changed")
+    path = freeze(root, producer, cell=cell, predecessor=previous,
+                  predecessor_sha256=digest, extra_sources=extra)
     receipt = json.loads(path.read_text())
     observer = receipt["target_observer"]
     receipt["state_observer"] = {
@@ -78,7 +95,7 @@ def prepare(root, producer):
     }
     receipt["state_observer_build"] = str(root / "state-observer-build.json")
     receipt["state_observer_build_sha256"] = sha256(root / "state-observer-build.json")
-    receipt["scope"] = "cell013 bounded actual AppL progress, thread and window discriminator"
+    receipt["scope"] = "cell%03d bounded actual AppL progress, thread and window discriminator" % cell
     receipt["preconditions"] += [
         "Observer samples target-only state about20/60 seconds after recorded AppL handoff;180s cap unchanged",
         "Debugger attachment briefly suspends target threads and is measurement, not unperturbed runtime proof",
@@ -91,6 +108,22 @@ def prepare(root, producer):
         "Stack frames use basename plus module-relative offsets; unknown mappings are redacted",
         "Snapshot failures/truncation and debugger perturbation remain explicit; no inferred deadlock or UI acceptance",
     ]
+    if cell == 14:
+        receipt["call_diagnostics"] = build["call_diagnostics"]
+        receipt["scope"] = "cell014 diagnostic-only complete owned COM vtables, sanitized native-XAML relay and actual wait pairs"
+        receipt["preconditions"] += [
+            "Fresh014 once only; all six changed modules and compiled diagnostic helper must match this receipt",
+            "No game/input/window control; same actual AppL256/native16302 recipe and180s cap",
+        ]
+        receipt["limitations"] += [
+            "122 typed vtable slots forward unchanged; diagnostics perturb timing and do not fix an interface",
+            "Relay covers only actual x64 Wine relay thunks and direct native XAML return sites during Initialize",
+            "Norelay/syscall or indirect native-to-native calls are not relay evidence; actual NtWait wrappers supply separate metadata",
+            "Relay has65536 source-call cap and last300 retained callsites; source limit and collector ring overwrite are explicit",
+            "COM event tail bounded65536 plus first32 HRESULT failures; absence beyond a reached limit is not a negative claim",
+            "Wait object type and event state are read-only observations before actual wait, not a proven cause",
+            "Collector retains fixed diagnostic grammar past ordinary8MiB cutoff; no argument strings, object names or absolute addresses",
+        ]
     path.write_text(json.dumps(receipt, indent=2) + "\n")
     return path
 
@@ -101,10 +134,11 @@ if __name__ == "__main__":
     parser.add_argument("--producer-commit")
     parser.add_argument("--compile-only", action="store_true")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--cell", type=int, choices=(13, 14), default=13)
     args = parser.parse_args()
     if args.compile_only:
         print(json.dumps(compile_observer(args.root, args.resume), indent=2))
     else:
         if not args.producer_commit:
             parser.error("--producer-commit is required when freezing")
-        print(prepare(args.root, args.producer_commit))
+        print(prepare(args.root, args.producer_commit, args.cell))

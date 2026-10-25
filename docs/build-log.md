@@ -2828,3 +2828,50 @@ The observer confirmed owned server stop/wait0, recorded host PIDs absent
 and prefix open-file checks clear, with no input or foreign-window control.
 This narrows the observed interval to native FrameworkView.Initialize,
 not a particular callee, interface, lock or root-cause deadlock.
+
+### Cell014 owned COM, sanitized relay and real wait diagnostics
+
+The owner approved a changed diagnostic, not an interface fix, replay or
+longer cap. The new owned source/build sibling is
+`build/winehq-11.20/package-uwp-calltrace-01`.
+It preserves the sealed013 install and recipe. See
+[ADR-0046](ADR/0046-trace-owned-com-and-native-xaml-waits.md).
+
+The port derives122 typed forwarding slots from the exact frozen013
+generated headers: CoreApplication factory/statics/view, IStaticLifetime,
+its real map, CoreWindow and CoreDispatcher. The compiler checks all
+signatures. Every entry/exit is fingerprinted while Run is active, with
+exact QI IID/result and separately typed reference-count returns. Arguments
+and object values are not formatted. No method behavior or QI success
+was invented.
+
+The actual x64 relay counts arguments without formatting them. It selects
+only the approved builtins, excludes other static importers and checks
+the actual return site inside the loaded native XAML image during
+Initialize. Its retained output is export name plus image-relative offset.
+Stock relay DLL-entry formatting is suppressed in this mode. A300-call
+per-PID collector ring is copied at actual wait entry.
+
+Three actual Unix NtWait implementations are called through unchanged
+forwarders with paired entry/exit. Before waiting, read-only queries record
+unnamed object type and event state, process-local handle, wait slot,
+alertability and infinite-timeout flag. Query failure remains unknown.
+An entry without retained exit is not a deadlock determination. Fixed
+diagnostic channels continue past the ordinary8MiB cutoff, while source,
+ring, pending-wait and PID limits remain explicit.
+
+The initial successful rebuilds warned about three old x64 relay-formatting
+helpers made unused by sanitization. Their definitions are now excluded
+on x64. Earlier build/staging attempts remain retained. Final attempt04
+has no compiler warning/error diagnostics. Build, six-module stage and
+the state observer compile all completed without executing Wine. The
+full193-test host suite passes. Tests cover all122 slots, exact emitted
+grammar, QI results, phase/PID gating, the last300-call threshold at wait
+entry, paired waits, raw-data rejection, explicit limits, fixed-channel
+retention after8MiB and frozen013 integrity.
+
+Runtime014, its actual interface failures, native relay calls, wait objects
+and window state remain unobserved at this source stage. The runtime
+observer owner alone receives the frozen recipe for one fresh private,
+no-input180-second observation and exact-prefix cleanup. No game, existing
+prefix, credentials, window control or sealed predecessor was touched.
