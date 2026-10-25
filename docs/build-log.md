@@ -2803,3 +2803,28 @@ input/mappings and the sealed012 predecessor. The full host suite passes
 186 tests. The receipt was sent to the runtime observer owner, copying
 the coordinator. Execution and the conditional exact-window screenshot
 remain with that owner; no013 native result is claimed at handoff.
+
+Actual013 is now sealed. Redacted evidence SHA-256 is
+`19e6baf24efdf75045d6d65d44a9236ea021cb812841e7f173ce8021308875e1`;
+runtime receipt SHA-256 is
+`8fcf8d82fb640f735b202f296e00c348cfb8e3185ccdfea88066ede283cece20`.
+Both were independently read and hash-checked. Native AppL PID256/TID260
+entered CoreApplication.Run, completed FrameworkView.CreateView with S_OK,
+and entered FrameworkView.Initialize without an observed exit. No further
+GetCollection, activation-delivery or window progress was retained.
+
+The20.003-second and60.045-second samplers each verified the target,
+counted2 threads before attach and found0 windows. Both completed with
+exit0, no format error/truncation, kill-on-exit disabled,48 debug events
+continued and explicit successful detach. During attachment3 threads were
+captured. Main TID260 had only `ntdll.dll+f7a4`, worker TID352 only
+`ntdll.dll+111a8`, and the extra attached-sample TIDs only
+`ntdll.dll+11225`. No deeper frames or authoritative function names were
+established. In particular, the extra thread's role is not identified.
+
+The180.168-second cap leaves target exit unknown. No visible CoreWindow
+was found, so no screenshot was taken and screenshot state is unknown.
+The observer confirmed owned server stop/wait0, recorded host PIDs absent
+and prefix open-file checks clear, with no input or foreign-window control.
+This narrows the observed interval to native FrameworkView.Initialize,
+not a particular callee, interface, lock or root-cause deadlock.
