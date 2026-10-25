@@ -2733,3 +2733,21 @@ Wine, server and ntdll bytes. The observation spans
 registration table was assigned; no Xbox activation, CoreWindow, Run,
 window or input was exercised. This establishes the tested real map
 contract, not native XAML or AppL/UI acceptance.
+
+Actual012's returned redacted capture at
+`xbox-calimocho-packaged-20261025-012/evidence/activation-redacted.json`
+was read with SHA-256
+`96da5ea7f41a2c38cb730a0fff01739197e9e7578cc33a73cd9563aba308239f`.
+The msxboxl route started AppL PID256 successfully. Native system32 XAML
+loaded, the previous native factories and activations remained successful,
+and CoreApplication's exact IStaticLifetime factory now returned S_OK.
+The collector reached the approved180-second bound
+(180.195 seconds,944132 bytes drained). Target state is unknown and capture
+is explicitly truncated; CE exit0 is not AppL exit.
+
+No completed GetCollection fingerprint, next missing IID, activation
+delivery or window fact appears in this capture. Absence of a completion
+does not locate a hang or prove which method native XAML entered.
+The headless map contract passes, but native lifecycle/UI acceptance
+remains unproven. The observer owner was asked to confirm sealing and
+owned cleanup, without replaying012.
