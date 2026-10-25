@@ -3,6 +3,29 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: superseded object cleanup during the screen hold
+
+At the owner's request, removed only32483 regular `.o` intermediate files
+from the `build` subdirectories of `metal-port-07-reboot-01`,
+`metal-port-06`, `package-identity-01` and `metal-port-07-incremental`.
+None of the90 local registry/frozen JSON files referenced those object
+directories, and `lsof` found no open handles there before removal.
+
+The removed files occupied6168711168 allocated bytes (5.75 GiB). The
+filesystem reported157 GiB free afterward, compared with153 GiB before;
+other sessions share this volume, so those numbers are not an isolated
+measurement of the reclaimed capacity. Reverified19279 retained build
+files/symlinks and all90 registry/frozen JSON identities. Sources, logs,
+installs, prefixes, frozen trees and the explicitly protected11b/11d/11e,
+launcher and UWP trees were not changed. Kept `metal-port-11` because it
+has a frozen registry and remains a build-toolchain dependency.
+
+The complete removed-file SHA-256 manifest and retained-file verification
+are in `build/winehq-11.20/superseded-object-prune-20261025.json`, SHA-256
+`4d5c3f116405b5d1e36da76f72ba5d705ed40847c869edac8cfa82670b2ee3b9`.
+Future incremental builds in those four superseded directories must
+regenerate the removed object files. No runtime or screen action was taken.
+
 ## 2026-10-25: observed OneCore query sibling024
 
 The native iocm-r2 reference now supplies BOOL(void) query0 twice in both
