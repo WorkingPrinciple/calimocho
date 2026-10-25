@@ -145,7 +145,8 @@ def port(source):
                     "@ stdcall __wine_pkg_diagnostic_phase(long ptr)\n")
     shutil.copy2(FILES / "package_wait_diagnostics.h", source / "dlls/ntdll/unix/package_wait_diagnostics.h")
     replace(source, "dlls/ntdll/unix/sync.c", "HANDLE keyed_event = 0;",
-            '#include "package_wait_diagnostics.h"\n\nHANDLE keyed_event = 0;')
+            '#include "package_address_diagnostics.h"\n#include "package_wait_diagnostics.h"\n\nHANDLE keyed_event = 0;')
+    shutil.copy2(FILES / "package_address_diagnostics.h", source / "dlls/ntdll/unix/package_address_diagnostics.h")
     sync = source / "dlls/ntdll/unix/sync.c"
     text = sync.read_text()
     for name, args, call, count, handles in (

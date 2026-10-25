@@ -242,7 +242,9 @@ static int activate(const WCHAR *blob_path, const WCHAR *executable, BOOL fixtur
         status = RtlCreateEnvironment(TRUE, &environment);
         RtlInitUnicodeString(&name, L"WINEDEBUG");
         RtlInitUnicodeString(&value,
-#ifdef CALIMOCHO_CALL_DIAGNOSTICS
+#ifdef CALIMOCHO_ACTIVATION_WAIT_DIAGNOSTICS
+            L"err+all,trace+process,trace+loaddll,trace+combase,fixme+combase,trace+pkgactivate,trace+pkglaunch,trace+pkgcore,trace+pkgwindow,trace+pkgiface,trace+pkgrelay,trace+pkgwait,trace+pkgro,trace+pkgthread,trace+relay,+pid,+tid");
+#elif defined(CALIMOCHO_CALL_DIAGNOSTICS)
             L"err+all,trace+process,trace+loaddll,trace+combase,fixme+combase,trace+pkgactivate,trace+pkglaunch,trace+pkgcore,trace+pkgwindow,trace+pkgiface,trace+pkgrelay,trace+pkgwait,trace+relay,+pid,+tid");
 #else
             L"err+all,trace+process,trace+loaddll,trace+sync,trace+combase,fixme+combase,trace+pkgactivate,trace+pkglaunch,trace+pkgcore,trace+pkgwindow,+pid,+tid");

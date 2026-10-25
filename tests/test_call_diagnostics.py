@@ -19,6 +19,42 @@ IID = "{17b0e613-942a-422d-904c-f90dc71a7dae}"
 
 
 class CallDiagnosticsTests(unittest.TestCase):
+    def test_unix_object_type_classifier_compares_utf16_not_host_wchar(self):
+        source = (REPO / "patches/wine/files/package_wait_diagnostics.h").read_text()
+        classifier = source[source.index("static BOOL diagnostic_type_equal"):source.index("static void diagnostic_wait(")]
+        program = """
+#include <stddef.h>
+#include <string.h>
+#include <wchar.h>
+typedef unsigned short WCHAR;
+typedef size_t SIZE_T;
+typedef int BOOL;
+typedef struct { unsigned short Length, MaximumLength; WCHAR *Buffer; } UNICODE_STRING;
+#define TRUE 1
+#define FALSE 0
+""" + classifier + """
+int main(void)
+{
+    WCHAR event[] = {'E','v','e','n','t',0};
+    UNICODE_STRING name = {10,12,event};
+    if (sizeof(wchar_t) != 4 || sizeof(WCHAR) != 2) return 1;
+    if (!diagnostic_type_equal(&name, "Event")) return 2;
+    if (diagnostic_type_equal(&name, "Mutant")) return 3;
+    name.Length = 8;
+    if (diagnostic_type_equal(&name, "Event")) return 4;
+    name.Length = 0;
+    name.Buffer = NULL;
+    if (diagnostic_type_equal(&name, "Event")) return 5;
+    return 0;
+}
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            (path / "classifier.c").write_text(program)
+            subprocess.run(["/usr/bin/clang", "-Wall", "-Wextra", "-Werror",
+                            str(path / "classifier.c"), "-o", str(path / "classifier")], check=True)
+            subprocess.run([str(path / "classifier")], check=True)
+
     def test_frozen014_producer_install_commands_and_unchanged_native_recipe(self):
         path = ROOT / "cell014-receipt.json"
         receipt = json.loads(path.read_text())

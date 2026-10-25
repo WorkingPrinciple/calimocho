@@ -2887,3 +2887,66 @@ native16302 and558 mappings, the180-second cap and sealed013 predecessor.
 The full194-test host suite passes. The receipt has been sent to the runtime
 observer owner, copying the coordinator. This is a sent source candidate,
 not an observed014 runtime result.
+
+Actual014 is sealed. Its redacted SHA-256 is
+`133aaf39f6e7d70e736622623500c8b4e8487bd5b994a4082daf75ea4853be4a`;
+runtime receipt SHA-256 is
+`e929d2e1559fe8c734c86d9ffec1b77efc5f525fc182a089181ab48ca06d8fb5`.
+Both were independently read and hash-checked. AppL256/TID260 recorded
+11 COM rows, no first interface failure, E_NOINTERFACE or E_NOTIMPL.
+IsMain, CoreFactory QI for00000035/17b0 and StaticCollection.GetIids
+completedS_OK. No GetCollection entry was retained.
+
+During entered native Initialize, exactly three direct native XAML
+callsites were retained: WindowsCreateStringReference+577571,
+RoGetActivationFactory+57758d and CoCreateFreeThreadedMarshaler+325d92,
+all in combase. Real wait6 was an infinite/nonalertable single wait on90,
+which completed0. Real wait7 was an infinite/nonalertable multiple wait
+on88/94, entered without retained exit. Both object queries returned0,
+but type was unknown and no event-state rows were emitted. No source
+relay cap, COM overwrite or wait-storage limit was reached.
+
+The180.228-second cap leaves exit unknown. Both20.048/60.087 snapshots
+verified the target, counted2 threads before attach, found0 windows and
+completed with48/48 debug events continued and explicit detach. Only one
+frame per thread was retained; no deeper caller/cause was established.
+No screenshot was taken. The runtime owner confirmed exact-prefix stop
+and wait0,11 recorded host PIDs absent and open-file check clear. Native
+and predecessor identities stayed unchanged. No replay occurred.
+
+### Cell015 activation/provider and wait/thread diagnostic source
+
+The owner approved the next changed diagnostic. The014 unknown-type
+classification was traced to a real source bug: Unix wide literals use
+32-bit wchar_t, while NtQueryObject returns16-bit WCHAR. The corrected
+classifier compares code units to fixed ASCII type names. A host-compiled
+regression verifies this exact width distinction. Sealed014 is not rewritten.
+See [ADR-0047](ADR/0047-observe-activation-providers-and-wait-thread-facts.md).
+
+The new source sibling is
+`build/winehq-11.20/package-uwp-activation-waits-01`.
+It adds actual combase entry/dispatch/exit fingerprints for public activation
+type names, requested IID and real provider image. The original nested
+RoActivateInstance factory call is preserved. The private registration API
+remains its existing ABI-unknown stub, with an explicit failure fingerprint
+rather than guessed argument decoding or success.
+
+Additional read-only wait queries record event/semaphore state and thread
+identity/start facts. In-process thread creation records its actual return,
+start image, saved syscall site and user-stack return-slot candidate.
+Snapshots add real thread alive/start facts and correlate pending wait
+entries rather than invent blocked-state enums. Expected event/semaphore
+signalers remain unknown because those objects expose no such owner field.
+
+The first port attempt rejected an ambiguous text seam before compilation.
+The first compile then exposed a missing forward declaration for the
+existing GPT thread ABI bridge and incorrect semaphore printf widths.
+The source seams, declaration and format widths were corrected; failed
+attempt logs remain retained. No Wine process was executed here.
+
+The final source build and seven-module stage completed with no compiler
+warnings in the final attempt. The changed state helper also compiled
+with its existing warnings-as-errors flags. All201 host tests pass,
+including activation/provider grammar, phase/PID-bound creation records,
+real wait-detail shapes, snapshot liveness/start fields and the UTF-16
+classifier regression. Native015 remains unobserved at this source stage.

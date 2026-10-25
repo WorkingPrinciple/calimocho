@@ -14,12 +14,14 @@ from tools.probe_wine_source import run_step, sha256
 BASE = REPO / "build/winehq-11.20/package-launcher-01"
 
 
-def build(root, resume=False, call_diagnostics=False):
+def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False):
     root = Path(root).resolve()
     if not root.is_relative_to(REPO / "build") or root == BASE:
         raise ValueError("Require a new owned009 sibling")
     if any(root.glob("*FROZEN*")):
         raise ValueError("Refuse to rebuild a frozen009 sibling")
+    if activation_wait_diagnostics and not call_diagnostics:
+        raise ValueError("Activation/wait diagnostics require call diagnostics")
     frozen = BASE / "cell008-receipt.json"
     if sha256(frozen) != "ac5b627263c409b804e3f812160c6dd0ba8d39cec52910255725939de12915bc":
         raise ValueError("Frozen008 receipt changed")
@@ -29,6 +31,8 @@ def build(root, resume=False, call_diagnostics=False):
         previous = json.loads((root / "build-receipt.json").read_text())
         if "steps" in previous and bool(previous.get("call_diagnostics")) != call_diagnostics:
             raise ValueError("Resume must preserve the diagnostic build mode")
+        if "steps" in previous and bool(previous.get("activation_wait_diagnostics")) != activation_wait_diagnostics:
+            raise ValueError("Resume must preserve the activation/wait diagnostic mode")
     else:
         root.mkdir(exist_ok=False)
         shutil.copytree(BASE / "source", root / "source", symlinks=True)
@@ -62,6 +66,10 @@ def build(root, resume=False, call_diagnostics=False):
     if call_diagnostics:
         from tools.port_call_diagnostics import port as diagnostic_port_source
         diagnostic_port = diagnostic_port_source(root / "source")
+    activation_port = None
+    if activation_wait_diagnostics:
+        from tools.port_activation_wait_diagnostics import port as activation_port_source
+        activation_port = activation_port_source(root / "source")
     attempt = 1
     while (root / ("attempt-%02d" % attempt)).exists():
         attempt += 1
@@ -83,6 +91,11 @@ def build(root, resume=False, call_diagnostics=False):
                "predecessor_receipt_sha256": sha256(frozen)}
     if diagnostic_port is not None:
         receipt["call_diagnostics"] = diagnostic_port
+    if activation_port is not None:
+        receipt["activation_wait_diagnostics"] = activation_port
+        # The activation port adds includes to sync.c after the call port.
+        for relative in receipt["call_diagnostics"]["files"]:
+            receipt["call_diagnostics"]["files"][relative] = sha256(root / "source" / relative)
 
     def run(name, command, budget=300, cwd=directory):
         step = run_step(command, cwd, env, logs / (name + ".log"), budget)
@@ -95,10 +108,13 @@ def build(root, resume=False, call_diagnostics=False):
     args = [arg for arg in args if not arg.startswith("--prefix=")] + ["--prefix=" + str(root / "install")]
     run("protocol", ["/usr/bin/perl", "tools/make_requests"], cwd=root / "source")
     run("configure", args)
-    run("server-ntdll", ["/usr/bin/make", "-j4", "server/wineserver",
+    targets = ["/usr/bin/make", "-j4", "server/wineserver",
                        "dlls/ntdll/ntdll.so", "dlls/ntdll/x86_64-windows/ntdll.dll",
                        "dlls/twinapi.appcore/x86_64-windows/twinapi.appcore.dll",
-                       "dlls/windows.ui/x86_64-windows/windows.ui.dll"], budget=600)
+                       "dlls/windows.ui/x86_64-windows/windows.ui.dll"]
+    if activation_wait_diagnostics:
+        targets.append("dlls/combase/x86_64-windows/combase.dll")
+    run("server-ntdll", targets, budget=600)
     compiler = shutil.which("x86_64-w64-mingw32-gcc")
     if not compiler:
         raise RuntimeError("Require existing MinGW compiler")
@@ -141,7 +157,12 @@ def build(root, resume=False, call_diagnostics=False):
         for relative in ("tools/port_call_diagnostics.py",
                          "patches/wine/files/package_call_diagnostics.h",
                          "patches/wine/files/package_relay_diagnostics.h",
-                         "patches/wine/files/package_wait_diagnostics.h"):
+                         "patches/wine/files/package_wait_diagnostics.h",
+                         "patches/wine/files/package_address_diagnostics.h"):
+            receipt["source_inputs"][relative] = sha256(REPO / relative)
+    if activation_wait_diagnostics:
+        from tools.port_activation_wait_diagnostics import SOURCES
+        for relative in SOURCES:
             receipt["source_inputs"][relative] = sha256(REPO / relative)
     receipt["built_files"] = {str(path.relative_to(root)): sha256(path) for path in (
         directory / "server/wineserver", directory / "dlls/ntdll/ntdll.so",
@@ -149,6 +170,9 @@ def build(root, resume=False, call_diagnostics=False):
         directory / "dlls/twinapi.appcore/x86_64-windows/twinapi.appcore.dll",
         directory / "dlls/windows.ui/x86_64-windows/windows.ui.dll",
         root / "windows.system.launcher.dll")}
+    if activation_wait_diagnostics:
+        relative = "build/dlls/combase/x86_64-windows/combase.dll"
+        receipt["built_files"][relative] = sha256(root / relative)
     record.write_text(json.dumps(receipt, indent=2) + "\n")
     return record
 
@@ -158,5 +182,6 @@ if __name__ == "__main__":
     parser.add_argument("root", type=Path)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--call-diagnostics", action="store_true")
+    parser.add_argument("--activation-wait-diagnostics", action="store_true")
     args = parser.parse_args()
-    print(build(args.root, args.resume, args.call_diagnostics))
+    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics))

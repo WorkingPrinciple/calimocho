@@ -75,10 +75,13 @@ static void frame(DWORD tid, unsigned int index, DWORD64 pc)
         }
         if (modules[i].szModule[j]) break;
         name[j] = 0;
-        printf("state tid=%lu frame=%u module=%s offset=%llx\n", tid, index, name, pc - base);
+        if (index == MAX_FRAMES)
+            printf("state tid=%lu start module=%s offset=%llx\n", tid, name, pc - base);
+        else printf("state tid=%lu frame=%u module=%s offset=%llx\n", tid, index, name, pc - base);
         return;
     }
-    printf("state tid=%lu frame=%u module=unknown-redacted offset=0\n", tid, index);
+    if (index == MAX_FRAMES) printf("state tid=%lu start module=unknown-redacted offset=0\n", tid);
+    else printf("state tid=%lu frame=%u module=unknown-redacted offset=0\n", tid, index);
 }
 
 static void stacks(HANDLE process)
@@ -137,6 +140,17 @@ static void stacks(HANDLE process)
             if (captured++ >= MAX_THREADS) continue;
             thread = OpenThread(THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE, entry.th32ThreadID);
             if (!thread) { printf("state tid=%lu context-error=%lu\n", entry.th32ThreadID, GetLastError()); continue; }
+            {
+                DWORD exit_code;
+                void *start_address = NULL;
+                NTSTATUS query = NtQueryInformationThread(thread, ThreadQuerySetWin32StartAddress,
+                                                          &start_address, sizeof(start_address), NULL);
+                if (!query) frame(entry.th32ThreadID, MAX_FRAMES, (ULONG_PTR)start_address);
+                else printf("state tid=%lu start-error=%lu\n", entry.th32ThreadID, (ULONG)query);
+                if (GetExitCodeThread(thread, &exit_code))
+                    printf("state tid=%lu alive=%u wait=unknown\n", entry.th32ThreadID, exit_code == STILL_ACTIVE);
+                else printf("state tid=%lu live-error=%lu\n", entry.th32ThreadID, GetLastError());
+            }
             context.ContextFlags = CONTEXT_FULL;
             if (!GetThreadContext(thread, &context))
             {

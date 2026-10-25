@@ -63,11 +63,11 @@ def prepare(root, producer, cell=13):
         raise ValueError("Require compiled unexecuted state observer")
     if sha256(Path(record["output"])) != record["output_sha256"] or sha256(Path(record["source"])) != record["source_sha256"]:
         raise ValueError("State observer source or binary changed")
-    if cell not in (13, 14):
+    if cell not in (13, 14, 15):
         raise ValueError("Unsupported diagnostic cell")
     extra = SOURCES
     previous, digest = PREVIOUS, "d28d3873654eaf4c563db8cf64ef4b2368176729befb6c72eec847b128a9c39f"
-    if cell == 14:
+    if cell in (14, 15):
         previous = REPO / "build/winehq-11.20/package-uwp-state-01/cell013-receipt.json"
         digest = "a0cf124b6c1040de0cbe180a70c9969612314e95511281cc769d58ee752e0285"
         extra += ("tools/port_call_diagnostics.py", "patches/wine/files/package_call_diagnostics.h",
@@ -81,6 +81,16 @@ def prepare(root, producer, cell=13):
         for header, value in build["call_diagnostics"]["headers"].items():
             if sha256(Path(header)) != value:
                 raise ValueError("Diagnostic ABI header changed")
+    if cell == 15:
+        previous = REPO / "build/winehq-11.20/package-uwp-calltrace-01/cell014-receipt.json"
+        digest = "30b6d6514d58ec6ee188768345673abea86d11d5a0254fce38db9f7484646b48"
+        from tools.port_activation_wait_diagnostics import SOURCES as ACTIVATION_SOURCES
+        extra += ACTIVATION_SOURCES
+        if "activation_wait_diagnostics" not in build:
+            raise ValueError("Cell015 requires actual activation/wait source port")
+        for relative, value in build["activation_wait_diagnostics"]["files"].items():
+            if sha256(root / "source" / relative) != value:
+                raise ValueError("Generated activation/wait source changed")
     path = freeze(root, producer, cell=cell, predecessor=previous,
                   predecessor_sha256=digest, extra_sources=extra)
     receipt = json.loads(path.read_text())
@@ -108,11 +118,11 @@ def prepare(root, producer, cell=13):
         "Stack frames use basename plus module-relative offsets; unknown mappings are redacted",
         "Snapshot failures/truncation and debugger perturbation remain explicit; no inferred deadlock or UI acceptance",
     ]
-    if cell == 14:
+    if cell in (14, 15):
         receipt["call_diagnostics"] = build["call_diagnostics"]
         receipt["scope"] = "cell014 diagnostic-only complete owned COM vtables, sanitized native-XAML relay and actual wait pairs"
         receipt["preconditions"] += [
-            "Fresh014 once only; all six changed modules and compiled diagnostic helper must match this receipt",
+            "Fresh%03d once only; all changed modules and compiled diagnostic helper must match this receipt" % cell,
             "No game/input/window control; same actual AppL256/native16302 recipe and180s cap",
         ]
         receipt["limitations"] += [
@@ -124,6 +134,19 @@ def prepare(root, producer, cell=13):
             "Wait object type and event state are read-only observations before actual wait, not a proven cause",
             "Collector retains fixed diagnostic grammar past ordinary8MiB cutoff; no argument strings, object names or absolute addresses",
         ]
+    if cell == 15:
+        receipt["scope"] = "cell015 public activation entry/result/provider, actual wait object state and thread creation/liveness"
+        receipt["activation_wait_diagnostics"] = build["activation_wait_diagnostics"]
+        receipt["limitations"] += [
+            "014 successful object queries were classifiedunknown by a host-wchar/UTF16 width bug; corrected source is separate and never rewrites014",
+            "RoGetActivationFactory and RoActivateInstance entry/exit capture every call, independently of Initialize, capped4096 retained events",
+            "Successful factory exit reports the actual serving image selected by combase; instance exit provider is associated through its nested factory trace",
+            "RoGetActivatableClassRegistration remains Wine's existing ABI-unknown stub; no guessed signature, class decoding or unconditional success; actual stub failures are marked",
+            "Event/semaphore signalers are not intrinsic owner facts; remainunknown unless separate observed code establishes one",
+            "Thread creation records actual NtCreateThreadEx entry/return during Initialize, start image, saved syscall return and read-only user-stack return-slot candidate",
+            "Creator return-slot metadata is not a recovered full stack or proven semantic call chain; remote-process thread creation is outside this in-process scope",
+            "Snapshot alive means observed thread exit status; pending wait entries are correlated separately, not guessed OS thread-state enums",
+        ]
     path.write_text(json.dumps(receipt, indent=2) + "\n")
     return path
 
@@ -134,7 +157,7 @@ if __name__ == "__main__":
     parser.add_argument("--producer-commit")
     parser.add_argument("--compile-only", action="store_true")
     parser.add_argument("--resume", action="store_true")
-    parser.add_argument("--cell", type=int, choices=(13, 14), default=13)
+    parser.add_argument("--cell", type=int, choices=(13, 14, 15), default=13)
     args = parser.parse_args()
     if args.compile_only:
         print(json.dumps(compile_observer(args.root, args.resume), indent=2))

@@ -44,19 +44,57 @@ class CallDiagnostics:
         self.source_limited = set()
         self.storage_limited = False
         self.phases = deque(maxlen=32)
+        self.activations = deque(maxlen=4096)
+        self.thread_events = deque(maxlen=1024)
+        self.activation_count = self.thread_count = 0
+        self.registration_abi_unavailable = set()
 
     def observe(self, pid, tid, channel, function, message):
-        if channel not in ("pkgiface", "pkgrelay", "pkgwait"):
+        if channel not in ("pkgiface", "pkgrelay", "pkgwait", "pkgro", "pkgthread"):
             return
         if pid not in self.counts:
             if len(self.counts) >= 8:
                 self.storage_limited = True
                 return
-            self.counts[pid] = {"interfaces": 0, "relays": 0}
+            self.counts[pid] = {"interfaces": 0, "relays": 0, "activations": 0, "threads": 0}
             self.relays[pid] = deque(maxlen=300)
         self.sequence += 1
         fact = {"pid": pid, "tid": tid, "sequence": self.sequence}
-        if channel == "pkgiface" and function == "diagnostic_interface":
+        if channel == "pkgro" and function == "diagnostic_ro":
+            match = re.fullmatch(
+                r"activation operation=(RoGetActivationFactory|RoActivateInstance) phase=(enter|dispatch|exit) "
+                r"class=([A-Za-z_][A-Za-z0-9_.]{0,511}|invalid-redacted) iid=(" + self.IID +
+                r") result=([0-9a-f]{8}) module=([A-Za-z0-9_.-]{1,127})", message)
+            if match and match[4] != "none":
+                fact.update(operation=match[1], phase=match[2], runtime_class=match[3],
+                            iid=match[4], serving_module=match[6])
+                if match[2] == "exit":
+                    fact["hresult"] = "0x" + match[5]
+                self.activations.append(fact)
+                self.activation_count += 1
+                self.counts[pid]["activations"] += 1
+        elif channel == "pkgthread" and function == "diagnostic_thread" and pid in self.active:
+            creator = re.fullmatch(
+                r"creator phase=(enter|exit) query=([0-9a-f]{8}) module=([A-Za-z0-9_.-]{1,127}) "
+                r"offset=([0-9a-f]{1,16}) basis=user-stack-return-slot", message)
+            match = re.fullmatch(
+                r"thread phase=(enter|exit) result=([0-9a-f]{8}) query=([0-9a-f]{8}) "
+                r"tid=([0-9]{1,10}) pid=([0-9]{1,10}) start=([A-Za-z0-9_.-]{1,127}) "
+                r"offset=([0-9a-f]{1,16}) syscall=([A-Za-z0-9_.-]{1,127}) site=([0-9a-f]{1,16})", message)
+            if match:
+                fact.update(phase=match[1], result="0x" + match[2], query_status="0x" + match[3],
+                            new_tid=int(match[4]), new_pid=int(match[5]), start_module=match[6],
+                            start_offset=match[7], syscall_return_module=match[8], syscall_return_offset=match[9])
+                self.thread_events.append(fact)
+                self.thread_count += 1
+                self.counts[pid]["threads"] += 1
+            elif creator:
+                fact.update(operation="creator-return-slot", phase=creator[1], query_status="0x" + creator[2],
+                            module=creator[3], offset=creator[4], basis="user-stack-return-slot-not-a-full-stack")
+                self.thread_events.append(fact)
+                self.thread_count += 1
+                self.counts[pid]["threads"] += 1
+        elif channel == "pkgiface" and function == "diagnostic_interface":
             match = re.fullmatch(
                 r"interface object=(" + self.OBJECTS + r") method=([A-Za-z_][A-Za-z0-9_]{0,63}) "
                 r"phase=(enter|exit) iid=(" + self.IID + r") kind=(HRESULT|ULONG) result=([0-9a-f]{8})",
@@ -112,6 +150,11 @@ class CallDiagnostics:
             obj = re.fullmatch(r"object id=([0-9]{1,10}) slot=([0-9]{1,2}) handle=([0-9a-f]{1,8}) "
                               r"type=(unknown|event|mutant|thread|process|semaphore|timer|alpc|port) query=([0-9a-f]{8})", message)
             event = re.fullmatch(r"event id=([0-9]{1,10}) slot=([0-9]{1,2}) query=([0-9a-f]{8}) signaled=([01])", message)
+            semaphore = re.fullmatch(r"semaphore id=([0-9]{1,10}) slot=([0-9]{1,2}) query=([0-9a-f]{8}) count=([0-9]{1,10}) maximum=([0-9]{1,10})", message)
+            thread = re.fullmatch(
+                r"thread id=([0-9]{1,10}) slot=([0-9]{1,2}) query=([0-9a-f]{8}) pid=([0-9]{1,10}) "
+                r"tid=([0-9]{1,10}) exit=([0-9a-f]{8}) start-query=([0-9a-f]{8}) "
+                r"module=([A-Za-z0-9_.-]{1,127}) offset=([0-9a-f]{1,16})", message)
             if entry and function == entry[1]:
                 key = (pid, tid, entry[2])
                 if len(self.pending) >= 64:
@@ -119,7 +162,9 @@ class CallDiagnostics:
                     return
                 fact.update(method=entry[1], id=int(entry[2]), count=int(entry[3]),
                             alertable=entry[4] == "1", infinite=entry[5] == "1",
-                            objects=[], events=[], relay_tail=[dict(row) for row in self.relays[pid]],
+                            objects=[], events=[], semaphores=[], threads=[],
+                            expected_signaler="unknown-not-an-intrinsic-event-or-semaphore-owner",
+                            relay_tail=[dict(row) for row in self.relays[pid]],
                             relay_source_limited=pid in self.source_limited)
                 self.pending[key] = fact
             elif exited and function == exited[1]:
@@ -137,6 +182,19 @@ class CallDiagnostics:
                 if row and len(row["events"]) < 64:
                     row["events"].append({"slot": int(event[2]), "query_status": "0x" + event[3],
                                           "signaled": event[4] == "1" if event[3] == "00000000" else None})
+            elif semaphore and function == "diagnostic_wait":
+                row = self.pending.get((pid, tid, semaphore[1]))
+                if row and len(row["semaphores"]) < 64:
+                    row["semaphores"].append({"slot": int(semaphore[2]), "query_status": "0x" + semaphore[3],
+                                              "count": int(semaphore[4]) if semaphore[3] == "00000000" else None,
+                                              "maximum": int(semaphore[5]) if semaphore[3] == "00000000" else None})
+            elif thread and function == "diagnostic_wait":
+                row = self.pending.get((pid, tid, thread[1]))
+                if row and len(row["threads"]) < 64:
+                    row["threads"].append({"slot": int(thread[2]), "query_status": "0x" + thread[3],
+                                          "pid": int(thread[4]), "tid": int(thread[5]), "exit_status": "0x" + thread[6],
+                                          "start_query_status": "0x" + thread[7], "start_module": thread[8],
+                                          "start_offset": thread[9], "signal_condition": "this-thread-terminates"})
 
     def result(self, target_pids):
         select = lambda rows: [row for row in rows if row["pid"] in target_pids]
@@ -152,6 +210,12 @@ class CallDiagnostics:
             "relay_source_limited": bool(target_pids & self.source_limited),
             "waits_without_retained_exit": select(self.pending.values()),
             "recent_completed_waits": select(self.completed), "wait_storage_limited": self.storage_limited,
+            "activation_calls": select(self.activations),
+            "activation_calls_seen": sum(self.counts.get(pid, {}).get("activations", 0) for pid in target_pids),
+            "activation_tail_overwritten": max(0, self.activation_count - self.activations.maxlen),
+            "thread_creation": select(self.thread_events),
+            "thread_tail_overwritten": max(0, self.thread_count - self.thread_events.maxlen),
+            "registration_abi_unavailable": sorted(target_pids & self.registration_abi_unavailable),
             "basis": "instrumented calls, not a deadlock or unsignalled-event cause determination",
         }
 
@@ -235,6 +299,8 @@ class ActivationTrace:
         self.calls.observe(int(pid, 16), int(tid, 16), channel, function, message)
         fact = {"pid": int(pid, 16), "tid": int(tid, 16),
                 "channel": channel, "function": function}
+        if "RoGetActivatableClassRegistration" in message and "unimplemented" in message.lower():
+            self.calls.registration_abi_unavailable.add(int(pid, 16))
         if channel in ("pkgcore", "pkgwindow"):
             if channel == "pkgcore" and function == "progress":
                 progress = re.fullmatch(
@@ -442,6 +508,10 @@ STATE_ROW = re.compile(
     r"|tid=[0-9]{1,10} (?:frames=[0-9]{1,2}|(?:context-error|unwind-end)=[0-9]{1,10})"
     r"|threads=[0-9]{1,10} captured=[0-9]{1,2}"
     r"|threads-before-attach=[0-9]{1,10}"
+    r"|tid=[0-9]{1,10} alive=[01] wait=unknown"
+    r"|tid=[0-9]{1,10} live-error=[0-9]{1,10}"
+    r"|tid=[0-9]{1,10} start-error=[0-9]{1,10}"
+    r"|tid=[0-9]{1,10} start module=[A-Za-z0-9_.-]{1,127} offset=[0-9a-f]{1,16}"
     r"|module-load-errors=[0-9]{1,3}"
     r"|kill-on-exit=0|attached=1"
     r"|debug-events=[0-9]{1,10} continued=[0-9]{1,10}"
@@ -579,7 +649,12 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2,
                                 target_result["reason"] = failure[2].decode("ascii")
                                 if failure[3]:
                                     target_result["error"] = int(failure[3])
+                    previous_snapshots = len(snapshots.results)
                     snapshots.tick(now, target_pid, target_result["state"] == "exited")
+                    for snapshot in snapshots.results[previous_snapshots:]:
+                        snapshot["waits_without_retained_exit_at_collection"] = [
+                            {"pid": row["pid"], "tid": row["tid"], "method": row["method"], "id": row["id"]}
+                            for row in trace.calls.pending.values() if row["pid"] == target_pid]
                     if exit_seen_at is None:
                         if process.poll() is not None:
                             exit_seen_at, exit_basis = now, "helper-process-exit"
@@ -627,7 +702,7 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2,
                                 continue
                             line = part.decode("utf-8", errors="replace").rstrip("\r")
                             if seen > 8 * 1024 * 1024 and stream == "stderr" and not re.match(
-                                    r"^[0-9a-f]+:[0-9a-f]+:trace:(?:pkgiface|pkgrelay|pkgwait|pkgcore|pkgwindow|pkglaunch):",
+                                    r"^[0-9a-f]+:[0-9a-f]+:trace:(?:pkgiface|pkgrelay|pkgwait|pkgcore|pkgwindow|pkglaunch|pkgro|pkgthread):",
                                     line, re.IGNORECASE):
                                 continue
                             getattr(trace, stream)(line)
