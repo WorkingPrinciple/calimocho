@@ -49,7 +49,15 @@ is observed. Collection takes5.735 seconds with explicit post-target-exit
 drain truncation, not180-second timeout. No sampler or fixture executes.
 The new import gap was sent to the producer without adding a guessed
 return value, native DLL rewrite or unchanged replay. Final cleanup seal
-is retained separately when available.
+is retained separately:
+`1de4d908dcd1e36657b6535eabbfc200b287c631de0c5f143f21b14ce28ec0c1`.
+This analysis and all bound redacted/runtime/preflight/status and r9 snapshot
+hashes were independently verified. Runtime receipt SHA-256 is
+`95629c9f5cb6e495adaf3fc92c170c321c843091623ba4d7c9c5ffab9da1e89f`.
+Exact023 stop/wait exit0, all13 recorded host PIDs absent and lsof exit1
+with zero prefix rows establish recorded post-receipt cleanup. Auto0
+import/readback/no-GPFault marker and unchanged020-022 result hashes are
+confirmed. This closes the023 observation, not the UI or game mission.
 
 Follow-through distinguishes API-set wiring from implementation. The existing
 schema maps `api-ms-win-rtcore-ntuser-private-l1-1-0` to user32. The pinned
