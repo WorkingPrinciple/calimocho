@@ -14,7 +14,7 @@ from tools.probe_wine_source import run_step, sha256
 BASE = REPO / "build/winehq-11.20/package-launcher-01"
 
 
-def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False, handle_provenance=False, exception_diagnostics=False, failfast_diagnostics=False, status_diagnostics=False, claims_site_b=False, claims_thread_token=False, claims_packaged_thread=False, onecore_transform=False, coremessaging_prerequisites=False, alpc_transport=False, restricted_token=False, alpc_identity=False, token_identity=False, token_security=False):
+def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False, handle_provenance=False, exception_diagnostics=False, failfast_diagnostics=False, status_diagnostics=False, claims_site_b=False, claims_thread_token=False, claims_packaged_thread=False, onecore_transform=False, coremessaging_prerequisites=False, alpc_transport=False, restricted_token=False, alpc_identity=False, token_identity=False, token_security=False, alpc_impersonation=False):
     root = Path(root).resolve()
     if not root.is_relative_to(REPO / "build") or root == BASE:
         raise ValueError("Require a new owned009 sibling")
@@ -50,6 +50,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         raise ValueError("Token identity requires the fresh ALPC identity candidate")
     if token_security and not token_identity:
         raise ValueError("Token security requires the fresh token identity candidate")
+    if alpc_impersonation and not token_security:
+        raise ValueError("ALPC impersonation requires the fresh token security candidate")
     frozen = BASE / "cell008-receipt.json"
     if sha256(frozen) != "ac5b627263c409b804e3f812160c6dd0ba8d39cec52910255725939de12915bc":
         raise ValueError("Frozen008 receipt changed")
@@ -177,6 +179,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if token_security:
         from tools.port_token_security import port as token_security_source
         token_security_port = token_security_source(root / "source")
+    impersonation_port = None
+    if alpc_impersonation:
+        from tools.port_alpc_impersonation import port as impersonation_source
+        impersonation_port = impersonation_source(root / "source")
     attempt = 1
     while (root / ("attempt-%02d" % attempt)).exists():
         attempt += 1
@@ -254,6 +260,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         receipt["token_identity"] = token_identity_port
     if token_security_port is not None:
         receipt["token_security"] = token_security_port
+    if impersonation_port is not None:
+        receipt["alpc_impersonation"] = impersonation_port
 
     def run(name, command, budget=300, cwd=directory):
         step = run_step(command, cwd, env, logs / (name + ".log"), budget)
@@ -338,6 +346,12 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
                       "handle_provenance", "claims_packaged_thread", "coremessaging_prerequisites"):
             for relative in receipt[group]["files"]:
                 receipt[group]["files"][relative] = sha256(root / "source" / relative)
+    if impersonation_port is not None:
+        for group in ("alpc_impersonation", "token_security", "token_identity", "alpc_identity",
+                      "alpc_transport", "restricted_token", "handle_provenance",
+                      "claims_packaged_thread", "coremessaging_prerequisites"):
+            for relative in receipt[group]["files"]:
+                receipt[group]["files"][relative] = sha256(root / "source" / relative)
     receipt["source_inputs"] = {
         str(path.relative_to(REPO)): sha256(path) for path in (
             REPO / "tools/port_uwp_activation.py", REPO / "tools/build_uwp_overlay.py",
@@ -415,6 +429,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         from tools.port_token_security import SOURCES
         for relative in SOURCES:
             receipt["source_inputs"][relative] = sha256(REPO / relative)
+    if alpc_impersonation:
+        from tools.port_alpc_impersonation import SOURCES
+        for relative in SOURCES:
+            receipt["source_inputs"][relative] = sha256(REPO / relative)
     receipt["built_files"] = {str(path.relative_to(root)): sha256(path) for path in (
         directory / "server/wineserver", directory / "dlls/ntdll/ntdll.so",
         directory / "dlls/ntdll/x86_64-windows/ntdll.dll",
@@ -457,5 +475,6 @@ if __name__ == "__main__":
     parser.add_argument("--alpc-identity", action="store_true")
     parser.add_argument("--token-identity", action="store_true")
     parser.add_argument("--token-security", action="store_true")
+    parser.add_argument("--alpc-impersonation", action="store_true")
     args = parser.parse_args()
-    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics, args.handle_provenance, args.exception_diagnostics, args.failfast_diagnostics, args.status_diagnostics, args.claims_site_b, args.claims_thread_token, args.claims_packaged_thread, args.onecore_transform, args.coremessaging_prerequisites, args.alpc_transport, args.restricted_token, args.alpc_identity, args.token_identity, args.token_security))
+    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics, args.handle_provenance, args.exception_diagnostics, args.failfast_diagnostics, args.status_diagnostics, args.claims_site_b, args.claims_thread_token, args.claims_packaged_thread, args.onecore_transform, args.coremessaging_prerequisites, args.alpc_transport, args.restricted_token, args.alpc_identity, args.token_identity, args.token_security, args.alpc_impersonation))

@@ -3,6 +3,19 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: authenticated delivered-connection impersonation
+
+ADR-0064 replaces the impersonation stub only for delivered, unaccepted
+connection requests. The server uses its pending registry and captured token,
+not a process selected by a caller-supplied PID. Static client authorization,
+live connection ownership and enabled SeImpersonatePrivilege are mandatory.
+Unsupported QoS and message forms fail cleanly.
+
+`package-alpc-impersonation-01` compiles this source integration. The sanitizer
+harness executes the actual generated connection handler and token installer,
+including forged identity, wrong port, stale request, QoS and privilege failures.
+The source still does not qualify a registrar startup or a cell027 receipt.
+
 ## 2026-10-25: real privileged token session/integrity setters
 
 ADR-0063 replaces successful no-op setters with access- and privilege-checked

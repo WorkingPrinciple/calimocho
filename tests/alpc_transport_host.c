@@ -28,6 +28,8 @@
 #define STATUS_INVALID_SID 0xc0000078u
 #define STATUS_INVALID_SECURITY_DESCR 0xc0000079u
 #define STATUS_SERVER_SID_MISMATCH 0xc00002a0u
+#define STATUS_BAD_IMPERSONATION_LEVEL 0xc00000a5u
+#define STATUS_PRIVILEGE_NOT_HELD 0xc0000061u
 #define STANDARD_RIGHTS_READ 0x20000
 #define STANDARD_RIGHTS_WRITE 0x20000
 #define STANDARD_RIGHTS_EXECUTE 0x20000
@@ -74,7 +76,7 @@ struct object_params {
     const struct object_attributes *objattr;
 };
 static struct process process={0x123};
-static struct { struct process *process; unsigned id; } thread={&process,0x456}, *current=&thread;
+static struct { struct process *process; unsigned id; struct token *token; } thread={&process,0x456,NULL}, *current=&thread;
 static struct object *handles[64],*named;
 static unsigned access_masks[64];
 static unsigned error,objects,request_size,reply_capacity,reply_size;
@@ -156,6 +158,7 @@ static void set_reply_data(const void *data,unsigned len) {
 }
 #ifdef ALPC_IDENTITY_TEST
 #define SecurityImpersonation 2
+#define SecurityAnonymous 0
 struct sid {unsigned value;};
 struct token {struct object obj;unsigned identity;};
 static unsigned current_identity=0x1234;
@@ -163,7 +166,7 @@ static struct token *thread_get_impersonation_token(void *thread) {return NULL;}
 static struct token *token_duplicate(struct token *src,unsigned primary,unsigned level,const void *sd,
                                     const void *priv,unsigned count,const void *sids,unsigned n) {
     struct token *token=calloc(1,sizeof(*token));assert(token);
-    token->obj.refcount=1;token->identity=current_identity;++objects;return token;
+    token->obj.refcount=1;token->identity=src?src->identity:current_identity;++objects;return token;
 }
 static int sid_valid_size(const struct sid *sid,unsigned size) {return size==sizeof(*sid);}
 static unsigned sid_len(const struct sid *sid) {return sizeof(*sid);}
@@ -171,10 +174,17 @@ static int sd_is_valid(const struct security_descriptor *sd,unsigned size) {retu
 static int token_alpc_identity(struct token *t,const struct sid *sid,const struct security_descriptor *sd,const void *map) {
     return t->identity==(sid?sid->value:sd->unused);
 }
+#ifdef ALPC_IMPERSONATION_TEST
+static unsigned impersonate_privilege=1;
+static const unsigned SeImpersonatePrivilege=29;
+static int thread_single_check_privilege(void *t,unsigned p) {assert(p==29);return impersonate_privilege;}
+#include "token_impersonation_under_test.c"
+#endif
 #endif
 struct request {
     unsigned handle,flags,max_msg_len,connect_flags,msg_id,accept,callback_id,request,match_id;
     unsigned identity_kind,identity_size;
+    unsigned impersonation_level,pid,tid;
     uint64_t context,msg_context;
 };
 struct reply {
@@ -188,7 +198,11 @@ static struct reply call(void (*handler)(const struct request *,struct reply *),
     struct reply reply={0};error=0;reply_size=0;handler(&req,&reply);return reply;
 }
 static unsigned connect_client(unsigned connection_flags) {
-    struct reply reply=call(alpc_connect_port,(struct request){.connect_flags=connection_flags});
+    struct request req={.connect_flags=connection_flags};
+#ifdef ALPC_IMPERSONATION_TEST
+    req.impersonation_level=SecurityImpersonation;
+#endif
+    struct reply reply=call(alpc_connect_port,req);
     assert(!error&&reply.handle);return reply.handle;
 }
 static unsigned receive_id(unsigned port) {
@@ -223,10 +237,41 @@ int main(void) {
 #endif
     client=connect_client(0);
     assert(!alpc_port_signaled(handles[client],NULL));
+#ifdef ALPC_IMPERSONATION_TEST
+    call(alpc_impersonate_connection,(struct request){.handle=conn});
+    assert(error==STATUS_REPLY_MESSAGE_MISMATCH&&!current->token);
+#endif
     id=receive_id(conn);
     assert(!list_empty(&((struct alpc_port *)handles[conn])->pending));
+#ifdef ALPC_IMPERSONATION_TEST
+    struct request identity_req={.handle=conn,.msg_id=id,.pid=process.id,.tid=current->id};
+    current_identity=0x9876;
+    call(alpc_impersonate_connection,(struct request){.handle=client,.msg_id=id,.pid=process.id,.tid=current->id});
+    assert(error==STATUS_INVALID_PORT_HANDLE&&!current->token);
+    identity_req.pid++;
+    call(alpc_impersonate_connection,identity_req);
+    assert(error==STATUS_REPLY_MESSAGE_MISMATCH&&!current->token);
+    identity_req.pid--;identity_req.tid++;
+    call(alpc_impersonate_connection,identity_req);
+    assert(error==STATUS_REPLY_MESSAGE_MISMATCH&&!current->token);
+    identity_req.tid--;impersonate_privilege=0;
+    call(alpc_impersonate_connection,identity_req);
+    assert(error==STATUS_PRIVILEGE_NOT_HELD&&!current->token);
+    impersonate_privilege=1;
+    ((struct alpc_port *)handles[client])->impersonation_level=1;
+    call(alpc_impersonate_connection,identity_req);
+    assert(error==STATUS_BAD_IMPERSONATION_LEVEL&&!current->token);
+    ((struct alpc_port *)handles[client])->impersonation_level=2;
+    call(alpc_impersonate_connection,identity_req);
+    assert(!error&&current->token&&current->token->identity==0x5678);
+#endif
     reply=call(alpc_accept_connect_port,(struct request){.handle=conn,.msg_id=id,.accept=1,.context=0x7788});
     server=reply.handle;assert(!error&&server);
+#ifdef ALPC_IMPERSONATION_TEST
+    call(alpc_impersonate_connection,identity_req);
+    assert(error==STATUS_REPLY_MESSAGE_MISMATCH&&current->token->identity==0x5678);
+    release_object(current->token);current->token=NULL;
+#endif
     assert(alpc_port_signaled(handles[client],NULL));
     reply=call(alpc_receive_message,(struct request){.handle=client});
     assert(!error&&reply.type==LPC_CONNECTION_REPLY&&reply.msg_id==id);
