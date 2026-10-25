@@ -3216,3 +3216,12 @@ The unchanged observer and fixture compiled; no Wine ran here.
 All224 deterministic host tests passed, including scoped status/caller
 capture, exact tails, type distinctions, privacy and cap regressions.
 Actual019 remains unobserved at this source handoff.
+
+Source producer `c59d6ceb5e52c9db51527f6a40cdf7fda3123c0c` is bound by
+frozen019 receipt SHA-256
+`245aa4ca6780a68ee8473404ba9b4055524046edf6f5adce1fa42ebfe9474233`.
+The independent freeze audit checked3915 staged entries/assets, eight
+changed modules, all producer blobs, generated diagnostic sources,
+exact engine/server/observer commands and sealed018 predecessor.
+The receipt was sent to0ab, copying the coordinator, for once-only
+fresh019 observation and exact-prefix cleanup. No local Wine execution.
