@@ -36,7 +36,11 @@
 #define STANDARD_RIGHTS_EXECUTE 0x20000
 #define SYNCHRONIZE 0x100000
 #define ALPC_SYNC_CONNECTION 0x20000
+#ifdef ALPC_SYNC_REQUEST_TEST
+#define ALPC_MSGFLG_REPLY_MESSAGE 0x1 /* native value; 0x10000 is RELEASE_MESSAGE */
+#else
 #define ALPC_MSGFLG_REPLY_MESSAGE 0x10000
+#endif
 #define ALPC_PORTFLG_NON_BLOCKING_RECEIVE 0x40000
 typedef uint16_t WCHAR;
 typedef unsigned obj_handle_t, process_id_t, thread_id_t, data_size_t;
@@ -195,6 +199,36 @@ struct reply {
 };
 #define DECL_HANDLER(name) static void name(const struct request *req,struct reply *reply)
 #include "alpc_server_under_test.c"
+#ifdef ALPC_SYNC_REQUEST_TEST
+typedef unsigned NTSTATUS, ULONG;
+typedef int BOOL;
+#define STATUS_SUCCESS 0u
+#define ALPC_MSGFLG_SYNC_REQUEST 0x20000
+#define ALPC_MSGFLG_WAIT_ALERTABLE 0x00200000
+static char fixme[128];
+#define FIXME(...) snprintf(fixme,sizeof(fixme),__VA_ARGS__)
+#include "alpc_send_flags_under_test.c"
+static void test_send_flags(void) {
+    /* Native ALPC_MSGFLG values (phnt): REPLY 0x1, RELEASE 0x10000, SYNC 0x20000. */
+    static const struct { ULONG flags; BOOL send,recv; NTSTATUS status; const char *reason; } cases[]={
+        {0,1,1,0,""},{0x1,1,1,0,""},{0x10000,1,1,0,""},{0x10001,1,0,0,""},{0x10000,0,1,0,""},
+        {0x20000,1,1,0,""},{0x320000,1,1,0,""},{0x120000,1,1,0,""},
+        {0x30000,1,1,STATUS_INVALID_PARAMETER,""},
+        {0x1000000,1,1,STATUS_INVALID_PARAMETER,""},
+        {0x20001,1,1,STATUS_NOT_IMPLEMENTED,"reason=sync_request_shape value=0x7\n"},
+        {0x20000,1,0,STATUS_NOT_IMPLEMENTED,"reason=sync_request_shape value=0x1\n"},
+        {0x20000,0,1,STATUS_NOT_IMPLEMENTED,"reason=sync_request_shape value=0x2\n"},
+        {0x2,1,1,STATUS_NOT_IMPLEMENTED,"reason=send_flags value=0x2\n"},
+        {0x60000,1,1,STATUS_NOT_IMPLEMENTED,"reason=send_flags value=0x40000\n"},
+        {0x80020000,1,1,STATUS_NOT_IMPLEMENTED,"reason=send_flags value=0x80000000\n"},
+    };
+    for(unsigned i=0;i<sizeof(cases)/sizeof(cases[0]);++i) {
+        fixme[0]=0;
+        assert(alpc_send_flags_status(cases[i].flags,cases[i].send,cases[i].recv)==cases[i].status);
+        assert(!strcmp(fixme,cases[i].reason));
+    }
+}
+#endif
 
 static struct reply call(void (*handler)(const struct request *,struct reply *),struct request req) {
     struct reply reply={0};error=0;reply_size=0;handler(&req,&reply);return reply;
@@ -215,6 +249,9 @@ int main(void) {
     struct reply reply;
     unsigned conn,client,server,id;
     reply_capacity=sizeof(reply_data);
+#ifdef ALPC_SYNC_REQUEST_TEST
+    test_send_flags();
+#endif
     reply=call(alpc_create_port,(struct request){0});conn=reply.handle;assert(!error&&conn);
 #ifdef ALPC_IDENTITY_TEST
     current_identity=0x5678; /* A later caller's identity must not replace the creator snapshot. */
@@ -402,6 +439,33 @@ int main(void) {
         server=reply.handle;assert(!error&&server);
         reply=call(alpc_connect_result,(struct request){.handle=client});
         assert(!error&&reply.state==ALPC_CONNECTED);
+#ifdef ALPC_SYNC_REQUEST_TEST
+        /* CoreMessaging+0x21b6 shape: a synchronous request with a CONTEXT attribute; the
+           registrar receives it on the connection port and replies with the native reply flag. */
+        request_data="noise";request_size=5;
+        call(alpc_send_message,(struct request){.handle=server});
+        assert(!error);
+        request_data="ping";request_size=4;
+        reply=call(alpc_send_message,(struct request){.handle=client,.request=1,.msg_context=0xc0ffee});
+        unsigned sent=reply.msg_id;assert(!error&&sent);
+        assert(port->sync->signals);
+        reply=call(alpc_receive_message,(struct request){.handle=waitable});
+        assert(!error&&reply.type==LPC_REQUEST&&reply.msg_id==sent&&reply.msg_context==0xc0ffee);
+        assert(reply_size==4&&!memcmp(reply_data,"ping",4));
+        call(alpc_receive_message,(struct request){.handle=client,.match_id=sent});
+        assert(error==STATUS_PENDING); /* the datagram does not satisfy the sync wait */
+        request_data="pong";request_size=4;
+        call(alpc_send_message,(struct request){.handle=waitable,.flags=ALPC_MSGFLG_REPLY_MESSAGE,.msg_id=sent});
+        assert(!error);
+        reply=call(alpc_receive_message,(struct request){.handle=client,.match_id=sent});
+        assert(!error&&reply.type==LPC_REPLY&&reply.msg_id==sent);
+        assert(reply_size==4&&!memcmp(reply_data,"pong",4));
+        call(alpc_send_message,(struct request){.handle=waitable,.flags=ALPC_MSGFLG_REPLY_MESSAGE,.msg_id=sent});
+        assert(error==STATUS_REPLY_MESSAGE_MISMATCH);
+        reply=call(alpc_receive_message,(struct request){.handle=client});
+        assert(!error&&reply.type==LPC_DATAGRAM&&reply_size==5);
+        request_size=0;
+#endif
         close_handle(server);close_handle(client);close_handle(waitable);
     }
     assert(!objects&&!named);

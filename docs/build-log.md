@@ -4186,3 +4186,12 @@ admitted and CoreMessaging connects at SecurityIdentification. The
 registrar refused the connection. Cell039 impersonates at the client's
 level and adds the NULL message form on an accepted server port
 (ADR-0072). Not proven: no runtime run.
+
+## 2026-10-25: cell039 handshake passed, cell040
+
+Cell039 completed the ALPC handshake. The app's first synchronous request
+(CoreMessaging +21b6) then returned STATUS_NOT_IMPLEMENTED from an
+unlabeled flag gate. Wine's ALPC reply flag also had the native release
+value. Cell040 uses the native flag values, accepts synchronous requests
+and gives every send gate a FIXME reason (ADR-0073). Not proven: no
+runtime run.

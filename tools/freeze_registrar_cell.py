@@ -1,4 +1,4 @@
-"""Cell027-039 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
+"""Cell027-040 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
 import importlib
 import json
 from pathlib import Path
@@ -45,7 +45,8 @@ DOCS = tuple("docs/ADR/%s.md" % name for name in (
     "0069-admit-coremessaging-connect-security-sentinel",
     "0070-wake-waitable-alpc-ports-and-trace-connect",
     "0071-check-ownerless-alpc-server-requirements",
-    "0072-impersonate-alpc-clients-at-their-requested-level"))
+    "0072-impersonate-alpc-clients-at-their-requested-level",
+    "0073-use-native-alpc-message-flags-and-sync-requests"))
 TESTS = ("tests/test_alpc_transport.py", "tests/alpc_transport_host.c", "tests/test_restricted_token.py",
          "tests/restricted_token_host.c", "tests/test_alpc_identity.py", "tests/test_token_identity.py",
          "tests/token_identity_host.c", "tests/test_token_security.py", "tests/token_security_host.c",
@@ -53,12 +54,13 @@ TESTS = ("tests/test_alpc_transport.py", "tests/alpc_transport_host.c", "tests/t
          "tests/test_coremsg_dispatch.py", "tests/coremsg_dispatch_host.c", "tests/test_server_protocol_gate.py",
          "tests/test_registrar_cell.py", "tests/test_sechost_services.py", "tests/sechost_services_host.c",
          "tests/test_server_request_limits.py", "tests/test_alpc_telemetry.py",
-         "tests/test_wait_completion_packet.py", "tests/wait_completion_packet_host.c")
+         "tests/test_wait_completion_packet.py", "tests/wait_completion_packet_host.c",
+         "tests/test_alpc_sync_request.py")
 
 
 def registrar_sources():
     sources = ["tools/freeze_registrar_cell.py", "tools/server_protocol_gate.py"]
-    for key in REGISTRAR_STACK + ("sechost_services",):
+    for key in REGISTRAR_STACK + ("sechost_services", "alpc_connect_attrs", "alpc_sync_request"):
         for relative in importlib.import_module("tools.port_" + key).SOURCES:
             if relative not in sources:
                 sources.append(relative)
@@ -116,8 +118,8 @@ def registration_text(transient=False):
 
 
 def add_registrar_handoff(root, receipt, cell=27):
-    if cell not in (27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39):
-        raise ValueError("Registrar handoff supports cells027-039")
+    if cell not in (27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40):
+        raise ValueError("Registrar handoff supports cells027-040")
     label = "%03d" % cell
     root = Path(root)
     registration = root / ("registrar-CELL%s-FROZEN.reg" % label)
@@ -283,6 +285,18 @@ def add_registrar_handoff(root, receipt, cell=27):
             "Cell039 impersonates at the client's requested level (Identification or Impersonation) for a delivered connection request, and for a NULL message on an accepted server communication port (CoreMessaging +874f1); Anonymous still fails with STATUS_BAD_IMPERSONATION_LEVEL because Wine has no anonymous logon token",
             "Wine's object access checks do not refuse Identification-level thread tokens, so object opens while impersonating at Identification use the client's access where native returns STATUS_BAD_IMPERSONATION_LEVEL; CoreMessaging +7af2c only calls OpenThreadToken(TOKEN_QUERY, OpenAsSelf TRUE) and RevertToSelf",
             "A message-bound impersonation on a server communication port still returns STATUS_NOT_IMPLEMENTED",
+        ]
+    if cell >= 40:
+        receipt["services_diagnostics"]["discriminators"] = [
+            "'NtAlpcSendWaitReceivePort status ...' (app alpc telemetry, CoreMessaging +21b6): 0 means the synchronous request got its reply; 0x102 is a timeout waiting for the registrar's reply; c0000002 must now be preceded by an alpc FIXME reason",
+            "'reason=send_flags value=...', 'reason=sync_request_shape value=...' or 'reason=send_attrs value=...' (alpc FIXME): a message flag or send attribute outside cell040's supported set",
+            "registrar 'RECV port ... type 1' then its NtAlpcSendWaitReceivePort status (services-start.log): type 1 is LPC_REQUEST; a non-zero status on the registrar's reply, such as c000021f, names a reply that did not match the pending request",
+        ] + receipt["services_diagnostics"]["discriminators"]
+        receipt["limitations"] += [
+            "Cell039 diagnosis: the handshake succeeded, then the app's first NtAlpcSendWaitReceivePort (CoreMessaging +21b6) returned STATUS_NOT_IMPLEMENTED from an unlabeled flag gate; the call carries ALPC_MSGFLG_SYNC_REQUEST (0x20000) and a CONTEXT attribute",
+            "Wine 11.20's winternl.h defined ALPC_MSGFLG_REPLY_MESSAGE as 0x10000, which is the native RELEASE_MESSAGE; cell040 uses the native 0x1 (phnt ntlpcapi.h), so a native reply is now routed as a reply",
+            "RELEASE_MESSAGE is a no-op outside a synchronous send because wineserver frees each message when it is received; TRACK_PORT_REFERENCES, LPC_MODE and the remaining bits still return STATUS_NOT_IMPLEMENTED with a reason",
+            "A non-zero MessageId without the reply flag is sent as a new message; whether native treats it as a reply was not traced",
         ]
 
 

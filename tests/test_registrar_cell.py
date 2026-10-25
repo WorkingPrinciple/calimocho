@@ -100,7 +100,7 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 self.handoff(root, 28)
             with self.assertRaises(ValueError):
-                self.handoff(root, 40)
+                self.handoff(root, 41)
 
     def test_cell029_setup_is_headless_and_session_steps_are_not(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -247,6 +247,17 @@ class RegistrarCellTest(unittest.TestCase):
             self.assertIn("NtAlpcImpersonateClientOfPort", cell039["services_diagnostics"]["discriminators"][0])
             self.assertTrue(any("CoreMessaging +874f1" in item for item in cell039["limitations"]))
             self.assertFalse(any("CoreMessaging +874f1" in item for item in cell038["limitations"]))
+
+    def test_cell040_records_native_message_flags(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, cell039 = self.handoff(self._mk(Path(directory) / "a"), 39)
+            _, cell040 = self.handoff(self._mk(Path(directory) / "b"), 40)
+            self.assertEqual(cell040["services_diagnostics"]["discriminators"][3:],
+                             cell039["services_diagnostics"]["discriminators"])
+            self.assertIn("CoreMessaging +21b6", cell040["services_diagnostics"]["discriminators"][0])
+            self.assertIn("reason=send_flags", cell040["services_diagnostics"]["discriminators"][1])
+            self.assertTrue(any("RELEASE_MESSAGE" in item for item in cell040["limitations"]))
+            self.assertFalse(any("RELEASE_MESSAGE" in item for item in cell039["limitations"]))
 
 if __name__ == "__main__":
     unittest.main()
