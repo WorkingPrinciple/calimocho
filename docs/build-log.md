@@ -4176,3 +4176,13 @@ no owner or group. Our check used the user-mode access check, which rejects
 such a descriptor as invalid. Cell038 evaluates port connect access from
 the DACL and restricting SIDs only (ADR-0071). Host tests cover the
 registrar shape and the rejection cases. Not proven: no runtime run.
+
+## 2026-10-25: cell038 identity passed, cell039
+
+Cell038 passed the server identity check, and the registrar received the
+connection request. Its impersonation failed with
+STATUS_BAD_IMPERSONATION_LEVEL, because only SecurityImpersonation was
+admitted and CoreMessaging connects at SecurityIdentification. The
+registrar refused the connection. Cell039 impersonates at the client's
+level and adds the NULL message form on an accepted server port
+(ADR-0072). Not proven: no runtime run.

@@ -100,7 +100,7 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 self.handoff(root, 28)
             with self.assertRaises(ValueError):
-                self.handoff(root, 39)
+                self.handoff(root, 40)
 
     def test_cell029_setup_is_headless_and_session_steps_are_not(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -237,6 +237,16 @@ class RegistrarCellTest(unittest.TestCase):
             self.assertIn("status=c00002a0", cell038["services_diagnostics"]["discriminators"][0])
             self.assertTrue(any("STATUS_SERVER_SID_MISMATCH" in item for item in cell038["limitations"]))
             self.assertFalse(any("STATUS_SERVER_SID_MISMATCH" in item for item in cell037["limitations"]))
+
+    def test_cell039_records_identification_impersonation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, cell038 = self.handoff(self._mk(Path(directory) / "a"), 38)
+            _, cell039 = self.handoff(self._mk(Path(directory) / "b"), 39)
+            self.assertEqual(cell039["services_diagnostics"]["discriminators"][2:],
+                             cell038["services_diagnostics"]["discriminators"])
+            self.assertIn("NtAlpcImpersonateClientOfPort", cell039["services_diagnostics"]["discriminators"][0])
+            self.assertTrue(any("CoreMessaging +874f1" in item for item in cell039["limitations"]))
+            self.assertFalse(any("CoreMessaging +874f1" in item for item in cell038["limitations"]))
 
 if __name__ == "__main__":
     unittest.main()

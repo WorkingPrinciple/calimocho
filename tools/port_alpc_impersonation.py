@@ -37,13 +37,28 @@ def port(source):
     server = server[:start] + section + server[end:]
     server += """
 
-/* This slice authenticates only received, unaccepted connection requests. */
+/* Delivered, unaccepted connection requests, or (no message) the accepted connection's client. */
 DECL_HANDLER(alpc_impersonate_connection)
 {
     struct alpc_port *port = get_port( req->handle );
     struct alpc_pending *pending;
 
     if (!port) return;
+    if (req->no_message)
+    {
+        struct alpc_port *client = port->peer;
+        if (port->kind != SERVER_PORT || port->owner_pid != get_process_id( current->process ))
+        { set_error( STATUS_INVALID_PORT_HANDLE ); goto done; }
+        if (port->state != ALPC_CONNECTED || !client || client->kind != CLIENT_PORT ||
+            client->state != ALPC_CONNECTED || client->peer != port)
+        { set_error( STATUS_PORT_DISCONNECTED ); goto done; }
+        if (client->impersonation_level < SecurityIdentification ||
+            client->impersonation_level > SecurityImpersonation)
+        { set_error( STATUS_BAD_IMPERSONATION_LEVEL ); goto done; }
+        token_impersonate_alpc( client->creator_token, client->impersonation_level );
+        goto done;
+    }
+    if (port->kind == SERVER_PORT) { set_error( STATUS_NOT_IMPLEMENTED ); goto done; }
     if (port->kind != CONNECTION_PORT || port->state == ALPC_CLOSED ||
         port->owner_pid != get_process_id( current->process ))
     { set_error( STATUS_INVALID_PORT_HANDLE ); goto done; }
@@ -54,9 +69,10 @@ DECL_HANDLER(alpc_impersonate_connection)
         if (client->kind != CLIENT_PORT || client->state != ALPC_NEW || client->conn != port ||
             req->pid != client->owner_pid || req->tid != client->creator_tid)
         { set_error( STATUS_REPLY_MESSAGE_MISMATCH ); goto done; }
-        if (client->impersonation_level != SecurityImpersonation)
+        if (client->impersonation_level < SecurityIdentification ||
+            client->impersonation_level > SecurityImpersonation)
         { set_error( STATUS_BAD_IMPERSONATION_LEVEL ); goto done; }
-        token_impersonate_alpc( client->creator_token );
+        token_impersonate_alpc( client->creator_token, client->impersonation_level );
         goto done;
     }
     set_error( STATUS_REPLY_MESSAGE_MISMATCH );
@@ -66,20 +82,21 @@ done:
 """
     token = (source / paths[1]).read_text() + """
 
-int token_impersonate_alpc( struct token *source )
+/* The thread token carries the client's requested level, so Identification stays query-only. */
+int token_impersonate_alpc( struct token *source, unsigned int level )
 {
     struct token *copy;
 
     if (!thread_single_check_privilege( current, SeImpersonatePrivilege ))
     { set_error( STATUS_PRIVILEGE_NOT_HELD ); return 0; }
-    if (!(copy = token_duplicate( source, 0, SecurityImpersonation, NULL, NULL, 0, NULL, 0 ))) return 0;
+    if (!(copy = token_duplicate( source, 0, level, NULL, NULL, 0, NULL, 0 ))) return 0;
     if (current->token) release_object( current->token );
     current->token = copy;
     return 1;
 }
 """
     security = replace((source / paths[2]).read_text(), "extern int token_alpc_identity(",
-        "extern int token_impersonate_alpc( struct token * );\nextern int token_alpc_identity(")
+        "extern int token_impersonate_alpc( struct token *, unsigned int );\nextern int token_alpc_identity(")
     protocol = replace((source / paths[3]).read_text(),
         "    unsigned int  identity_kind;  /* 0 none, 1 user SID, 2 server security descriptor */",
         "    unsigned int  impersonation_level; /* client-authorized static QoS level */\n"
@@ -89,6 +106,7 @@ int token_impersonate_alpc( struct token *source )
 /* Impersonate a server-owned delivered connection identity, never a supplied PID. */
 @REQ(alpc_impersonate_connection)
     obj_handle_t handle;
+    unsigned int no_message;   /* impersonate the accepted connection's client on a server port */
     unsigned int msg_id;
     process_id_t pid;
     thread_id_t tid;
@@ -111,8 +129,22 @@ int token_impersonate_alpc( struct token *source )
         '    FIXME("Message-bound ALPC impersonation is not implemented.\\n");\n'
         "    return STATUS_NOT_IMPLEMENTED;",
         """    NTSTATUS status;
-    if (!msg) return STATUS_ACCESS_VIOLATION;
-    if (flags) return STATUS_NOT_IMPLEMENTED;
+    if (flags)
+    {
+        FIXME( "reason=impersonate_flags\\n" );
+        return STATUS_NOT_IMPLEMENTED;
+    }
+    if (!msg)
+    {
+        SERVER_START_REQ( alpc_impersonate_connection )
+        {
+            req->handle = wine_server_obj_handle( port );
+            req->no_message = 1;
+            status = wine_server_call( req );
+        }
+        SERVER_END_REQ;
+        return status;
+    }
     if ((ULONG_PTR)msg->ClientId.UniqueProcess > ~(unsigned int)0 ||
         (ULONG_PTR)msg->ClientId.UniqueThread > ~(unsigned int)0) return STATUS_INVALID_CID;
     SERVER_START_REQ( alpc_impersonate_connection )
@@ -124,8 +156,9 @@ int token_impersonate_alpc( struct token *source )
         status = wine_server_call( req );
     }
     SERVER_END_REQ;
+    if (status == STATUS_NOT_IMPLEMENTED) FIXME( "reason=impersonate_message_on_communication_port\\n" );
     return status;""")
     for path, text in zip(paths, (server, token, security, protocol, client)):
         (source / path).write_text(text)
     return {"files": {p: sha256(source / p) for p in paths}, "registrar_qualified": False,
-            "scope": "delivered connection requests only; static SecurityImpersonation QoS; SeImpersonatePrivilege"}
+            "scope": "delivered connection requests and no-message accepted connections; static Identification or Impersonation QoS at the client level; SeImpersonatePrivilege"}

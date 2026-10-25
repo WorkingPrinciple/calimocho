@@ -1,4 +1,4 @@
-"""Cell027-038 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
+"""Cell027-039 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
 import importlib
 import json
 from pathlib import Path
@@ -44,7 +44,8 @@ DOCS = tuple("docs/ADR/%s.md" % name for name in (
     "0068-validate-transient-descriptor-and-admit-default-connect-security",
     "0069-admit-coremessaging-connect-security-sentinel",
     "0070-wake-waitable-alpc-ports-and-trace-connect",
-    "0071-check-ownerless-alpc-server-requirements"))
+    "0071-check-ownerless-alpc-server-requirements",
+    "0072-impersonate-alpc-clients-at-their-requested-level"))
 TESTS = ("tests/test_alpc_transport.py", "tests/alpc_transport_host.c", "tests/test_restricted_token.py",
          "tests/restricted_token_host.c", "tests/test_alpc_identity.py", "tests/test_token_identity.py",
          "tests/token_identity_host.c", "tests/test_token_security.py", "tests/token_security_host.c",
@@ -115,8 +116,8 @@ def registration_text(transient=False):
 
 
 def add_registrar_handoff(root, receipt, cell=27):
-    if cell not in (27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38):
-        raise ValueError("Registrar handoff supports cells027-038")
+    if cell not in (27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39):
+        raise ValueError("Registrar handoff supports cells027-039")
     label = "%03d" % cell
     root = Path(root)
     registration = root / ("registrar-CELL%s-FROZEN.reg" % label)
@@ -271,6 +272,17 @@ def add_registrar_handoff(root, receipt, cell=27):
             "Cell037 diagnosis: both app NtAlpcConnectPortEx calls returned STATUS_SERVER_SID_MISMATCH. CoreMessaging passes ServerSecurityRequirements from SDDL D:(A;;0x01;;;S-1-5-80-1021139062-1866602279-1255292388-1008060685-2498416891), the CoreMessagingRegistrar service SID, with no owner or group; Wine's user-mode style access check rejected that descriptor as invalid",
             "Cell038 evaluates the server requirement for port connect (1) from the DACL, deny ACEs, inherit-only flags and restricting SIDs only, because ownership never grants access 1; that the native check omits an owner/group requirement is inferred from kernel SeAccessCheck behavior, not traced",
             "The registrar token carries the service SID as an enabled group (attributes 0xe) and as a restricting SID; the eight unexplained S-1-5-32 groups are still not reproduced",
+        ]
+    if cell >= 39:
+        receipt["services_diagnostics"]["discriminators"] = [
+            "'return NtAlpcImpersonateClientOfPort status ...' (svchost +alpc in services-start.log): 0 means the registrar impersonated the client; c00000a5 is a level outside Identification..Impersonation, c0000037 a lost connection, c0000042 a wrong port kind",
+            "'reason=impersonate_flags' or 'reason=impersonate_message_on_communication_port' (alpc FIXME): an impersonation shape outside cell039's two supported forms",
+        ] + receipt["services_diagnostics"]["discriminators"]
+        receipt["limitations"] += [
+            "Cell038 diagnosis: identity passed and the registrar received the 0x18-byte connection request, but NtAlpcImpersonateClientOfPort returned STATUS_BAD_IMPERSONATION_LEVEL because only SecurityImpersonation was admitted; CoreMessaging connects at SecurityIdentification, then refused the connection (app 0xC0000041)",
+            "Cell039 impersonates at the client's requested level (Identification or Impersonation) for a delivered connection request, and for a NULL message on an accepted server communication port (CoreMessaging +874f1); Anonymous still fails with STATUS_BAD_IMPERSONATION_LEVEL because Wine has no anonymous logon token",
+            "Wine's object access checks do not refuse Identification-level thread tokens, so object opens while impersonating at Identification use the client's access where native returns STATUS_BAD_IMPERSONATION_LEVEL; CoreMessaging +7af2c only calls OpenThreadToken(TOKEN_QUERY, OpenAsSelf TRUE) and RevertToSelf",
+            "A message-bound impersonation on a server communication port still returns STATUS_NOT_IMPLEMENTED",
         ]
 
 

@@ -199,9 +199,12 @@ def port(source):
     server = server[:start] + section + server[end:]
 
     token = token + TOKEN_HELPER
-    security = replace(security, "extern int token_impersonate_alpc( struct token * );",
-        "extern int token_impersonate_alpc( struct token * );\n"
-        "extern struct token *token_duplicate_effective( struct token *src );")
+    # cell039 adds the impersonation level; older frozen baselines keep the one-argument form
+    declaration = next(d for d in ("extern int token_impersonate_alpc( struct token *, unsigned int );",
+                                   "extern int token_impersonate_alpc( struct token * );")
+                       if d in security or d.endswith("* );"))
+    security = replace(security, declaration,
+        declaration + "\n" "extern struct token *token_duplicate_effective( struct token *src );")
 
     begin = client.index("static NTSTATUS connect_port(")
     finish = client.index("NTSTATUS WINAPI NtAlpcConnectPort(", begin)
@@ -284,4 +287,4 @@ def port(source):
             "message_attributes": "send: default security attribute only (flags 0, no QoS, no context handle), others NOT_IMPLEMENTED; receive buffer returns ValidAttributes 0",
             "fixme_reasons": "each NOT_IMPLEMENTED path logs reason=<token> and at most one numeric value",
             "effective_only": "static capture drops disabled privileges and disabled optional groups",
-            "identification_impersonation": "still STATUS_BAD_IMPERSONATION_LEVEL"}
+            "identification_impersonation": "see the ALPC impersonation porter"}

@@ -43,6 +43,13 @@ class AlpcImpersonationTests(unittest.TestCase):
             self.assertIn("SECURITY_STATIC_TRACKING", client)
             self.assertIn("pa->SecurityQos.EffectiveOnly", client)
             self.assertNotIn("NtOpenProcessToken", client)
+            self.assertIn('FIXME( "reason=impersonate_flags\\n" );', client)
+            self.assertIn('FIXME( "reason=impersonate_message_on_communication_port\\n" );', client)
+            self.assertIn("req->no_message = 1;", client)
+            # OpenThreadToken after Identification impersonation: open_token refuses only Anonymous tokens.
+            self.assertIn("if (!thread->token->primary && thread->token->impersonation_level <= SecurityAnonymous)\n"
+                          "                    set_error( STATUS_CANT_OPEN_ANONYMOUS );", token)
+            self.assertIn("token_duplicate( source, 0, level, NULL, NULL, 0, NULL, 0 )", token)
             with self.assertRaisesRegex(ValueError, "fresh"):
                 port(source)
             (root / "CELL027-FROZEN").touch()
