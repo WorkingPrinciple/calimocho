@@ -1,0 +1,39 @@
+{
+  "requirement": "REQ-104",
+  "status": "isolated-functional-suite-passed-runtime-admission-pending",
+  "qualified": false,
+  "engine": "calimocho-wine11.20-gptk4b3-req104-push-ab-128-02",
+  "producer_commit": "33585c70a5614e412b7fd4ea3b3c481e084069f6",
+  "registry_sha256": "3b4f31ad8ec93ed55f2efd26e37c059a6904d200ecc2cbff598cffe8b26a1d25",
+  "library_sha256": "e8702d567572d06d695756a3ac02d4fa46ef084b1979eaaebc0ab28d9a40dd73",
+  "test_receipt": "docs/evidence/req104-sampler-limit-tests.json",
+  "test_receipt_sha256": "72beaf31e572577e14f0df6306b55c7a405ea6983584bfe5ae874a1773befa1c",
+  "test_width": 128,
+  "all_38_baseline_and_candidate_outcomes_matched": true,
+  "candidate": {
+    "reported_ordinary_limit": 128,
+    "reported_sampled_image_limit": 256,
+    "reported_max_push_descriptors": 287,
+    "rendering_modes_passed": 18,
+    "executions_per_rendering_mode": 2,
+    "variable_sampler_128": "supported, maximum128",
+    "variable_sampler_129": "unsupported",
+    "variable_combined_128": "supported, maximum128",
+    "variable_combined_129": "unsupported"
+  },
+  "argument_buffers_disabled": {
+    "reported_ordinary_limit": 16,
+    "no_logical_device_created": true,
+    "stdout_sha256": "0b4509ddca4fef0274262368074e5da3ab2e15b604c3c4e1c7fd63642ed04c69",
+    "stderr_sha256": "dc9b2d21468450cbc202cf96deedbd8041cde63f57e100b6aea1458d4a4bb779"
+  },
+  "limitations": [
+    "Compute and fragment stages tested, not every graphics stage",
+    "Fixed sampler descriptors and variable-layout queries tested; not full descriptor-indexing conformance",
+    "Resource lifetime case keeps Vulkan objects valid through completion and replay",
+    "Apple M5 Max only; untested fallback hardware gated to16",
+    "No NMS launch, warning removal, save behavior or performance acceptance",
+    "Source-frozen registry remains unchanged and unqualified",
+    "No remote publication or installed/default changes"
+  ]
+}

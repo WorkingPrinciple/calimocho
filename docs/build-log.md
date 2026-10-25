@@ -1220,3 +1220,32 @@ ADR-0057. The Release x86_64 build succeeds. It has not executed on a GPU.
 The complete variant patch includes the earlier push implementation and
 must be applied instead of patch 0001, not on top of it. This build is
 source-frozen only; functional acceptance and runtime admission are pending.
+
+### Promoted 128-02 isolated functional result
+
+The parent granted one serialized round after Forza released its capture.
+A fresh process check found no NMS or Forza game. The corrected combined
+fixture validates, and four source-only fixture invariant tests pass.
+The promoted x86_64 runner then produced all 38 expected baseline/candidate
+outcomes. All 18 candidate rendering modes pass exact weighted readback
+and command replay. The corrected 128 combined fixture has no redundant
+129th sampled image.
+
+Legacy properties and properties2 both report 128 ordinary samplers.
+`maxPushDescriptors=287`, so the 130-descriptor pure-push layout is within
+its independent limit. Standalone and combined variable-count queries
+support 128 with maximum 128, and reject 129. A separate instance-only
+query with argument buffers disabled reports the unchanged limit 16 and
+creates no logical device. No NMS launch occurred; the slot was released
+immediately after this round.
+
+The receipt SHA-256 is
+`72beaf31e572577e14f0df6306b55c7a405ea6983584bfe5ae874a1773befa1c`.
+It is committed as `docs/evidence/req104-sampler-limit-tests.json`.
+The source-frozen registry is unchanged, SHA-256
+`3b4f31ad8ec93ed55f2efd26e37c059a6904d200ecc2cbff598cffe8b26a1d25`.
+Separate acceptance evidence records this later result without rewriting
+the original pending-test provenance. Compute and fragment coverage is not
+every graphics stage or Vulkan conformance. NMS warning removal and
+performance remain unaccepted. Independent S2 admission is the next gate,
+followed by a separately authorized single NMS launch.
