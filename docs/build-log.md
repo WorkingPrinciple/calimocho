@@ -3,6 +3,29 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: observed OneCore query sibling024
+
+The native iocm-r2 reference now supplies BOOL(void) query0 twice in both
+unpackaged desktop and signed GamingApp contexts. ADR-0056 records the
+exact DLL/version, output hashes and unobserved true-mode limitation.
+Embedded output hashes were independently reconciled using the guest files'
+UTF-8 BOM encoding, not plain UTF-8. The collection envelope SHA-256 is
+`087edc856c6edc1a1af70106b9e540c21f1bf1f500f4e0bc0bb754365d363a27`.
+
+Only the missing user32 IsOneCoreTransformMode export is added, reporting
+this runtime's non-enabled mode. No setter, win32u mode implementation,
+other OneCore export or broad API-set change is introduced. The fresh
+`package-uwp-onecore-transform-01` build/stage/observer compilation succeeds
+without execution. First build failed because an unnecessary winbase.h
+include requires va_list; removing that unused header fixes compilation.
+The failed attempt and resumed logs are retained.023 claims and022
+telemetry remain unchanged; native true-mode behavior remains unobserved.
+
+The owner subsequently paused all screen control and new screen-affecting
+launches.024 remains unexecuted, and its frozen candidate explicitly requires
+user resume before any runtime launch. Source/build/headless host checks
+remain permitted. The stop was relayed to the exclusive execution owner.
+
 ## 2026-10-25: observed packaged effective-token sibling023
 
 The producer completed the genuine packaged-token-6 reference after owner

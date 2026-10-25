@@ -1,5 +1,16 @@
 {
   "_doc": "Single source of truth for upstream URLs + sha256 pins. Read by scripts/fetch-sources.sh and .github/workflows/upstream-watch.yml.",
+  "onecore_transform_reference": {
+    "producer": "VM iocm-r2, once-only interactive session1 query",
+    "collection_envelope_sha256": "087edc856c6edc1a1af70106b9e540c21f1bf1f500f4e0bc0bb754365d363a27",
+    "output_encoding": "UTF-8 with BOM, no trailing newline",
+    "user32_sha256": "f285937030bcb325cad39ee5be4818f6666241229adeadea4ff1ae469dfd7ef3",
+    "user32_version": "10.0.26100.8117",
+    "export_rva": "72a70",
+    "unpackaged_output_sha256": "945ae1f2b3d4fdbe311253b9658cf02187684bdb14a81a8c1f01f87a2bc372ee",
+    "packaged_output_sha256": "12b6c7b5ab380c7b55f5dc01d4fa5995a13de4f5994e6b6557873ae8a970b14f",
+    "scope": "IsOneCoreTransformMode BOOL(void), returns0 twice in each observed context; true OneCore and mode changes unobserved"
+  },
   "whiny_claims_packaged_thread": {
     "path": "patches/wine/files/package_claims_packaged_thread_generated.h",
     "sha256": "9978669c98676693e3424653c214dae182d0a6c87f4b996c992632eb002d748a",
