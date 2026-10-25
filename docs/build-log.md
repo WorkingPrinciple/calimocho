@@ -3671,3 +3671,17 @@ The025 recipe retains a distinct explicit-user-resume hold. The consumed024
 grant does not authorize025, general screen control or VM actions. No025
 prefix, setup, server, app, fixture, screenshot or input was launched here.
 NMS sampler and shader changes belong to the separate REQ-104 source lane.
+
+Frozen025 receipt:
+`build/winehq-11.20/package-uwp-coremessaging-01/cell025-receipt.json`,
+SHA-256
+`71a7fe33b08a27dea78a58e59972b26a0882b0b3bf588a7296fbb0a2f7fc70e8`.
+Source producer: `f6a6117ff1de11acc865c324bc56511d6c45b7c6`.
+Frozen registry SHA-256:
+`0229d78c0c1eb6e39b5285733b9d4a187e75edfcce72307920305cb2ebabb84c`.
+Independent receipt audit verifies3915 inventory entries, ten changed
+modules, producer blobs, external native identity, source-only CoreMessaging
+remaining in the install, exact native-only override, mandatory import
+closure, unchanged claims/context/schema/loader and133 typed slots.
+All252 host tests pass with that audit. The025 runtime root remains absent;
+the freeze is a held source candidate, not execution or native acceptance.
