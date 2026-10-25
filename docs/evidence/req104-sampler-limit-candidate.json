@@ -1,0 +1,41 @@
+{
+  "requirement": "REQ-104",
+  "engine": "calimocho-wine11.20-gptk4b3-req104-push-ab-128-02",
+  "status": "source-built-awaiting-promoted-candidate-gpu-tests",
+  "qualified": false,
+  "advertised_sampler_limit_if_gated": 128,
+  "fallback_limit": 16,
+  "direct_metal_slot_limit_unchanged": true,
+  "candidate_library_sha256": "e8702d567572d06d695756a3ac02d4fa46ef084b1979eaaebc0ab28d9a40dd73",
+  "patch_sha256": "54415d464609e82fb3e4ef682e53d50f836bdff74d9249bb2967a0c52fa99ddb",
+  "build_config_sha256": "a33ab0daeaa336d926dbb4635ddfbd25f335fd1fac842308e3db6aad504f0032",
+  "source_revisions": {
+    "MoltenVK": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+    "cereal": "a56bad8bbb770ee266e930c95d37fff2a5be7fea",
+    "Vulkan-Headers": "e3b1eec08173d6b825cd3ac88c885a63b621504a",
+    "SPIRV-Cross": "6c09849fe88c48eaed08413aa022aaa136a3a057",
+    "SPIRV-Tools": "0d6fd73ca73830ccab5fa1f00ed5ed40124e2c55",
+    "SPIRV-Headers": "29981f65241605e08b0ede4cfeb999fe3b723c6a",
+    "Vulkan-Tools": "8c66b352925cb771f793a4d3220b1321ae0febf1",
+    "Volk": "776893306c5d3b22b6185b5d4a258b81d94572bf"
+  },
+  "base_registry_sha256": "170ca4ad08a5274b614e74bf740866ef219a97fdc7855270c5d8fa03192ed609",
+  "prior_candidate_sweeps": {
+    "17": "38507e1976dcde04933f4773c024f6001e65732594afe5ce7b1faa2ee3439ac9",
+    "32": "2fba53f763a17dd5ba571ab856590b370a7bb0c6e3e2b229cedd725390058b8c",
+    "64": "0133a7ac09fbf2a9d159451031100761c51fac914fe50a58df457c881a8348ee",
+    "128": "8712e7e483870132a24c06e4f8e5f98e999b4657c18a229f94aa2e559cf0b96d"
+  },
+  "limitations": [
+    "Prior sweeps used push-ab-01, not this binary",
+    "128 prior aggregate failed: corrected immutable combined fixture requires rerun",
+    "Promoted limit and variable-count query require new GPU suite",
+    "No NMS warning removal or performance acceptance",
+    "REQ80/S2 runtime admission required",
+    "No remote publication or default changes"
+  ],
+  "apple_limit_source": "https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf",
+  "apple_limit_table_date": "2026-05-21",
+  "apple_limit_page": 8,
+  "apple_limit_observed": "Apple6 128; Apple7/8 996; Apple9/10 500K samplers per stage in argument buffers"
+}

@@ -79,6 +79,31 @@ GPU execution still requires the parent's exclusive slot grant. An
 experimental candidate must have a new identity, committed source patch,
 test receipt and full inventory. No existing runtime or default changes.
 
+### Later authorized sampler-limit experiment
+
+The parent then requested width-parameterized probes at 17, 32, 64 and 128.
+The [Apple feature tables][metal-limits], dated 2026-05-21, page 8, list
+128 argument-buffer samplers per stage for Apple6, 996 for Apple7/8 and
+500,000 for Apple9/10. This is not the unique sampler-object limit exposed
+by `maxArgumentBufferSamplerCount`. Reusing two sampler objects can exercise
+many descriptor entries without exercising unique-object capacity.
+
+Prepare a separate source-frozen, unqualified candidate capped at 128,
+pending its own GPU suite. Gate the experiment to macOS, enabled argument
+buffers, Tier 2, no argument encoder, native texture swizzle and Apple6 or
+newer. These predicates exclude the layout selector's direct-binding
+fallbacks. Keep all other devices and configurations at 16, and never
+raise direct Metal sampler slot constants. Align variable-count standalone
+and combined sampler queries with the gated advertised limit, including
+saturating subtraction when other bindings exhaust it.
+
+128 is the highest width of the authorized initial sweep, not an NMS
+threshold claim or a new hardware maximum. No larger push width is justified
+until the independent push-count limit is addressed. The promoted binary
+must repeat coverage, including the corrected combined-image fixture, before
+it has functional acceptance. Core, KHR and maintenance6 push entrypoints
+share internal command paths but get explicit runtime cases too.
+
 ## Consequences
 
 An upstream-backed compiler fix can be evaluated without risking current
@@ -88,3 +113,4 @@ signed or frozen artifact is not an admitted runtime or a fixed game.
 
 [shader]: https://github.com/KhronosGroup/SPIRV-Cross/pull/2719
 [samplers]: https://github.com/KhronosGroup/MoltenVK/issues/1610
+[metal-limits]: https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf

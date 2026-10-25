@@ -4,6 +4,7 @@
 #include <dlfcn.h>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -30,6 +31,11 @@ struct Probe {
     VkImageView view = VK_NULL_HANDLE;
     VkBuffer output = VK_NULL_HANDLE;
     VkDeviceMemory outputMemory = VK_NULL_HANDLE;
+    VkImage secondImage = VK_NULL_HANDLE;
+    VkDeviceMemory secondImageMemory = VK_NULL_HANDLE;
+    VkImageView secondView = VK_NULL_HANDLE;
+    VkBuffer secondOutput = VK_NULL_HANDLE;
+    VkDeviceMemory secondOutputMemory = VK_NULL_HANDLE;
     std::array<VkSampler, 2> samplers{};
     std::vector<VkDescriptorSetLayout> layouts;
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
@@ -64,6 +70,11 @@ struct Probe {
             if (imageMemory) vkFreeMemory(device, imageMemory, nullptr);
             if (output) vkDestroyBuffer(device, output, nullptr);
             if (outputMemory) vkFreeMemory(device, outputMemory, nullptr);
+            if (secondView) vkDestroyImageView(device, secondView, nullptr);
+            if (secondImage) vkDestroyImage(device, secondImage, nullptr);
+            if (secondImageMemory) vkFreeMemory(device, secondImageMemory, nullptr);
+            if (secondOutput) vkDestroyBuffer(device, secondOutput, nullptr);
+            if (secondOutputMemory) vkFreeMemory(device, secondOutputMemory, nullptr);
             vkDestroyDevice(device, nullptr);
         }
         if (instance) vkDestroyInstance(instance, nullptr);
@@ -80,7 +91,14 @@ struct Probe {
     }
 
     int run(const char* libraryPath, const std::string& mode,
-            const char* shaderPath, bool exercise) {
+            const char* shaderPath, bool exercise, bool limitsOnly = false) {
+        uint32_t width = 17;
+        if (const char* value = std::getenv("REQ104_SAMPLER_WIDTH")) {
+            std::string text(value);
+            if (text != "17" && text != "32" && text != "64" && text != "128")
+                throw std::runtime_error("Width must be 17,32,64,128");
+            width = static_cast<uint32_t>(std::stoul(text));
+        }
         library = dlopen(libraryPath, RTLD_NOW | RTLD_LOCAL);
         if (!library) throw std::runtime_error(dlerror());
         auto get = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
@@ -89,7 +107,12 @@ struct Probe {
         volkInitializeCustom(get);
         VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
         app.pApplicationName = "REQ104 sampler output oracle";
-        app.apiVersion = VK_API_VERSION_1_2;
+        bool core = mode.find("core") != std::string::npos;
+        bool push2 = mode == "push2" || mode == "template2" ||
+                     mode == "push2-khr" || mode == "template2-khr";
+        bool templateMode = mode == "template" || mode == "template-core" ||
+                            mode == "template2" || mode == "template2-khr";
+        app.apiVersion = core || push2 ? VK_API_VERSION_1_4 : VK_API_VERSION_1_2;
         VkInstanceCreateInfo ici{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
         ici.pApplicationInfo = &app;
         VK_CHECK(vkCreateInstance(&ici, nullptr, &instance));
@@ -104,12 +127,30 @@ struct Probe {
         vkGetPhysicalDeviceProperties(physical, &properties);
         std::printf("ordinary_limit=%u mode=%s\n",
                     properties.limits.maxPerStageDescriptorSamplers, mode.c_str());
-        if (properties.limits.maxPerStageDescriptorSamplers < 17 && !exercise) {
-            std::fprintf(stderr, "SKIP: 17 exceeds advertised limit; no logical device or GPU work. "
+        VkPhysicalDevicePushDescriptorProperties pushProperties{
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PUSH_DESCRIPTOR_PROPERTIES};
+        VkPhysicalDeviceProperties2 properties2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+        properties2.pNext = &pushProperties;
+        vkGetPhysicalDeviceProperties2(physical, &properties2);
+        if (properties2.properties.limits.maxPerStageDescriptorSamplers !=
+            properties.limits.maxPerStageDescriptorSamplers)
+            throw std::runtime_error("Legacy/properties2 sampler limits disagree");
+        std::printf("maxPushDescriptors=%u sampled_image_limit=%u device=%s\n",
+                    pushProperties.maxPushDescriptors,
+                    properties.limits.maxPerStageDescriptorSampledImages, properties.deviceName);
+        if (limitsOnly) return 0;
+        if (properties.limits.maxPerStageDescriptorSamplers < width && !exercise) {
+            std::fprintf(stderr, "SKIP: width exceeds advertised limit; no logical device or GPU work. "
                                  "Explicit --exercise-unsupported is diagnostic only.\n");
             return 77;
         }
-        bool push = mode != "regular";
+        bool immutable = mode.find("immutable") == 0;
+        bool combined = mode.find("combined") != std::string::npos;
+        bool mixed = mode == "mixed" || mode == "immutable-mixed";
+        bool resources = mode == "resources";
+        bool variable = mode == "variable";
+        bool push = mode != "regular" && mode != "immutable-regular" &&
+                    mode != "immutable-combined-regular";
         bool graphics = mode == "graphics";
         VkShaderStageFlags stage = graphics ? VK_SHADER_STAGE_FRAGMENT_BIT : VK_SHADER_STAGE_COMPUTE_BIT;
         VkPipelineBindPoint bindPoint = graphics ? VK_PIPELINE_BIND_POINT_GRAPHICS : VK_PIPELINE_BIND_POINT_COMPUTE;
@@ -123,11 +164,37 @@ struct Probe {
         float priority = 1;
         VkDeviceQueueCreateInfo qci{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
         qci.queueFamilyIndex = family; qci.queueCount = 1; qci.pQueuePriorities = &priority;
-        const char* extension = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
+        const char* extensions[] = {VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+                                    VK_KHR_MAINTENANCE_6_EXTENSION_NAME};
         VkDeviceCreateInfo dci{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
         dci.queueCreateInfoCount = 1; dci.pQueueCreateInfos = &qci;
-        dci.enabledExtensionCount = push ? 1 : 0;
-        dci.ppEnabledExtensionNames = push ? &extension : nullptr;
+        dci.enabledExtensionCount = mode.find("-khr") != std::string::npos ? 2 :
+                                    push && !core && !push2 ? 1 : 0;
+        dci.ppEnabledExtensionNames = extensions;
+        VkPhysicalDeviceDescriptorIndexingFeatures indexing{
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES};
+        if (variable) {
+            VkPhysicalDeviceFeatures2 available{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+            available.pNext = &indexing;
+            vkGetPhysicalDeviceFeatures2(physical, &available);
+            if (!indexing.descriptorBindingVariableDescriptorCount)
+                throw std::runtime_error("Variable descriptors unavailable");
+            indexing = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES};
+            indexing.descriptorBindingVariableDescriptorCount = VK_TRUE;
+            dci.pNext = &indexing;
+        }
+        VkPhysicalDeviceVulkan14Features features14{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES};
+        if (core || push2) {
+            VkPhysicalDeviceFeatures2 available{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+            available.pNext = &features14;
+            vkGetPhysicalDeviceFeatures2(physical, &available);
+            if (!features14.pushDescriptor || (push2 && !features14.maintenance6))
+                throw std::runtime_error("Required Vulkan 1.4 push feature unavailable");
+            features14 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES};
+            features14.pushDescriptor = VK_TRUE;
+            features14.maintenance6 = push2;
+            dci.pNext = &features14;
+        }
         VkPhysicalDeviceFeatures features{};
         if (graphics) {
             vkGetPhysicalDeviceFeatures(physical, &features);
@@ -139,7 +206,33 @@ struct Probe {
         }
         VK_CHECK(vkCreateDevice(physical, &dci, nullptr, &device));
         volkLoadDevice(device);
-        if (push && !vkCmdPushDescriptorSetKHR)
+        if (variable) {
+            uint32_t limit = properties.limits.maxPerStageDescriptorSamplers;
+            for (VkDescriptorType type : {VK_DESCRIPTOR_TYPE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER}) {
+                for (uint32_t requested : {limit, limit + 1}) {
+                    VkDescriptorBindingFlags flag = VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
+                    VkDescriptorSetLayoutBindingFlagsCreateInfo flags{
+                        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO};
+                    flags.bindingCount = 1; flags.pBindingFlags = &flag;
+                    VkDescriptorSetLayoutBinding binding{0, type, requested, stage, nullptr};
+                    VkDescriptorSetLayoutCreateInfo info{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+                    info.pNext = &flags; info.bindingCount = 1; info.pBindings = &binding;
+                    VkDescriptorSetVariableDescriptorCountLayoutSupport countSupport{
+                        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_LAYOUT_SUPPORT};
+                    VkDescriptorSetLayoutSupport support{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_SUPPORT};
+                    support.pNext = &countSupport;
+                    vkGetDescriptorSetLayoutSupport(device, &info, &support);
+                    bool expected = requested == limit;
+                    if (bool(support.supported) != expected ||
+                        (expected && countSupport.maxVariableDescriptorCount != limit))
+                        throw std::runtime_error("Variable descriptor query disagrees with advertised sampler limit");
+                    std::printf("variable_type=%u requested=%u supported=%u max=%u result=PASS\n",
+                                type, requested, support.supported, countSupport.maxVariableDescriptorCount);
+                }
+            }
+            return 0;
+        }
+        if (push && !core && !push2 && !vkCmdPushDescriptorSetKHR)
             throw std::runtime_error("Push descriptor entrypoint unavailable");
         VkQueue queue;
         vkGetDeviceQueue(device, family, 0, &queue);
@@ -172,6 +265,26 @@ struct Probe {
         vci.image = image; vci.viewType = VK_IMAGE_VIEW_TYPE_2D; vci.format = im.format;
         vci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
         VK_CHECK(vkCreateImageView(device, &vci, nullptr, &view));
+        if (resources) {
+            VK_CHECK(vkCreateBuffer(device, &bci, nullptr, &secondOutput));
+            vkGetBufferMemoryRequirements(device, secondOutput, &req);
+            mai.allocationSize = req.size;
+            mai.memoryTypeIndex = memoryType(req.memoryTypeBits,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            VK_CHECK(vkAllocateMemory(device, &mai, nullptr, &secondOutputMemory));
+            VK_CHECK(vkBindBufferMemory(device, secondOutput, secondOutputMemory, 0));
+            VK_CHECK(vkMapMemory(device, secondOutputMemory, 0, 8, 0, &mapped));
+            std::memset(mapped, 0xff, 8);
+            vkUnmapMemory(device, secondOutputMemory);
+            VK_CHECK(vkCreateImage(device, &im, nullptr, &secondImage));
+            vkGetImageMemoryRequirements(device, secondImage, &req);
+            mai.allocationSize = req.size;
+            mai.memoryTypeIndex = memoryType(req.memoryTypeBits, 0);
+            VK_CHECK(vkAllocateMemory(device, &mai, nullptr, &secondImageMemory));
+            VK_CHECK(vkBindImageMemory(device, secondImage, secondImageMemory, 0));
+            vci.image = secondImage;
+            VK_CHECK(vkCreateImageView(device, &vci, nullptr, &secondView));
+        }
         for (uint32_t i = 0; i < 2; ++i) {
             VkSamplerCreateInfo sci{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
             sci.magFilter = sci.minFilter = VK_FILTER_NEAREST;
@@ -181,17 +294,27 @@ struct Probe {
             sci.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
             VK_CHECK(vkCreateSampler(device, &sci, nullptr, &samplers[i]));
         }
-        uint32_t setCount = mode == "mixed" ? 2 : 1;
+        uint32_t setCount = mixed ? 2 : 1;
+        if (push && width + (mixed ? 0 : 2) > pushProperties.maxPushDescriptors)
+            throw std::runtime_error("Probe exceeds maxPushDescriptors; refuse unsupported push width");
         layouts.resize(setCount);
         for (uint32_t s = 0; s < setCount; ++s) {
-            uint32_t samplerCount = mode == "mixed" ? (s ? 9 : 8) : 17;
+            uint32_t samplerCount = mixed ? (s ? width - width / 2 : width / 2) : width;
+            std::array<VkSampler, 128> immutableSamplers{};
+            for (uint32_t i = 0; i < samplerCount; ++i)
+                immutableSamplers[i] = samplers[(i + (mixed && s ? width / 2 : 0)) % 2];
             std::array<VkDescriptorSetLayoutBinding, 3> bindings{{
                 {0, VK_DESCRIPTOR_TYPE_SAMPLER, samplerCount, stage, nullptr},
                 {1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, stage, nullptr},
                 {2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, stage, nullptr}}};
+            if (combined) {
+                bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                bindings[1].descriptorCount = 0;
+            }
+            if (immutable) bindings[0].pImmutableSamplers = immutableSamplers.data();
             VkDescriptorSetLayoutCreateInfo lci{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
             lci.flags = push && s == 0 ? VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR : 0;
-            lci.bindingCount = mode == "mixed" && s == 0 ? 1 : 3;
+            lci.bindingCount = mixed && s == 0 ? 1 : 3;
             lci.pBindings = bindings.data();
             VK_CHECK(vkCreateDescriptorSetLayout(device, &lci, nullptr, &layouts[s]));
         }
@@ -261,13 +384,13 @@ struct Probe {
             VK_CHECK(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gpci, nullptr, &pipeline));
         }
         struct TemplateData {
-            std::array<VkDescriptorImageInfo, 17> samplers;
+            std::array<VkDescriptorImageInfo, 128> samplers;
             VkDescriptorImageInfo texture;
             VkDescriptorBufferInfo buffer;
         };
-        if (mode == "template") {
+        if (templateMode) {
             std::array<VkDescriptorUpdateTemplateEntry, 3> entries{{
-                {0, 0, 17, VK_DESCRIPTOR_TYPE_SAMPLER, offsetof(TemplateData, samplers), sizeof(VkDescriptorImageInfo)},
+                {0, 0, width, VK_DESCRIPTOR_TYPE_SAMPLER, offsetof(TemplateData, samplers), sizeof(VkDescriptorImageInfo)},
                 {1, 0, 1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, offsetof(TemplateData, texture), sizeof(VkDescriptorImageInfo)},
                 {2, 0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, offsetof(TemplateData, buffer), sizeof(VkDescriptorBufferInfo)}}};
             VkDescriptorUpdateTemplateCreateInfo ti{VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO};
@@ -275,20 +398,21 @@ struct Probe {
             ti.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR;
             ti.pipelineBindPoint = bindPoint; ti.pipelineLayout = pipelineLayout;
             VK_CHECK(vkCreateDescriptorUpdateTemplate(device, &ti, nullptr, &updateTemplate));
-            if (!vkCmdPushDescriptorSetWithTemplateKHR) throw std::runtime_error("No push template function");
+            if (!core && !push2 && !vkCmdPushDescriptorSetWithTemplateKHR)
+                throw std::runtime_error("No push template function");
         }
-        std::array<VkDescriptorPoolSize, 3> sizes{{
-            {VK_DESCRIPTOR_TYPE_SAMPLER, 34}, {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 2},
-            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2}}};
+        std::array<VkDescriptorPoolSize, 4> sizes{{
+            {VK_DESCRIPTOR_TYPE_SAMPLER, 2 * width}, {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 2},
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 * width}}};
         VkDescriptorPoolCreateInfo dpci{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-        dpci.maxSets = 2; dpci.poolSizeCount = 3; dpci.pPoolSizes = sizes.data();
+        dpci.maxSets = 2; dpci.poolSizeCount = sizes.size(); dpci.pPoolSizes = sizes.data();
         VK_CHECK(vkCreateDescriptorPool(device, &dpci, nullptr, &descriptors));
         std::array<std::array<VkDescriptorSet, 2>, 2> sets{};
         // Regular descriptors use separate immutable sets per dispatch. Updating a
         // bound ordinary set in place would not be a valid Vulkan lifetime test.
         for (uint32_t pass = 0; pass < 2; ++pass) {
-            uint32_t s = mode == "mixed" ? 1 : 0;
-            if (push && mode != "mixed") continue;
+            uint32_t s = mixed ? 1 : 0;
+            if (push && !mixed) continue;
             VkDescriptorSetAllocateInfo ai{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
             ai.descriptorPool = descriptors; ai.descriptorSetCount = 1; ai.pSetLayouts = &layouts[s];
             VK_CHECK(vkAllocateDescriptorSets(device, &ai, &sets[pass][s]));
@@ -307,15 +431,22 @@ struct Probe {
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.image = image; barrier.subresourceRange = vci.subresourceRange;
-        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                             0, 0, nullptr, 0, nullptr, 1, &barrier);
-        VkClearColorValue black{};
-        vkCmdClearColorImage(cmd, image, barrier.newLayout, &black, 1, &barrier.subresourceRange);
-        barrier.oldLayout = barrier.newLayout; barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT; barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
         VkPipelineStageFlags pipelineStage = graphics ? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, pipelineStage,
-                             0, 0, nullptr, 0, nullptr, 1, &barrier);
+        for (uint32_t resource = 0; resource < (resources ? 2u : 1u); ++resource) {
+            barrier.image = resource ? secondImage : image;
+            barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            barrier.srcAccessMask = 0; barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                 0, 0, nullptr, 0, nullptr, 1, &barrier);
+            VkClearColorValue color{};
+            if (resource) color.float32[0] = 1;
+            vkCmdClearColorImage(cmd, barrier.image, barrier.newLayout, &color, 1, &barrier.subresourceRange);
+            barrier.oldLayout = barrier.newLayout; barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT; barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, pipelineStage,
+                                 0, 0, nullptr, 0, nullptr, 1, &barrier);
+        }
         if (graphics) {
             VkRenderPassBeginInfo ri{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
             ri.renderPass = renderPass; ri.framebuffer = framebuffer;
@@ -325,27 +456,55 @@ struct Probe {
         vkCmdBindPipeline(cmd, bindPoint, pipeline);
         for (uint32_t pass = 0; pass < 2; ++pass) {
             for (uint32_t s = 0; s < setCount; ++s) {
-                uint32_t n = mode == "mixed" ? (s ? 9 : 8) : 17;
-                uint32_t offset = mode == "mixed" && s ? 8 : 0;
-                std::array<VkDescriptorImageInfo, 17> infos{};
-                for (uint32_t i = 0; i < n; ++i) infos[i].sampler = samplers[(i + offset + pass) % 2];
+                uint32_t n = mixed ? (s ? width - width / 2 : width / 2) : width;
+                uint32_t offset = mixed && s ? width / 2 : 0;
+                std::array<VkDescriptorImageInfo, 128> infos{};
+                for (uint32_t i = 0; i < n; ++i) {
+                    infos[i].sampler = samplers[(i + offset + pass) % 2];
+                    if (combined) {
+                        infos[i].imageView = view;
+                        infos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    }
+                }
                 VkDescriptorImageInfo texture{VK_NULL_HANDLE, view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
                 VkDescriptorBufferInfo buffer{output, 0, 8};
+                if (resources && pass) {
+                    texture.imageView = secondView;
+                    buffer.buffer = secondOutput;
+                }
                 std::array<VkWriteDescriptorSet, 3> writes{};
                 for (uint32_t i = 0; i < 3; ++i) {
                     writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                     writes[i].dstBinding = i; writes[i].descriptorCount = 1;
                     writes[i].dstSet = sets[pass][s];
                 }
-                writes[0].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+                writes[0].descriptorType = combined ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER :
+                                                     VK_DESCRIPTOR_TYPE_SAMPLER;
                 writes[0].descriptorCount = n; writes[0].pImageInfo = infos.data();
                 writes[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE; writes[1].pImageInfo = &texture;
                 writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; writes[2].pBufferInfo = &buffer;
-                uint32_t writeCount = mode == "mixed" && s == 0 ? 1 : 3;
+                uint32_t writeCount = mixed && s == 0 ? 1 : 3;
+                if (combined) {
+                    writes[1] = writes[2];
+                    writeCount = 2;
+                }
                 if (push && s == 0) {
-                    if (mode == "template") {
+                    if (templateMode) {
                         TemplateData data{infos, texture, buffer};
-                        vkCmdPushDescriptorSetWithTemplateKHR(cmd, updateTemplate, pipelineLayout, s, &data);
+                        if (push2) {
+                            auto fn = mode == "template2-khr" ? vkCmdPushDescriptorSetWithTemplate2KHR :
+                                                              vkCmdPushDescriptorSetWithTemplate2;
+                            if (!fn) throw std::runtime_error("No template2 entrypoint");
+                            VkPushDescriptorSetWithTemplateInfo info{
+                                VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_WITH_TEMPLATE_INFO};
+                            info.descriptorUpdateTemplate = updateTemplate;
+                            info.layout = pipelineLayout; info.set = s; info.pData = &data;
+                            fn(cmd, &info);
+                        } else if (core) {
+                            if (!vkCmdPushDescriptorSetWithTemplate)
+                                throw std::runtime_error("No core push template entrypoint");
+                            vkCmdPushDescriptorSetWithTemplate(cmd, updateTemplate, pipelineLayout, s, &data);
+                        } else vkCmdPushDescriptorSetWithTemplateKHR(cmd, updateTemplate, pipelineLayout, s, &data);
                     } else if (mode == "partial" && pass == 1) {
                         // REQ-104: partial writes must preserve the image, buffer,
                         // and sampler elements not included in each write.
@@ -354,6 +513,16 @@ struct Probe {
                             writes[0].pImageInfo = &infos[i];
                             vkCmdPushDescriptorSetKHR(cmd, bindPoint, pipelineLayout, s, 1, writes.data());
                         }
+                    } else if (push2) {
+                        auto fn = mode == "push2-khr" ? vkCmdPushDescriptorSet2KHR : vkCmdPushDescriptorSet2;
+                        if (!fn) throw std::runtime_error("No push2 entrypoint");
+                        VkPushDescriptorSetInfo info{VK_STRUCTURE_TYPE_PUSH_DESCRIPTOR_SET_INFO};
+                        info.stageFlags = stage; info.layout = pipelineLayout; info.set = s;
+                        info.descriptorWriteCount = writeCount; info.pDescriptorWrites = writes.data();
+                        fn(cmd, &info);
+                    } else if (core) {
+                        if (!vkCmdPushDescriptorSet) throw std::runtime_error("No core push entrypoint");
+                        vkCmdPushDescriptorSet(cmd, bindPoint, pipelineLayout, s, writeCount, writes.data());
                     } else vkCmdPushDescriptorSetKHR(cmd, bindPoint, pipelineLayout,
                                                     s, writeCount, writes.data());
                 }
@@ -385,13 +554,30 @@ struct Probe {
             std::memcpy(observed.data(), mapped, 8);
             std::memset(mapped, 0xff, 8);
             vkUnmapMemory(device, outputMemory);
+            if (resources) {
+                // REQ-104: replacing both resource bindings must preserve the
+                // first dispatch's buffer and keep both images live through replay.
+                if (observed[1] != 0xffffffff)
+                    throw std::runtime_error("First buffer's untouched word changed");
+                VK_CHECK(vkMapMemory(device, secondOutputMemory, 0, 8, 0, &mapped));
+                std::array<uint32_t, 2> second{};
+                std::memcpy(second.data(), mapped, 8);
+                std::memset(mapped, 0xff, 8);
+                vkUnmapMemory(device, secondOutputMemory);
+                if (second[0] != 0xffffffff)
+                    throw std::runtime_error("Second buffer's untouched word changed");
+                observed[1] = second[1];
+            }
             // REQ-104: every sampler contributes one bit; a later push must not
             // alter the first dispatch, including after command-buffer replay.
-            bool correct = observed[0] == 0xaaaa && observed[1] == 0x15555;
-            std::printf("replay=%u observed=[0x%x,0x%x] expected=[0xaaaa,0x15555] result=%s "
+            uint32_t expectedFirst = width == 17 ? 0xaaaa : (width / 2) * (width / 2 + 1);
+            uint32_t expectedSecond = resources ? (width == 17 ? 0x1ffff : width * (width + 1) / 2) :
+                                      immutable ? expectedFirst : width == 17 ? 0x15555 : (width / 2) * (width / 2);
+            bool correct = observed[0] == expectedFirst && observed[1] == expectedSecond;
+            std::printf("replay=%u observed=[0x%x,0x%x] expected=[0x%x,0x%x] result=%s "
                         "advertised_support=%s\n", replay, observed[0], observed[1],
-                        correct ? "PASS" : "FAIL",
-                        properties.limits.maxPerStageDescriptorSamplers >= 17 ? "true" : "false");
+                        expectedFirst, expectedSecond, correct ? "PASS" : "FAIL",
+                        properties.limits.maxPerStageDescriptorSamplers >= width ? "true" : "false");
             if (!correct) return 1;
             VK_CHECK(vkResetFences(device, 1, &fence));
         }
@@ -403,15 +589,29 @@ int main(int argc, char** argv) {
     if ((argc != 4 && argc != 5) ||
         (std::string(argv[2]) != "regular" && std::string(argv[2]) != "push" &&
          std::string(argv[2]) != "mixed" && std::string(argv[2]) != "template" &&
-         std::string(argv[2]) != "partial" && std::string(argv[2]) != "graphics") ||
-        (argc == 5 && std::string(argv[4]) != "--exercise-unsupported")) {
-        std::fprintf(stderr, "Usage: probe LIBRARY regular|push|mixed|template|partial|graphics SHADER "
+         std::string(argv[2]) != "partial" && std::string(argv[2]) != "graphics" &&
+         std::string(argv[2]) != "resources" && std::string(argv[2]) != "immutable" &&
+         std::string(argv[2]) != "immutable-mixed" && std::string(argv[2]) != "immutable-regular" &&
+         std::string(argv[2]) != "immutable-combined" &&
+         std::string(argv[2]) != "immutable-combined-regular" &&
+         std::string(argv[2]) != "push-core" && std::string(argv[2]) != "template-core" &&
+         std::string(argv[2]) != "push2" && std::string(argv[2]) != "template2" &&
+         std::string(argv[2]) != "push2-khr" && std::string(argv[2]) != "template2-khr" &&
+         std::string(argv[2]) != "variable") ||
+        (argc == 5 && std::string(argv[4]) != "--exercise-unsupported" &&
+         std::string(argv[4]) != "--limits-only")) {
+        std::fprintf(stderr, "Usage: probe LIBRARY regular|push|mixed|template|partial|graphics|resources|"
+                             "immutable|immutable-mixed|immutable-regular|immutable-combined|"
+                             "immutable-combined-regular|push-core|template-core|push2|template2|"
+                             "push2-khr|template2-khr SHADER "
                              "[--exercise-unsupported]\n");
         return 2;
     }
     try {
         Probe probe;
-        return probe.run(argv[1], argv[2], argv[3], argc == 5);
+        return probe.run(argv[1], argv[2], argv[3],
+                         argc == 5 && std::string(argv[4]) == "--exercise-unsupported",
+                         argc == 5 && std::string(argv[4]) == "--limits-only");
     } catch (const std::exception& error) {
         std::fprintf(stderr, "sampler probe ERROR: %s\n", error.what());
         return 1;

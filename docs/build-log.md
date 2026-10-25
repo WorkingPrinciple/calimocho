@@ -1137,3 +1137,86 @@ not comprehensive descriptor support. Distinct texture/buffer lifetime
 changes and immutable sampler combinations still need wider coverage before
 changing any capability. Advertised capacity remains 16. NMS warning-free
 startup, the unknown game threshold and performance are not accepted.
+
+### REQ-104 follow-up: resource lifetime and immutable samplers
+
+The parent accepted push-ab-01 as a frozen candidate only and assigned
+source-only coverage work while S2 admission and Forza's queued capture run.
+The existing candidate stays immutable. No new GPU work or NMS launch is
+authorized by this follow-up alone.
+
+Extend the independent runner before changing any advertised limit:
+
+- Replace both texture and storage-buffer bindings between dispatches.
+  Use black and white images plus separate output buffers. Require
+  `0xaaaa,0x1ffff` and unchanged sentinel words in the unselected buffers.
+  Keep Vulkan resources valid through completion and replay; do not use
+  illegal early destruction as a lifetime test.
+- Exercise immutable standalone samplers in ordinary, push and mixed sets.
+  Exercise immutable combined image samplers in ordinary and push sets.
+  Require `0xaaaa,0xaaaa` across updates and replay.
+- Preserve the original six-mode suite and default limit guard.
+
+The combined-image SPIR-V fixture validates and the extended runner compiles.
+These new cases have not executed at this point. Their acceptance requires
+the next explicit GPU grant, then exact readback and retained log hashes.
+
+The first conservative higher-limit proposal is 17, not a claim about NMS's
+unknown threshold. It matches the width of the existing functional oracle.
+Promotion is conditional on closing the new coverage and proving the path
+selection invariant. Metal3, Tier 2, enabled argument buffers and native
+texture swizzle are necessary gates: layout selection can otherwise fall
+back to direct binding. Encoder-based and argument-buffers-disabled devices
+must keep 16. Do not increase Metal's direct slot constants.
+
+The source audit also found a query seam that must not be missed:
+`getDescriptorVariableDescriptorCountLayoutSupport` subtracts from the
+direct Metal sampler count, even when an argument-buffer layout is used.
+Any separate promoted candidate must reconcile that query with its selected
+representation, and test standalone and combined variable-count bindings.
+`getDescriptorSetLayoutSupport` explicitly does not check per-stage limits
+under the Vulkan contract; do not turn it into an unrelated validator.
+Legacy and Vulkan 1.4 push APIs share the same two internal command classes,
+but source convergence alone is not runtime coverage of every entrypoint
+or shader stage. No higher-limit candidate is frozen or accepted yet.
+
+### Authorized width sweep and separate 128-gated build
+
+The parent expanded the follow-up to widths 17, 32, 64 and 128, with larger
+push widths deferred until their independent push-count bound is justified.
+The Apple feature PDF was fetched successfully and inspected with system
+PDFKit. Its 2026-05-21 table, page 8, lists 128 AB samplers per stage for
+Apple6, 996 for Apple7/8 and 500K for Apple9/10. This is distinct from unique
+sampler objects per application. The actual diagnostic identifies an Apple
+M5 Max, Apple10 GPU family. Do not infer that every Tier 2 device supports
+500K entries.
+
+The first extended runner was accidentally built arm64. Its guard failed
+at `dlopen` before device creation against the x86_64 library. Inspection
+identified the architecture mismatch; explicit `clang++ -arch x86_64`
+corrected it before the authorized sweep.
+
+The sweep then ran 18 modes per library at each width. All 72 source
+candidate executions passed their exact readbacks and command replay,
+including separate texture/buffer updates, standalone/combined immutable
+samplers, and core/KHR/maintenance6 push APIs. Widths above 17 use a weighted
+sum of every sampled value rather than overflowing a 17-bit mask.
+The 17/32/64 aggregate receipts pass. The 128 aggregate deliberately remains
+failed: baseline immutable-combined exposed a redundant standalone image
+in that fixture, making 129 image descriptors versus the advertised 128.
+The candidate's success on that invalid case is not accepted evidence.
+The fixture source now omits that image and its write, reserving binding 1
+with count 0. The original receipt remains unchanged for audit.
+
+All four receipts are retained under `build/req104/sweep-01-results-WIDTH/`.
+The GPU slot was released immediately after the queued sweep, without any
+extra round or NMS launch. The parent directed the corrected combined case
+to run with the promoted candidate's next suite, after Forza's capture.
+
+A new isolated source copy, `build/req104/push-ab-02-source`, builds with
+`REQ104_SAMPLER_LIMIT=128` in addition to the push snapshot define. It applies
+the gated predicate and variable-count query correction described by
+ADR-0057. The Release x86_64 build succeeds. It has not executed on a GPU.
+The complete variant patch includes the earlier push implementation and
+must be applied instead of patch 0001, not on top of it. This build is
+source-frozen only; functional acceptance and runtime admission are pending.
