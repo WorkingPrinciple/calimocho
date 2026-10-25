@@ -2751,3 +2751,13 @@ does not locate a hang or prove which method native XAML entered.
 The headless map contract passes, but native lifecycle/UI acceptance
 remains unproven. The observer owner was asked to confirm sealing and
 owned cleanup, without replaying012.
+
+The observer subsequently confirmed012 sealed, all imports0, owned server
+stop/wait0, recorded host PIDs absent and prefix open-file check clear.
+Its runtime receipt SHA-256 is
+`91135487ab667f445d489c4b30946c00d91ab39249da7ba0270c09f95dc525b1`,
+independently read and hash-checked. The actual run spans
+03:42:56.990 through03:46:10.947 UTC. No input or window control occurred.
+The next distinct diagnostic would need PID-bound method-entry/completion
+and inner PropertySet selection evidence, not an unchanged replay, longer
+cap, guessed interface or assumed deadlock fix.
