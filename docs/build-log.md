@@ -3,6 +3,43 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: CoreMessaging thread dispatch hosting
+
+ADR-0066 replaces the user32 #2541, #2669 and #2670 stubs and hosts the
+minuser private-ext apiset on user32. `package-coremsg-dispatch-01` failed:
+an added `l1-1-1` apiset row collides with `l1-1-3` because Wine hashes the
+name without the final version. Its log remains. `package-coremsg-dispatch-02`
+hosts `l1-1-3` instead and builds. Receipt SHA-256:
+`22934c98f22e694e6f7fa28dce55d2af2398805424f79a18fca83b60faf38545`.
+
+`whiny inspect` of native CoreMessaging 88c7b4d6 against that source reports
+10 delay-load gaps, down from 15. The output is stored next to the receipt
+as `whiny-coremessaging-inspect.json`. Sanitized host tests run the actual
+packet, slot, drain and read-only status code. Registrar qualification is
+unchanged, so no cell027 receipt is frozen.
+
+## 2026-10-25: scoped SCM registrar construction and token launch
+
+ADR-0065 adds configured LocalService construction for a single-member registrar
+host. It derives the service SID, allocates local dynamic identities, builds
+restrictions, restores scoped privileges and verifies the token by readback.
+SCM uses the primary token explicitly and cannot fall back to its inherited
+launcher token when registrar construction fails.
+
+`package-registrar-service-01` exposed a missing SDK constant in Wine's service
+headers. Its failed compile log remains. The corrected
+`package-registrar-service-02` and `-03` build SCM with the coupled Wine
+changes. The `-03` receipt also binds `services.exe`; its SHA-256 is
+`e9e27729c5f4cc27b0e1b89ebad491ca648057ba86a3ababb5d5342d919a0409`.
+Sanitized host checks cover the actual configuration, scoped privilege and
+readback guard bodies, not an installed service.
+
+The candidate still has registrar_qualified false. The measured native shared
+host and eight unidentified groups are not copied or claimed as reproduced.
+The collector lane confirms it retained no derivation evidence for those groups;
+calling them capabilities would be an unsupported interpretation.
+Dispatch/wait integration remains unfinished. No cell027 admission is produced.
+
 ## 2026-10-25: authenticated delivered-connection impersonation
 
 ADR-0064 replaces the impersonation stub only for delivered, unaccepted
