@@ -2711,3 +2711,9 @@ passed a fresh signature, signed-content and dependency-closure check.
 Xbox's observer owner received the receipt and the separate headless
 fixture request, followed by the already-approved actual012 cell. Sent is
 not executed: neither native result is available in this source handoff.
+
+While the native observer lane was running, the complete existing host
+suite passed180 tests. Its expected rejected-input fixtures print configure
+failures and an invalid revision diagnostic; the runner completed with no
+test failures. These host checks do not replace the pending native fixture
+or actual AppL result.
