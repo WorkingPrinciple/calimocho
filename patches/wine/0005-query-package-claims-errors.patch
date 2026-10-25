@@ -1,0 +1,53 @@
+From: Calimocho contributors
+Subject: [PATCH] ntdll: expose limited package claims error propagation
+
+Base: WineHQ 7298a818b79446bae153b8d5aa27235ab3703bf9.
+This is an opt-in source candidate, not package identity support.
+
+diff --git a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -954,6 +954,7 @@
+ @ stdcall RtlQueryInformationActivationContext(long long ptr long ptr long ptr)
+ @ stdcall RtlQueryInformationActiveActivationContext(long ptr long ptr)
+ @ stub RtlQueryInterfaceMemoryStream
++@ stdcall RtlQueryPackageClaims(long ptr ptr ptr ptr ptr ptr ptr)
+ @ stdcall RtlQueryPackageIdentity(long ptr ptr ptr ptr ptr)
+ @ stdcall RtlQueryPerformanceCounter(ptr)
+ @ stdcall RtlQueryPerformanceFrequency(ptr)
+diff --git a/dlls/ntdll/rtl.c b/dlls/ntdll/rtl.c
+--- a/dlls/ntdll/rtl.c
++++ b/dlls/ntdll/rtl.c
+@@ -1620,6 +1620,32 @@
+     return NULL;
+ }
+ 
++/*********************************************************************
++ *           RtlQueryPackageClaims [NTDLL.@]
++ */
++NTSTATUS WINAPI RtlQueryPackageClaims(HANDLE token, WCHAR *fullname, SIZE_T *fullname_size,
++                                      WCHAR *appid, SIZE_T *appid_size, GUID *dynamic_id,
++                                      void *claim, ULONG64 *attributes)
++{
++    TOKEN_TYPE type;
++    ULONG length;
++    NTSTATUS status;
++
++    TRACE("(%p, %p, %p, %p, %p, %p, %p, %p)\n", token, fullname, fullname_size,
++          appid, appid_size, dynamic_id, claim, attributes);
++
++    /* Native clears this output even when token validation fails. */
++    if (attributes) *attributes = 0;
++    status = NtQueryInformationToken(token, TokenType, &type, sizeof(type), &length);
++    if (status) return status;
++
++    status = NtQueryInformationToken(token, TokenSecurityAttributes, NULL, 0, &length);
++    if (status) return status;
++
++    FIXME("Package claim decoding is not implemented.\n");
++    return STATUS_NOT_IMPLEMENTED;
++}
++
+ /*********************************************************************
+  *           RtlQueryPackageIdentity [NTDLL.@]
+  */

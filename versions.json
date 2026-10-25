@@ -1,5 +1,17 @@
 {
   "_doc": "Single source of truth for upstream URLs + sha256 pins. Read by scripts/fetch-sources.sh and .github/workflows/upstream-watch.yml.",
+  "appx_trust_roots": [
+    {
+      "name": "Microsoft Root Certificate Authority 2010",
+      "url": "https://www.microsoft.com/pki/certs/MicRooCerAut_2010-06-23.crt",
+      "sha256": "df545bf919a2439c36983b54cdfc903dfa4f37d3996d8d84b4c31eec6f3c163e"
+    },
+    {
+      "name": "Microsoft Root Certificate Authority 2011",
+      "url": "https://www.microsoft.com/pki/certs/MicRooCerAut2011_2011_03_22.crt",
+      "sha256": "847df6a78497943f27fc72eb93f9a637320a02b561d0a91b09e87a7807ed7c61"
+    }
+  ],
   "moltenvk_source": {
     "repository": "https://github.com/KhronosGroup/MoltenVK.git",
     "tag": "v1.4.2",

@@ -1,0 +1,870 @@
+--- a/dlls/kernelbase/version.c
++++ b/dlls/kernelbase/version.c
+@@ -40,6 +40,7 @@
+ 
+ #include "kernelbase.h"
+ #include "wine/debug.h"
++#include "wine/package.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(ver);
+ 
+@@ -1551,8 +1552,50 @@
+  */
+ LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentApplicationUserModelId( UINT32 *length, WCHAR *id )
+ {
+-    FIXME( "(%p %p): stub\n", length, id );
+-    return APPMODEL_ERROR_NO_APPLICATION;
++    struct wine_package_identity package;
++    WCHAR value[2 * WINE_PACKAGE_CHARS];
++    NTSTATUS status;
++    UINT32 required;
++
++    if (!length || (*length && !id)) return ERROR_INVALID_PARAMETER;
++    status = wine_query_package_identity( (HANDLE)(LONG_PTR)-4, &package );
++    if (status == STATUS_NOT_FOUND) return APPMODEL_ERROR_NO_APPLICATION;
++    if (status) return RtlNtStatusToDosError( status );
++    lstrcpyW( value, package.family_name );
++    lstrcatW( value, L"!" );
++    lstrcatW( value, package.app_id );
++    required = lstrlenW( value ) + 1;
++    if (*length < required)
++    {
++        *length = required;
++        return ERROR_INSUFFICIENT_BUFFER;
++    }
++    memcpy( id, value, required * sizeof(WCHAR) );
++    *length = required;
++    return ERROR_SUCCESS;
++}
++
++static LONG current_package_name( UINT32 *length, WCHAR *name, BOOL full )
++{
++    struct wine_package_identity package;
++    const WCHAR *value;
++    NTSTATUS status;
++    UINT32 required;
++
++    if (!length || (*length && !name)) return ERROR_INVALID_PARAMETER;
++    status = wine_query_package_identity( (HANDLE)(LONG_PTR)-4, &package );
++    if (status == STATUS_NOT_FOUND) return APPMODEL_ERROR_NO_PACKAGE;
++    if (status) return RtlNtStatusToDosError( status );
++    value = full ? package.full_name : package.family_name;
++    required = lstrlenW( value ) + 1;
++    if (*length < required)
++    {
++        *length = required;
++        return ERROR_INSUFFICIENT_BUFFER;
++    }
++    memcpy( name, value, required * sizeof(WCHAR) );
++    *length = required;
++    return ERROR_SUCCESS;
+ }
+ 
+ /***********************************************************************
+@@ -1560,8 +1603,7 @@
+  */
+ LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackageFamilyName( UINT32 *length, WCHAR *name )
+ {
+-    FIXME( "(%p %p): stub\n", length, name );
+-    return APPMODEL_ERROR_NO_PACKAGE;
++    return current_package_name( length, name, FALSE );
+ }
+ 
+ 
+@@ -1570,8 +1612,7 @@
+  */
+ LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackageFullName( UINT32 *length, WCHAR *name )
+ {
+-    FIXME( "(%p %p): stub\n", length, name );
+-    return APPMODEL_ERROR_NO_PACKAGE;
++    return current_package_name( length, name, TRUE );
+ }
+ 
+ 
+@@ -1580,8 +1621,14 @@
+  */
+ LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackageId( UINT32 *len, BYTE *buffer )
+ {
+-    FIXME( "(%p %p): stub\n", len, buffer );
+-    return APPMODEL_ERROR_NO_PACKAGE;
++    struct wine_package_identity package;
++    NTSTATUS status;
++
++    if (!len || (*len && !buffer)) return ERROR_INVALID_PARAMETER;
++    status = wine_query_package_identity( (HANDLE)(LONG_PTR)-4, &package );
++    if (status == STATUS_NOT_FOUND) return APPMODEL_ERROR_NO_PACKAGE;
++    if (status) return RtlNtStatusToDosError( status );
++    return PackageIdFromFullName( package.full_name, 0, len, buffer );
+ }
+ 
+ /***********************************************************************
+--- a/dlls/ntdll/Makefile.in
++++ b/dlls/ntdll/Makefile.in
+@@ -14,6 +14,8 @@
+ VER_PRODUCTVERSION = 6,1,7601,24059
+ 
+ SOURCES = \
++	package_claims_context.c \
++	package_claims_generated.h \
+ 	actctx.c \
+ 	alpc.c \
+ 	atom.c \
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -955,6 +955,8 @@
+ @ stdcall RtlQueryInformationActiveActivationContext(long ptr long ptr)
+ @ stub RtlQueryInterfaceMemoryStream
+ @ stdcall RtlQueryPackageIdentity(long ptr ptr ptr ptr ptr)
++@ stdcall RtlQueryPackageClaims(ptr ptr ptr ptr ptr ptr ptr ptr)
++@ stdcall wine_query_package_identity(ptr ptr)
+ @ stdcall RtlQueryPerformanceCounter(ptr)
+ @ stdcall RtlQueryPerformanceFrequency(ptr)
+ @ stub RtlQueryProcessBackTraceInformation
+--- a/dlls/ntdll/rtl.c
++++ b/dlls/ntdll/rtl.c
+@@ -33,6 +33,7 @@
+ #include "ntuser.h"
+ #include "zlib.h"
+ #include "wine/debug.h"
++#include "wine/package.h"
+ #include "wine/exception.h"
+ #include "ntdll_misc.h"
+ #include "ddk/ntifs.h"
+@@ -1623,6 +1624,13 @@
+ /*********************************************************************
+  *           RtlQueryPackageIdentity [NTDLL.@]
+  */
++NTSTATUS WINAPI wine_query_package_identity(HANDLE token, struct wine_package_identity *identity)
++{
++    ULONG length;
++    return NtQueryInformationToken(token, TokenWinePackageIdentity,
++                                   identity, sizeof(*identity), &length);
++}
++
+ NTSTATUS WINAPI RtlQueryPackageIdentity(HANDLE token, WCHAR *fullname, SIZE_T *fullname_size,
+                                         WCHAR *appid, SIZE_T *appid_size, BOOLEAN *packaged)
+ {
+--- a/dlls/ntdll/unix/process.c
++++ b/dlls/ntdll/unix/process.c
+@@ -68,6 +68,7 @@
+ #include "unix_private.h"
+ #include "wine/condrv.h"
+ #include "wine/server.h"
++#include "wine/package.h"
+ #include "wine/debug.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(process);
+@@ -704,7 +705,7 @@
+     UNICODE_STRING nt_name, path = {0};
+     OBJECT_ATTRIBUTES attr, empty_attr = { sizeof(empty_attr) };
+     SIZE_T i, attr_count = (ps_attr->TotalLength - sizeof(ps_attr->TotalLength)) / sizeof(PS_ATTRIBUTE);
+-    const PS_ATTRIBUTE *handles_attr = NULL, *jobs_attr = NULL;
++    const PS_ATTRIBUTE *handles_attr = NULL, *jobs_attr = NULL, *package_attr = NULL;
+     data_size_t handles_size, jobs_size;
+     obj_handle_t *handles, *jobs;
+ 
+@@ -722,6 +723,12 @@
+     {
+         switch (ps_attr->Attributes[i].Attribute)
+         {
++        case PS_ATTRIBUTE_WINE_PACKAGE:
++            if (package_attr || ps_attr->Attributes[i].Size != sizeof(struct wine_package_identity)
++                || !ps_attr->Attributes[i].ValuePtr)
++                return STATUS_INVALID_PARAMETER;
++            package_attr = &ps_attr->Attributes[i];
++            break;
+         case PS_ATTRIBUTE_PARENT_PROCESS:
+             parent = ps_attr->Attributes[i].ValuePtr;
+             break;
+@@ -830,9 +837,11 @@
+         req->info_size      = startup_info_size;
+         req->handles_size   = handles_size;
+         req->jobs_size      = jobs_size;
++        req->package_size   = package_attr ? package_attr->Size : 0;
+         wine_server_add_data( req, objattr, attr_len );
+         wine_server_add_data( req, handles, handles_size );
+         wine_server_add_data( req, jobs, jobs_size );
++        if (package_attr) wine_server_add_data( req, package_attr->ValuePtr, package_attr->Size );
+         wine_server_add_data( req, startup_info, startup_info_size );
+         wine_server_add_data( req, params->Environment, env_size );
+         if (!(status = wine_server_call( req )))
+--- a/dlls/ntdll/unix/security.c
++++ b/dlls/ntdll/unix/security.c
+@@ -32,6 +32,7 @@
+ #include "winternl.h"
+ #include "unix_private.h"
+ #include "wine/debug.h"
++#include "wine/package.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(ntdll);
+ 
+@@ -390,6 +391,17 @@
+ 
+     switch (class)
+     {
++    case TokenWinePackageIdentity:
++        if (!info) return STATUS_INVALID_PARAMETER;
++        SERVER_START_REQ( get_token_package )
++        {
++            req->token = wine_server_obj_handle( token );
++            wine_server_set_reply( req, info, length );
++            status = wine_server_call( req );
++            if (retlen) *retlen = reply->size;
++        }
++        SERVER_END_REQ;
++        break;
+     case TokenUser:
+         SERVER_START_REQ( get_token_sid )
+         {
+--- /dev/null
++++ b/dlls/ntdll/package_claims_context.c
+@@ -0,0 +1,22 @@
++/*
++ * Context binding for unchanged Whiny-generated diagnostic source.
++ * SPDX-License-Identifier: LGPL-2.1-or-later
++ */
++#include <stdarg.h>
++#include "ntstatus.h"
++#include "windef.h"
++#include "winternl.h"
++#include "wine/debug.h"
++WINE_DEFAULT_DEBUG_CHANNEL(package);
++#include "wine/whiny_context.h"
++#ifdef _WIN64
++#define WHINY_NO_DLLEXPORT
++#include "package_claims_generated.h"
++#else
++NTSTATUS WINAPI RtlQueryPackageClaims( HANDLE token, void *package_id, void *package_id_size,
++                                     void *app_id, void *app_id_size, void *claim,
++                                     void *attributes, void *attributes_size )
++{
++    return STATUS_NOT_IMPLEMENTED;
++}
++#endif
+--- /dev/null
++++ b/dlls/ntdll/package_claims_generated.h
+@@ -0,0 +1,121 @@
++/* Generated by whiny 0.4.0 `whiny replace`: behavioural replacement.
++ * Do not edit. Regenerate from the observations instead.
++ * function            RtlQueryPackageClaims
++ * abi                 win64
++ * contract_sha256     cb1f4e1363e017aaae3dec48367f1b837af2ce7133cb9f652135498e9b8b375b
++ * observations_sha256 df7b73daae47ab3a5e1297c3b7ff91440a9d02ff2504dc28cb14a9f1edceadb7
++ * observed_on.machine   x64
++ * observed_on.module    ntdll.dll
++ * observed_on.observer  64-bit process WITHOUT package identity (GetCurrentPackageFamilyName -> 15700 APPMODEL_ERROR_NO_PACKAGE)
++ * observed_on.os        Windows 11 (VM run r2)
++ * observed_on.reference r2 native calibration (source 71ba534a, receipt a43b3990): 15 rows = 3 handle values x 5 optional-pointer modes; status depends only on TokenHandle; size fields left as passed; AttributesPresent zeroed when supplied
++ * observed_on.reference_packaged r3 packaged observer inside Microsoft.GamingApp_8wekyb3d8bbwe!Microsoft.Xbox.App 2610.1001.20.0 via Invoke-CommandInDesktopPackage (out-packaged.json 5cb13823…6e6a, observer dll a3e646ec…da5c); same ntdll 651ac904…, build 26300
++ * CONTEXTS (cells marked [name] apply only while WHINY_CONTEXT_ACTIVE(name)):
++ *   unpackaged: Caller process has no package identity (r2 observer: GetCurrentPackageFamilyName -> 15700).
++ *   packaged-gamingapp-signed: Caller's token carries genuine local package identity for Microsoft.GamingApp_8wekyb3d8bbwe whose AppxSignature/block map was verified to the Microsoft root at registration. Observed inside that package on the VM (r3). Flags 0x5 / Origin 3 (PackageOrigin Store) describe that package; other packages are unobserved.
++ *   The integrator must define WHINY_CONTEXT_ACTIVE(name) with a genuine check;
++ *   the default only honours -DWHINY_CONTEXT="name" for tests and diagnostics.
++ * OBSERVED cells (6), reproduced exactly:
++ *   null-handle [unpackaged]: TokenHandle == 0x0000000000000000 -> 0xC0000008 STATUS_INVALID_HANDLE
++ *     writes AttributesPresent zeroed
++ *     Same status for every optional-pointer mode (NULL, zero, 2 and 512 byte capacities).
++ *   invalid-handle [unpackaged]: TokenHandle == 0xFFFFFFFFFFFFEDCC -> 0xC0000008 STATUS_INVALID_HANDLE
++ *     writes AttributesPresent zeroed
++ *     Exact r2 value -4660 (not an open handle). Other non-handle values stay unobserved.
++ *   self-pseudo-handle [unpackaged]: TokenHandle == 0xFFFFFFFFFFFFFFFC -> 0xC0000225 STATUS_NOT_FOUND
++ *     writes AttributesPresent zeroed
++ *     Exact r2 value -4: current-process token pseudo-handle, observed only in a process without package identity. NOT the -1 process pseudo-handle (unobserved). In a packaged process the native result is unobserved; this cell does not check package context.
++ *   null-handle-packaged [packaged-gamingapp-signed]: TokenHandle == 0x0000000000000000 -> 0xC0000008 STATUS_INVALID_HANDLE
++ *     writes AttributesPresent zeroed
++ *     r3 packaged rows: same status and effects as unpackaged for all five optional-pointer modes.
++ *   invalid-handle-packaged [packaged-gamingapp-signed]: TokenHandle == 0xFFFFFFFFFFFFEDCC -> 0xC0000008 STATUS_INVALID_HANDLE
++ *     writes AttributesPresent zeroed
++ *     r3 packaged rows: same status and effects as unpackaged for all five optional-pointer modes.
++ *   self-token-claim-only [packaged-gamingapp-signed]: TokenHandle == 0xFFFFFFFFFFFFFFFC, PackageFullName == null, PackageSize == null, AppId == null, AppIdSize == null, DynamicId == null, AttributesPresent == null -> 0x00000000 STATUS_SUCCESS
++ *     writes PkgClaim set {Flags=0x00000005, Origin=0x00000003}
++ *     r3 row 15 (exact XAML Site A shape: claim only) -> Flags 5, Origin 3; r3 row 10 (all optional pointers NULL) -> 0. Values are the GamingApp package's, observed on the VM; another package may differ.
++ * UNOBSERVED (never reproduced; these return WHINY_UNOBSERVED_STATUS):
++ *   process-pseudo-handle: TokenHandle -1 (current process handle, not a token). Never observed.
++ *   real-token-handle: An open token handle from OpenProcessToken/OpenThreadToken. Never observed.
++ *   packaged-other-shapes: Packaged -4 with size/string/GUID or attributes pointers supplied (r3 saw C000000D/80000005/0 depending on capacities; not reproduced). Packaged callers other than Microsoft.GamingApp.
++ *   any other input that matches no observed cell.
++ * unobserved_result 0xC0000002 STATUS_NOT_IMPLEMENTED (override: -DWHINY_UNOBSERVED_STATUS=value)
++ */
++#include <stddef.h>
++#include <stdint.h>
++#include <string.h>
++
++_Static_assert(sizeof(void *) == 8, "win64 ABI: 64-bit pointers required");
++
++#ifndef WHINY_CONTEXT_ACTIVE
++#ifdef WHINY_CONTEXT
++#define WHINY_CONTEXT_ACTIVE(name) (strcmp((name), WHINY_CONTEXT) == 0)
++#else
++#define WHINY_CONTEXT_ACTIVE(name) ((void)(name), 0)
++#endif
++#endif
++
++#ifndef WHINY_UNOBSERVED_STATUS
++#define WHINY_UNOBSERVED_STATUS ((int32_t)0xC0000002)
++#endif
++
++typedef struct PackageClaim {
++  uint32_t Flags;
++  uint32_t Origin;
++} PackageClaim;
++typedef struct Guid {
++  uint32_t Data1;
++  uint16_t Data2;
++  uint16_t Data3;
++  uint8_t Data4[8];
++} Guid;
++
++#if defined(_WIN32) && !defined(WHINY_NO_DLLEXPORT)
++#define WHINY_EXPORT __declspec(dllexport)
++#else
++#define WHINY_EXPORT
++#endif
++
++WHINY_EXPORT int32_t RtlQueryPackageClaims(void *TokenHandle, uint16_t *PackageFullName, uint64_t *PackageSize, uint16_t *AppId, uint64_t *AppIdSize, Guid *DynamicId, PackageClaim *PkgClaim, uint64_t *AttributesPresent)
++{
++  (void)TokenHandle;
++  (void)PackageFullName;
++  (void)PackageSize;
++  (void)AppId;
++  (void)AppIdSize;
++  (void)DynamicId;
++  (void)PkgClaim;
++  (void)AttributesPresent;
++  /* OBSERVED null-handle: STATUS_INVALID_HANDLE */
++  if (WHINY_CONTEXT_ACTIVE("unpackaged") && (uint64_t)(uintptr_t)TokenHandle == UINT64_C(0x0000000000000000)) {
++    if (AttributesPresent != NULL) memset(AttributesPresent, 0, sizeof(*AttributesPresent));
++    return (int32_t)0xC0000008;
++  }
++  /* OBSERVED invalid-handle: STATUS_INVALID_HANDLE */
++  if (WHINY_CONTEXT_ACTIVE("unpackaged") && (uint64_t)(uintptr_t)TokenHandle == UINT64_C(0xFFFFFFFFFFFFEDCC)) {
++    if (AttributesPresent != NULL) memset(AttributesPresent, 0, sizeof(*AttributesPresent));
++    return (int32_t)0xC0000008;
++  }
++  /* OBSERVED self-pseudo-handle: STATUS_NOT_FOUND */
++  if (WHINY_CONTEXT_ACTIVE("unpackaged") && (uint64_t)(uintptr_t)TokenHandle == UINT64_C(0xFFFFFFFFFFFFFFFC)) {
++    if (AttributesPresent != NULL) memset(AttributesPresent, 0, sizeof(*AttributesPresent));
++    return (int32_t)0xC0000225;
++  }
++  /* OBSERVED null-handle-packaged: STATUS_INVALID_HANDLE */
++  if (WHINY_CONTEXT_ACTIVE("packaged-gamingapp-signed") && (uint64_t)(uintptr_t)TokenHandle == UINT64_C(0x0000000000000000)) {
++    if (AttributesPresent != NULL) memset(AttributesPresent, 0, sizeof(*AttributesPresent));
++    return (int32_t)0xC0000008;
++  }
++  /* OBSERVED invalid-handle-packaged: STATUS_INVALID_HANDLE */
++  if (WHINY_CONTEXT_ACTIVE("packaged-gamingapp-signed") && (uint64_t)(uintptr_t)TokenHandle == UINT64_C(0xFFFFFFFFFFFFEDCC)) {
++    if (AttributesPresent != NULL) memset(AttributesPresent, 0, sizeof(*AttributesPresent));
++    return (int32_t)0xC0000008;
++  }
++  /* OBSERVED self-token-claim-only: STATUS_SUCCESS */
++  if (WHINY_CONTEXT_ACTIVE("packaged-gamingapp-signed") && (uint64_t)(uintptr_t)TokenHandle == UINT64_C(0xFFFFFFFFFFFFFFFC) && PackageFullName == NULL && PackageSize == NULL && AppId == NULL && AppIdSize == NULL && DynamicId == NULL && AttributesPresent == NULL) {
++    if (PkgClaim != NULL) { PkgClaim->Flags = 0x00000005u; PkgClaim->Origin = 0x00000003u; }
++    return (int32_t)0x00000000;
++  }
++  /* UNOBSERVED: process-pseudo-handle, real-token-handle, packaged-other-shapes, and any input that matched no observed cell. */
++  return WHINY_UNOBSERVED_STATUS;
++}
+--- a/include/Makefile.in
++++ b/include/Makefile.in
+@@ -1119,6 +1119,8 @@
+ 	wine/condrv.h \
+ 	wine/dcetypes.idl \
+ 	wine/debug.h \
++	wine/package.h \
++	wine/whiny_context.h \
+ 	wine/dplaysp.h \
+ 	wine/epm.idl \
+ 	wine/exception.h \
+--- /dev/null
++++ b/include/wine/package.h
+@@ -0,0 +1,40 @@
++/*
++ * Local package activation metadata, not Store trust or token capabilities.
++ *
++ * Copyright 2026 Calimocho contributors
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ */
++#ifndef __WINE_PACKAGE_H
++#define __WINE_PACKAGE_H
++
++/* Private activation attribute. It is never inferred from an environment. */
++#define PS_ATTRIBUTE_WINE_PACKAGE 0x20005750
++#define WINE_PACKAGE_VERSION 2
++#define WINE_PACKAGE_CHARS 256
++#define TokenWinePackageIdentity ((TOKEN_INFORMATION_CLASS)0x5750)
++
++struct wine_package_identity
++{
++    unsigned int version;
++    unsigned int size;
++    WCHAR full_name[WINE_PACKAGE_CHARS];
++    WCHAR family_name[WINE_PACKAGE_CHARS];
++    WCHAR app_id[WINE_PACKAGE_CHARS];
++    unsigned int verified_gamingapp;
++};
++
++struct wine_package_registration
++{
++    struct wine_package_identity identity;
++    WCHAR image[1024];
++};
++
++#ifndef __WINE_SERVER__
++NTSYSAPI NTSTATUS WINAPI wine_query_package_identity( HANDLE token,
++                                                     struct wine_package_identity *identity );
++#endif
++#endif
+--- /dev/null
++++ b/include/wine/whiny_context.h
+@@ -0,0 +1,35 @@
++/*
++ * Local activation context for generated diagnostic replacements.
++ * Copyright 2026 Calimocho contributors
++ * SPDX-License-Identifier: LGPL-2.1-or-later
++ *
++ * The including translation unit must provide a Wine debug channel.
++ */
++#ifndef __WINE_WHINY_CONTEXT_H
++#define __WINE_WHINY_CONTEXT_H
++#include <string.h>
++#include "wine/package.h"
++
++static int whiny_context_active(const char *name)
++{
++    struct wine_package_identity identity;
++    NTSTATUS status = wine_query_package_identity((HANDLE)(LONG_PTR)-4, &identity);
++
++    if (status != STATUS_SUCCESS && status != STATUS_NOT_FOUND)
++    {
++        ERR("Package activation metadata query failed %#lx\n", status);
++        return 0;
++    }
++    if (!strcmp(name, "packaged")) return status == STATUS_SUCCESS;
++    if (!strcmp(name, "unpackaged")) return status == STATUS_NOT_FOUND;
++    if (!strcmp(name, "packaged-gamingapp-signed"))
++    {
++        return status == STATUS_SUCCESS && identity.verified_gamingapp == 1
++            && !memcmp( identity.family_name, L"Microsoft.GamingApp_8wekyb3d8bbwe",
++                        sizeof(L"Microsoft.GamingApp_8wekyb3d8bbwe") );
++    }
++    ERR("Unknown generated package context %s\n", debugstr_a(name));
++    return 0;
++}
++#define WHINY_CONTEXT_ACTIVE(name) whiny_context_active(name)
++#endif
+--- a/include/wine/server_protocol.h
++++ b/include/wine/server_protocol.h
+@@ -1122,12 +1122,13 @@
+     data_size_t  info_size;
+     data_size_t  handles_size;
+     data_size_t  jobs_size;
++    data_size_t  package_size;
+     /* VARARG(objattr,object_attributes); */
+     /* VARARG(handles,uints,handles_size); */
+     /* VARARG(jobs,uints,jobs_size); */
++    /* VARARG(package,bytes,package_size); */
+     /* VARARG(info,startup_info,info_size); */
+     /* VARARG(env,unicode_str); */
+-    char __pad_52[4];
+ };
+ struct new_process_reply
+ {
+@@ -6254,6 +6255,20 @@
+ {
+     struct reply_header __header;
+     obj_handle_t        handle;
++    char __pad_12[4];
++};
++
++
++struct get_token_package_request
++{
++    struct request_header __header;
++    obj_handle_t token;
++};
++struct get_token_package_reply
++{
++    struct reply_header __header;
++    data_size_t size;
++    /* VARARG(identity,bytes); */
+     char __pad_12[4];
+ };
+ 
+@@ -6569,6 +6584,7 @@
+     REQ_d3dkmt_mutex_acquire,
+     REQ_d3dkmt_mutex_release,
+     REQ_alpc_create_port,
++    REQ_get_token_package,
+     REQ_NB_REQUESTS
+ };
+ 
+@@ -6885,6 +6901,7 @@
+     struct d3dkmt_mutex_acquire_request d3dkmt_mutex_acquire_request;
+     struct d3dkmt_mutex_release_request d3dkmt_mutex_release_request;
+     struct alpc_create_port_request alpc_create_port_request;
++    struct get_token_package_request get_token_package_request;
+ };
+ union generic_reply
+ {
+@@ -7199,8 +7216,9 @@
+     struct d3dkmt_mutex_acquire_reply d3dkmt_mutex_acquire_reply;
+     struct d3dkmt_mutex_release_reply d3dkmt_mutex_release_reply;
+     struct alpc_create_port_reply alpc_create_port_reply;
+-};
+-
+-#define SERVER_PROTOCOL_VERSION 964
++    struct get_token_package_reply get_token_package_reply;
++};
++
++#define SERVER_PROTOCOL_VERSION 965
+ 
+ #endif /* __WINE_WINE_SERVER_PROTOCOL_H */
+--- a/server/main.c
++++ b/server/main.c
+@@ -40,6 +40,7 @@
+ #include "thread.h"
+ #include "request.h"
+ #include "unicode.h"
++#include "process.h"
+ 
+ /* command-line options */
+ int debug_level = 0;
+@@ -255,6 +256,7 @@
+     signal( SIGTERM, sigterm_handler );
+     signal( SIGABRT, sigterm_handler );
+     init_limits();
++    init_package_registration();
+ 
+     sock_init();
+     open_master_socket();
+--- a/server/process.c
++++ b/server/process.c
+@@ -32,6 +32,7 @@
+ #include <sys/types.h>
+ #include <sys/time.h>
+ #include <sys/socket.h>
++#include <sys/stat.h>
+ #include <unistd.h>
+ #include <poll.h>
+ #ifdef HAVE_SYS_PARAM_H
+@@ -54,6 +55,7 @@
+ 
+ #include "ntstatus.h"
+ #include "winternl.h"
++#include "wine/package.h"
+ #include "ddk/wdm.h"
+ 
+ #include "file.h"
+@@ -71,6 +73,36 @@
+ static struct event *shutdown_event;           /* signaled when shutdown starts */
+ static struct timeout_user *shutdown_timeout;  /* timeout for server shutdown */
+ static int shutdown_stage;  /* current stage in the shutdown process */
++static struct wine_package_registration package_registration;
++static unsigned int package_registration_image_size;
++
++void init_package_registration(void)
++{
++    const char *path = getenv( "CALIMOCHO_PACKAGE_REGISTRATION" );
++    struct stat st;
++    unsigned int i;
++    int fd;
++    char extra;
++
++    if (!path) return;
++    fd = open( path, O_RDONLY | O_NOFOLLOW );
++    if (fd == -1 || fstat( fd, &st ) || !S_ISREG(st.st_mode)
++        || st.st_uid != getuid() || (st.st_mode & 077)
++        || st.st_size != sizeof(package_registration))
++        fatal_error( "Invalid host package registration file\n" );
++    if (read( fd, &package_registration, sizeof(package_registration)) != sizeof(package_registration)
++        || read( fd, &extra, 1 ) != 0)
++        fatal_error( "Cannot read host package registration file\n" );
++    close( fd );
++    if (package_registration.identity.version != WINE_PACKAGE_VERSION
++        || package_registration.identity.size != sizeof(package_registration.identity)
++        || package_registration.identity.verified_gamingapp
++        || !package_registration.image[0] || package_registration.image[1023])
++        fatal_error( "Invalid host package registration contents\n" );
++    for (i = 0; package_registration.image[i]; ++i) {}
++    package_registration_image_size = i * sizeof(WCHAR);
++    unsetenv( "CALIMOCHO_PACKAGE_REGISTRATION" );
++}
+ 
+ static const WCHAR process_name[] = {'P','r','o','c','e','s','s'};
+ 
+@@ -1105,6 +1137,8 @@
+     int socket_fd = thread_get_inflight_fd( current, req->socket_fd );
+     const obj_handle_t *handles = NULL;
+     const obj_handle_t *job_handles = NULL;
++    const struct wine_package_identity *package = NULL;
++    struct wine_package_identity admitted_package;
+     unsigned int i, job_handle_count;
+     struct job *job;
+ 
+@@ -1199,6 +1233,30 @@
+         job_handles = info_ptr;
+         info_ptr = (const char *)info_ptr + req->jobs_size;
+         info->data_size -= req->jobs_size;
++    }
++
++    if (req->package_size)
++    {
++        if (req->package_size != sizeof(*package) || req->package_size > info->data_size)
++        {
++            set_error( STATUS_INVALID_PARAMETER );
++            close( socket_fd );
++            goto done;
++        }
++        package = info_ptr;
++        if (package->version != WINE_PACKAGE_VERSION || package->size != sizeof(*package)
++            || package->verified_gamingapp
++            || !package->full_name[0] || !package->family_name[0] || !package->app_id[0]
++            || package->full_name[WINE_PACKAGE_CHARS - 1]
++            || package->family_name[WINE_PACKAGE_CHARS - 1]
++            || package->app_id[WINE_PACKAGE_CHARS - 1])
++        {
++            set_error( STATUS_INVALID_PARAMETER );
++            close( socket_fd );
++            goto done;
++        }
++        info_ptr = (const char *)info_ptr + req->package_size;
++        info->data_size -= req->package_size;
+     }
+ 
+     job_handle_count = req->jobs_size / sizeof(*handles);
+@@ -1270,6 +1328,18 @@
+         goto done;
+ 
+     process->machine = req->machine;
++    /* Plain executable creation does not inherit registration from its parent. */
++    if (package)
++    {
++        admitted_package = *package;
++        admitted_package.verified_gamingapp =
++            package_registration.identity.size == sizeof(*package)
++            && !memcmp( package, &package_registration.identity, sizeof(*package) )
++            && info->data->imagepath_len == package_registration_image_size
++            && !memcmp( info->data + 1, package_registration.image, info->data->imagepath_len );
++        package = &admitted_package;
++    }
++    if (!token_set_package( process->token, package, req->package_size )) goto done;
+     process->startup_info = (struct startup_info *)grab_object( info );
+ 
+     job = parent->job;
+--- a/server/process.h
++++ b/server/process.h
+@@ -27,6 +27,7 @@
+ struct handle_table;
+ struct startup_info;
+ struct job;
++extern void init_package_registration(void);
+ 
+ /* process startup state */
+ enum startup_state { STARTUP_IN_PROGRESS, STARTUP_DONE, STARTUP_ABORTED };
+--- a/server/protocol.def
++++ b/server/protocol.def
+@@ -1135,9 +1135,11 @@
+     data_size_t  info_size;      /* size of startup info */
+     data_size_t  handles_size;   /* length of explicit handles list */
+     data_size_t  jobs_size;      /* length of jobs list */
++    data_size_t  package_size;   /* explicit local activation metadata */
+     VARARG(objattr,object_attributes);   /* object attributes */
+     VARARG(handles,uints,handles_size);  /* handles list */
+     VARARG(jobs,uints,jobs_size);        /* jobs list */
++    VARARG(package,bytes,package_size);  /* immutable package metadata */
+     VARARG(info,startup_info,info_size); /* startup information */
+     VARARG(env,unicode_str);     /* environment for new process */
+ @REPLY
+@@ -4348,3 +4350,11 @@
+ @REPLY
+     obj_handle_t        handle;         /* handle to the ALPC port */
+ @END
++
++/* Query local activation metadata through a genuine token handle. */
++@REQ(get_token_package)
++    obj_handle_t token;
++@REPLY
++    data_size_t size;
++    VARARG(identity,bytes);
++@END
+--- a/server/request_handlers.h
++++ b/server/request_handlers.h
+@@ -316,6 +316,7 @@
+ DECL_HANDLER(d3dkmt_mutex_acquire);
+ DECL_HANDLER(d3dkmt_mutex_release);
+ DECL_HANDLER(alpc_create_port);
++DECL_HANDLER(get_token_package);
+ 
+ typedef void (*req_handler)( const void *req, void *reply );
+ static const req_handler req_handlers[REQ_NB_REQUESTS] =
+@@ -629,6 +630,7 @@
+     (req_handler)req_d3dkmt_mutex_acquire,
+     (req_handler)req_d3dkmt_mutex_release,
+     (req_handler)req_alpc_create_port,
++    (req_handler)req_get_token_package,
+ };
+ 
+ C_ASSERT( sizeof(abstime_t) == 8 );
+@@ -696,6 +698,7 @@
+ C_ASSERT( offsetof(struct new_process_request, info_size) == 40 );
+ C_ASSERT( offsetof(struct new_process_request, handles_size) == 44 );
+ C_ASSERT( offsetof(struct new_process_request, jobs_size) == 48 );
++C_ASSERT( offsetof(struct new_process_request, package_size) == 52 );
+ C_ASSERT( sizeof(struct new_process_request) == 56 );
+ C_ASSERT( offsetof(struct new_process_reply, info) == 8 );
+ C_ASSERT( offsetof(struct new_process_reply, pid) == 12 );
+@@ -2399,3 +2402,7 @@
+ C_ASSERT( sizeof(struct alpc_create_port_request) == 24 );
+ C_ASSERT( offsetof(struct alpc_create_port_reply, handle) == 8 );
+ C_ASSERT( sizeof(struct alpc_create_port_reply) == 16 );
++C_ASSERT( offsetof(struct get_token_package_request, token) == 12 );
++C_ASSERT( sizeof(struct get_token_package_request) == 16 );
++C_ASSERT( offsetof(struct get_token_package_reply, size) == 8 );
++C_ASSERT( sizeof(struct get_token_package_reply) == 16 );
+--- a/server/request_trace.h
++++ b/server/request_trace.h
+@@ -72,9 +72,11 @@
+     fprintf( stderr, ", info_size=%u", req->info_size );
+     fprintf( stderr, ", handles_size=%u", req->handles_size );
+     fprintf( stderr, ", jobs_size=%u", req->jobs_size );
++    fprintf( stderr, ", package_size=%u", req->package_size );
+     dump_varargs_object_attributes( ", objattr=", cur_size );
+     dump_varargs_uints( ", handles=", min( cur_size, req->handles_size ));
+     dump_varargs_uints( ", jobs=", min( cur_size, req->jobs_size ));
++    dump_varargs_bytes( ", package=", min( cur_size, req->package_size ));
+     dump_varargs_startup_info( ", info=", min( cur_size, req->info_size ));
+     dump_varargs_unicode_str( ", env=", cur_size );
+ }
+@@ -3542,6 +3544,17 @@
+ static void dump_alpc_create_port_reply( const struct alpc_create_port_reply *req )
+ {
+     fprintf( stderr, " handle=%04x", req->handle );
++}
++
++static void dump_get_token_package_request( const struct get_token_package_request *req )
++{
++    fprintf( stderr, " token=%04x", req->token );
++}
++
++static void dump_get_token_package_reply( const struct get_token_package_reply *req )
++{
++    fprintf( stderr, " size=%u", req->size );
++    dump_varargs_bytes( ", identity=", cur_size );
+ }
+ 
+ typedef void (*dump_func)( const void *req );
+@@ -3857,6 +3870,7 @@
+     (dump_func)dump_d3dkmt_mutex_acquire_request,
+     (dump_func)dump_d3dkmt_mutex_release_request,
+     (dump_func)dump_alpc_create_port_request,
++    (dump_func)dump_get_token_package_request,
+ };
+ 
+ static const dump_func reply_dumpers[REQ_NB_REQUESTS] =
+@@ -4170,6 +4184,7 @@
+     (dump_func)dump_d3dkmt_mutex_acquire_reply,
+     NULL,
+     (dump_func)dump_alpc_create_port_reply,
++    (dump_func)dump_get_token_package_reply,
+ };
+ 
+ static const char * const req_names[REQ_NB_REQUESTS] =
+@@ -4483,6 +4498,7 @@
+     "d3dkmt_mutex_acquire",
+     "d3dkmt_mutex_release",
+     "alpc_create_port",
++    "get_token_package",
+ };
+ 
+ static const struct
+--- a/server/security.h
++++ b/server/security.h
+@@ -64,6 +64,7 @@
+ extern struct token *get_token_obj( struct process *process, obj_handle_t handle, unsigned int access );
+ extern struct token *token_create_admin( unsigned primary, int impersonation_level, int elevation, unsigned int session_id );
+ extern int token_assign_label( struct token *token, const struct sid *label );
++extern int token_set_package( struct token *token, const void *data, unsigned int size );
+ extern struct token *token_duplicate( struct token *src_token, unsigned primary,
+                                       int impersonation_level, const struct security_descriptor *sd,
+                                       const struct luid_attr *remove_privs, unsigned int remove_priv_count,
+--- a/server/token.c
++++ b/server/token.c
+@@ -115,6 +115,8 @@
+     int            impersonation_level; /* impersonation level this token is capable of if non-primary token */
+     int            elevation;       /* elevation type */
+     struct list    kernel_object;   /* list of kernel object pointers */
++    void          *package_identity;
++    unsigned int   package_size;
+ };
+ 
+ struct privilege
+@@ -448,6 +450,7 @@
+     }
+ 
+     free( token->default_dacl );
++    free( token->package_identity );
+ }
+ 
+ /* creates a new token.
+@@ -485,6 +488,8 @@
+         else
+             token->impersonation_level = impersonation_level;
+         token->default_dacl = NULL;
++        token->package_identity = NULL;
++        token->package_size = 0;
+         token->primary_group = NULL;
+         token->elevation = elevation;
+ 
+@@ -591,6 +596,16 @@
+                           NULL, 0, src_token->default_dacl, modified_id,
+                           0, impersonation_level, src_token->elevation );
+     if (!token) return token;
++
++    if (src_token->package_size)
++    {
++        if (!(token->package_identity = memdup( src_token->package_identity, src_token->package_size )))
++        {
++            release_object( token );
++            return NULL;
++        }
++        token->package_size = src_token->package_size;
++    }
+ 
+     /* copy groups */
+     token->primary_group = NULL;
+@@ -1547,6 +1562,30 @@
+         reply->privilege_count = list_count( &token->privileges );
+         release_object( token );
+     }
++
++}
++
++/* Called only on the newly created, unpublished process token. */
++int token_set_package( struct token *token, const void *data, unsigned int size )
++{
++    void *copy = NULL;
++    if (size && !(copy = memdup( data, size ))) return 0;
++    free( token->package_identity );
++    token->package_identity = copy;
++    token->package_size = size;
++    return 1;
++}
++
++DECL_HANDLER(get_token_package)
++{
++    struct token *token;
++
++    if (!(token = get_token_obj( current->process, req->token, TOKEN_QUERY ))) return;
++    reply->size = token->package_size;
++    if (!token->package_size) set_error( STATUS_NOT_FOUND );
++    else if (get_reply_max_size() < token->package_size) set_error( STATUS_BUFFER_TOO_SMALL );
++    else set_reply_data( token->package_identity, token->package_size );
++    release_object( token );
+ }
+ 
+ DECL_HANDLER(get_token_default_dacl)

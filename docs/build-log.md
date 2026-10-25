@@ -3,6 +3,145 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: explicit local package identity and installed verification
+
+ADR-0035 records the opt-in package-identity delta. The isolated
+`build/winehq-11.20/package-identity-01` builds wineserver, both ntdll PEs,
+the ntdll Unix library and both kernelbase PEs together. Protocol version
+965 prevents accidental use with the unchanged accepted server.
+Patch 0006 applies to the exact port11 integration source; it does not
+apply patch 0005. The included generated r5 header is unchanged.
+
+The first configure attempt omitted private headers from `include/Makefile.in`.
+The first compile attempts exposed misplaced server definitions, a missing
+`stdarg.h` include and the generated table's intentional win64-only ABI.
+Those were corrected without changing generated code. Both architectures
+compile; i386 claims remain unsupported. No accepted engine was modified.
+
+The first live fixture reached the plain-process checks but its activation
+helper called Wine's unbounded `swprintf` with the C bounded signature.
+Replacing that helper call with bounded-by-input string construction fixed
+the fixture. The retained third run has explicit child success markers and
+passes plain/registered identity, package ID allocation, sentinel/length
+checks, token duplicate/close, a plain child without inherited registration,
+and unsupported packaged claims with an unchanged sentinel.
+Both fixture subprocesses exit zero. Its candidate-only server was stopped.
+No Xbox or game was launched.
+
+Twenty-seven focused source tests pass, including the installed block-map
+tamper checks, wrong root, missing Store usage, unknown critical extension,
+tampered timestamp imprint, wrong TSA chain and signer validation at genTime.
+The crypto command error-path tests use mocks; the actual retained GamingApp
+is the separate real-signature check.
+
+The real package's code-signing leaf expired on October 17. Authenticated
+RFC3161 verification establishes October 14 at epoch `1792002659`, so the
+signing chain is checked at that time rather than disabling expiry checks.
+Its signed AXBM matches. The first installed-content run failed because
+`[Content_Types].xml` is absent. Signed AXCT:
+`4c05e708e85fb6f685a2396e13047813fef21604e447a8006d3fa4c49d86a3e2`.
+The owner then narrowed the installed-file policy: AXPC, AXCD and AXCT are
+archive-only and explicitly unverified. The genuine package passes the
+remaining policy, including signed AXCI, all 946 block-map files, no unlisted
+executables, the matching publisher/family and full-trust manifest.
+Revocation is not checked offline. The manifest is version 2609.1001.20.0,
+not the VM observer's 2610.1001.20.0, and selects XboxPcAppCE.exe.
+
+The final sibling adds a host-only startup registration record. It must
+match identity and image path before the token receives verified eligibility.
+Guest-supplied verified flags are rejected. The final native fixtures
+`fixture-06-results.json` and `fixture-07-results.json` pass ordinary package
+identity, synthetic host registration, a different image without eligibility
+and guest spoof rejection (`c000000d`). The actual predicate and unchanged
+generated table also pass the source-compiled context harness. No native
+Xbox process ran in this session.
+
+Local immutable evidence includes `staging-receipt.json`,
+`fixture-03-results.json`, the later fixture receipts, and
+`activation-cell004/verification.json` in that
+candidate directory. This is not graphics/TLS qualification, S2 admission,
+verified Store activation or Xbox compatibility.
+
+## 2026-10-25: generated claims observer diagnostic
+
+ADR-0034 records the corrected input and diagnostic-only boundary. An
+isolated source/build/install at `claims-observer-r2-01` compiled the
+unchanged generated source `88f34892` into x86_64 ntdll.
+Actual ntdll SHA-256:
+`6ec7ff267f173ed7dba1c27b3b920f2b3bfb98b9d8a873cfcedcd426b85f3c81`.
+Every installed file and link matches the frozen private base except that
+one PE. Wine and wineserver hashes remain unchanged.
+
+The initial parity link failed because the copied ntdll import library
+did not contain the new export. Explicitly rebuilding the candidate
+import-library target corrected the link. The parity PE imports the
+candidate export but has not been executed on the local ntdll.
+
+The unqualified diagnostic registry SHA-256 is
+`92d63416e3e83b93cf83be73452a9ed02deff312ba0818544cac7bcac0e9d913`.
+Build receipt SHA-256:
+`d710254c90f8366849a5dae1e44b6ca72254ccceba94a29736f84153319b69d5`.
+The fresh cell003 binding capsule SHA-256 is
+`e47c52849f059e5fd463e5c5515f717c53acfe9f2ffc03a1fc096b2d812c400d`.
+These artifacts were sent directly to the Xbox owner and coordinator.
+The capsule includes exact environment and app argv, not fresh-prefix
+setup; the Xbox owner must adapt its existing owned launcher.
+
+The sole operator subsequently supplied the actual Windows native and
+generated parity receipts. Their hashes were authenticated:
+collect `f409406904b22e8b1cd9ea82c2fcd61efdfe8fc2b8ec10994a2d14426ffd9946`,
+exit confirmation
+`632c323aa1876fccfa3402ed9a76b9ac81c808add1f62decaea3cf15be343f57`.
+Native parity was 3/3 and generated parity 4/4 with no failures or guest
+stderr. The first run omitted exit codes because of a batch bug; the
+second recorded both zero exits with identical stdout hashes.
+The authenticated supplement retains these limits without changing the
+already handed-off build or registry hashes. This does not establish local
+runtime parity or real claims support. No local Wine or Xbox launch was
+performed.
+
+## 2026-10-25: DIRT 5 minidump forwarding sibling
+
+ADR-0033 records the loader failure and the source-built forwarding module.
+The isolated `metal-port-11c-minidump-01` install copies the frozen private
+performance install and adds only x86_64 and i386 minidump forwarders.
+The builder compared every original file and symbolic link with the base
+before and after copying. The frozen base remained unchanged.
+
+Actual built x86_64 DLL SHA-256:
+`c8df444b8c81f601f1a5bd0f5a8cb7060de245adbfdd5d7b7dd9e049ebd57a77`.
+Actual built i386 DLL SHA-256:
+`0d083b0c0e6852019a7aa95b60dff3765deaa2d5f8acc321de35c245dfdfd438`.
+PE export inspection confirms both named forwards to dbghelp. The output
+receipt retains source/tool/command hashes and the frozen performance
+environment. No package-claims patch is included.
+
+Status: built, not runtime-qualified or admitted. The coordinator granted
+one exclusive five-cell interval. Its first Vulkan cell refused before
+Wine spawn because no 400x340 region was free of foreign windows. The
+main-display Dock window and second-display ChatGPT window covered both
+displays. No guard exception or replay was used. The lane was returned.
+
+Retained build receipt SHA-256:
+`c36b4b732e9483e37b5ad15a50d5aa8eed943f0fac68deed513ec3e6bada8dc5`.
+Retained preflight refusal SHA-256:
+`f10dd60fd8dddcf132f29f298dc14f7b9c83d410f4a554eb49d513d86acf5212`.
+No native test, new prefix, game launch or ready registry was produced.
+
+## 2026-10-25: limited package claims source export
+
+Owner-selected source-only work under ADR-0032 adds an opt-in patch against
+WineHQ `7298a818b79446bae153b8d5aa27235ab3703bf9`:
+`patches/wine/0005-query-package-claims-errors.patch`.
+It clears optional attributes, validates the actual borrowed token and
+propagates real token-query failures. Missing token security attributes
+remain unsupported, never fabricated no-package or Store identity.
+
+`tests/test_package_claims.py` exercises the actual patch function using a
+mock query. This is not a runtime build, genuine local token observation,
+package compatibility or Xbox acceptance. Selected source, accepted
+installs, prefixes and registries remain unchanged.
+
 ## 2026-10-24: reactivated isolated source builds (REQ-69)
 
 The owner reactivated source work under ADR-0022 and canonical COR-36.

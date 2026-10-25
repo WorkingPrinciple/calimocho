@@ -1,0 +1,6 @@
+MODULE = api-ms-win-core-debug-minidump-l1-1-0.dll
+
+EXTRADLLFLAGS = -Wb,--data-only
+
+SOURCES = \
+	api-ms-win-core-debug-minidump-l1-1-0.spec
