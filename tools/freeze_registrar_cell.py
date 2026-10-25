@@ -1,4 +1,4 @@
-"""Cell027-030 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
+"""Cell027-031 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
 import importlib
 import json
 from pathlib import Path
@@ -88,8 +88,8 @@ def registration_text():
 
 
 def add_registrar_handoff(root, receipt, cell=27):
-    if cell not in (27, 28, 29, 30):
-        raise ValueError("Registrar handoff supports cells027-030")
+    if cell not in (27, 28, 29, 30, 31):
+        raise ValueError("Registrar handoff supports cells027-031")
     label = "%03d" % cell
     root = Path(root)
     registration = root / ("registrar-CELL%s-FROZEN.reg" % label)

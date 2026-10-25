@@ -51,6 +51,11 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "server request numbering"):
                 registrar_stack_build(root, build)
 
+    @staticmethod
+    def _mk(path):
+        path.mkdir()
+        return path
+
     def handoff(self, root, cell):
         wine = ["/usr/bin/arch", "-x86_64", "/x/install/bin/wine"]
         receipt = {"launcher_registration_argv": wine + ["regedit"], "generated_source_sha256": {},
@@ -93,7 +98,7 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 self.handoff(root, 28)
             with self.assertRaises(ValueError):
-                self.handoff(root, 31)
+                self.handoff(root, 32)
 
     def test_cell029_setup_is_headless_and_session_steps_are_not(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -126,6 +131,16 @@ class RegistrarCellTest(unittest.TestCase):
             # Cell028 services diagnostics are kept.
             self.assertEqual(receipt["services_start_argv"][2:4], ["-e", "WINEDEBUG=" + SERVICES_WINEDEBUG])
             self.assertIn("services_diagnostics", receipt)
+
+    def test_cell031_reruns_cell030_contract(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, cell030 = self.handoff(self._mk(Path(directory) / "a"), 30)
+            _, cell031 = self.handoff(self._mk(Path(directory) / "b"), 31)
+            self.assertEqual(set(cell030), set(cell031))
+            self.assertEqual(cell031["setup_wineboot_timeout_seconds"], 120)
+            self.assertNotIn("prefix_init_argv", cell031)
+            self.assertEqual(cell031["services_start_argv"], cell030["services_start_argv"])
+            self.assertTrue(cell031["scope"].startswith("cell031 "))
 
 
 if __name__ == "__main__":

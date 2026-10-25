@@ -4028,3 +4028,13 @@ another Wine lane).
 Cell030 returns to cell027's setup and adds
 `setup_wineboot_timeout_seconds: 120` for the driver's setup
 `wineboot -u`. It keeps the cell028 services diagnostics.
+
+## 2026-10-25: cell030 setup timeout, cell031 rerun
+
+Cell030's fresh-prefix `wineboot -u` reached its 120 second limit, so
+no registrar or app step ran. A throwaway first boot with the same
+cell030 environment at 17:59 finished in 9.8 seconds with no Cocoa
+start failure. The hang followed host load, not a code change.
+
+Cell031 reruns the cell030 contract unchanged on a fresh root. The
+only source change admits cell 31 in the freezers.
