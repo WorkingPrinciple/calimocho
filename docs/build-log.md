@@ -2875,3 +2875,15 @@ and window state remain unobserved at this source stage. The runtime
 observer owner alone receives the frozen recipe for one fresh private,
 no-input180-second observation and exact-prefix cleanup. No game, existing
 prefix, credentials, window control or sealed predecessor was touched.
+
+The frozen014 receipt SHA-256 is
+`30b6d6514d58ec6ee188768345673abea86d11d5a0254fce38db9f7484646b48`,
+source producer `f04c70c1e9a8586e62b8f569a1a22f6530ce2d07`.
+Its collector SHA-256 is
+`22b91f89e7522bbd63f00add8d03a5ce2a11fe3875ae25034e73d6a51b6a28be`.
+The independent frozen audit checks all3915 installed entries/assets,
+exact producer blobs, observer/collector/command identities, unchanged
+native16302 and558 mappings, the180-second cap and sealed013 predecessor.
+The full194-test host suite passes. The receipt has been sent to the runtime
+observer owner, copying the coordinator. This is a sent source candidate,
+not an observed014 runtime result.
