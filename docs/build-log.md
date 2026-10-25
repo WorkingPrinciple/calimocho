@@ -16,6 +16,17 @@ forced context or broad fallback is added. Host checks compile the actual
 wrapper, context and generated source, verifying exact outputs/canaries,
 claim-only/all-null behavior and unknown-context/shape failures.
 
+The fresh `package-uwp-claims-packaged-thread-01` source build, stage and
+target-only observer compilation complete without Wine execution.
+Producer `8131ae7871edad75d1c52d6d599658c286b277f1` is frozen in
+`cell023-receipt.json`, SHA-256
+`e4899d28429cb7af93d3c311066bee13de2a13cd9e703698816347dc6837fa1f`.
+Independent audit verifies3915 installed entries/assets, eight changed
+modules,133 typed slots, producer blobs, helpers/collector/commands,
+unchanged022 context wrapper/helper and sealed022 predecessor.
+All240 host tests pass. The receipt was sent to the exclusive runtime
+owner for one fresh023 no-input observation, not a UI acceptance claim.
+
 ## 2026-10-25: effective-token claims sibling022
 
 The producer's static follow-through identifies token-6 at both native
