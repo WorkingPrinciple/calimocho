@@ -5,6 +5,20 @@ the recipe is reliable.
 
 ## 2026-10-25: cell009 process-bound UWP and real CoreWindow candidate
 
+Xbox0ab subsequently ran frozen008. Its redacted evidence was read and
+SHA-256 checked as
+`b7d167683392abaa26bc6da85b9fe5851af7335fa587caef574b7c2975ab6496`
+at `xbox-calimocho-packaged-20261025-008/evidence/activation-redacted.json`
+under the owner's `xodus-runs` directory. Actual CE activated both Uri and
+Launcher successfully. The observed route was `msxboxl` to
+`Microsoft.Xbox.AppL`, with child PID0 and E_NOTIMPL for
+`uwp-protocol-activation`. The target did not start. This confirms the
+factory fix and the next missing surface, not UWP or UI success.
+CE exited0 after94 milliseconds. Capture ended at the post-exit drain limit,
+with truncation explicitly true and XAML unknown. No full-trust/Tray route
+or raw URI was observed. Xbox0ab reported owned-server cleanup complete and
+is preparing frozen009 for the next authorized run.
+
 ADR-0041 records the approved continuation after cell008's explicit UWP gap.
 The new source carries a server-owned, process-only protocol record with the
 real caller AppId and target identity. CoreApplication creates its view and
