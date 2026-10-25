@@ -46,6 +46,39 @@ command lifetime and resource encoding work plus regular/push/mixed-layout
 functional coverage. This is not a one-number change and is not implemented
 in this shader backport.
 
+### Later authorized sampler probes
+
+The owner subsequently authorized isolated GPU probes through the parent.
+Keep these tests separate from the frozen shader candidate and its evidence.
+Use headless compute sampling with a deterministic readback, not a window or
+process-liveness assertion. Exercise regular, push and mixed descriptors,
+two different descriptor states and command-buffer replay. A diagnostic that
+exceeds the advertised limit must require an explicit flag and must not be
+reported as Vulkan conformance or NMS acceptance.
+
+The probes do not change the reported limit. Further push argument-buffer
+implementation remains a separate slice, reviewed against these failures
+before expanding into descriptor storage, templates and command lifetime.
+
+### Later authorized Metal3 push implementation
+
+The parent then authorized that separate slice locally, without remote
+publication. Keep the shader-only candidate and original runtime immutable.
+Compile the experimental path only with `REQ104_PUSH_ARGUMENT_BUFFERS=1`.
+Use existing Metal3 descriptor writers and resource tracking. Copy push
+bytes into a command-completion-owned allocation at each bind, repairing
+self-relative pointers in the copy. Never bind mutable push host storage.
+Reuse the ordinary descriptor metadata initializer for these snapshots.
+Devices using the older argument encoder retain their existing path.
+
+Test push-17 compute, templates, partial writes, two updates in one command
+buffer, replay and fragment-stage use before freezing another candidate.
+Keep the advertised limit at 16. These diagnostics exceed that limit and
+do not establish Vulkan conformance or the unknown NMS warning threshold.
+GPU execution still requires the parent's exclusive slot grant. An
+experimental candidate must have a new identity, committed source patch,
+test receipt and full inventory. No existing runtime or default changes.
+
 ## Consequences
 
 An upstream-backed compiler fix can be evaluated without risking current

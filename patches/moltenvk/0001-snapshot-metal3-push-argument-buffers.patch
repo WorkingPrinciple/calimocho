@@ -1,0 +1,246 @@
+diff --git a/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.h b/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.h
+index 25e6017..491ba3a 100644
+--- a/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.h
++++ b/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.h
+@@ -169,7 +169,9 @@ struct MVKVulkanCommonEncoderState {
+ 	MVKDescriptorSet* _descriptorSets[kMVKMaxDescriptorSetCount];
+ 	MVKDescriptorSet _pushDescriptor = {};
+ 	MVKSmallVector<uint8_t, 16> _pushDescData;
++	MVKSmallVector<uint64_t, 16> _pushDescGPUData;
+ 	void ensurePushDescriptorSize(uint32_t size);
++	void ensurePushDescriptorLayout(const MVKDescriptorSetLayout* layout);
+ 	void setLayout(MVKPipelineLayout* layout);
+ 	MVKVulkanCommonEncoderState() = default;
+ 	MVKVulkanCommonEncoderState(const MVKVulkanCommonEncoderState& other);
+@@ -572,5 +574,3 @@ private:
+ 	/// If true, accumulation will be run at the end of the next render pass.
+ 	bool _shouldAccumulate = false;
+ };
+-
+-
+diff --git a/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.mm b/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.mm
+index 7d16b94..39d129f 100644
+--- a/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.mm
++++ b/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.mm
+@@ -639,13 +639,25 @@ static void bindMetalResources(id<MTLCommandEncoder> encoder,
+                                MVKStageResourceBindings& bindings,
+                                const MVKResourceBinder& RESTRICT binder) {
+ 	// Clear descriptor set resource use bitarray for new sets and bind them
++	// Every push snapshot is command-completion-owned. Never bind mutable host
++	// bytes, which could otherwise change an earlier dispatch or render stage.
++	if (common._layout->hasPushDescriptor())
++		exists.descriptorSetData.clear(common._layout->pushDescriptor());
+ 	MVKStaticBitSet<kMVKMaxDescriptorSetCount> setsNeeded = resources.resources.descriptorSetData.clearingAllIn(exists.descriptorSetData);
+ 	exists.descriptorSetData |= resources.resources.descriptorSetData;
+ 	for (size_t idx : setsNeeded) {
+ 		MVKDescriptorSet* set = common._descriptorSets[idx];
+ 		const MVKDescriptorSetLayout* layout = common._layout->getDescriptorSetLayout(idx);
+ 		bindings.descriptorSetResourceUse[idx].resizeAndClear(layout->bindings().size());
+-		bindBuffer(encoder, set->gpuBufferObject, set->gpuBufferOffset, idx, exists, bindings, binder);
++		if (layout->isPushDescriptorSetLayout() && layout->argBufMode() == MVKArgumentBufferMode::Metal3) {
++			const auto* allocation = mvkEncoder.copyToTempMTLBufferAllocation(set->gpuBuffer, layout->gpuSize());
++			MVKDescriptorSet snapshot = *set;
++			snapshot.gpuBuffer = static_cast<char*>(allocation->getContents());
++			mvkInitMetal3DescriptorMetadata(&snapshot, allocation->_mtlBuffer.gpuAddress + allocation->_offset);
++			bindBuffer(encoder, allocation->_mtlBuffer, allocation->_offset, idx, exists, bindings, binder);
++		} else {
++			bindBuffer(encoder, set->gpuBufferObject, set->gpuBufferOffset, idx, exists, bindings, binder);
++		}
+ 	}
+ 
+ 	executeBindOps(encoder, mvkEncoder, common, implicitBufferData, resources.bindScript.ops.contents(), useResourceStage, exists, bindings, binder);
+@@ -943,29 +955,46 @@ void MVKVulkanCommonEncoderState::ensurePushDescriptorSize(uint32_t size) {
+ 	}
+ }
+ 
++void MVKVulkanCommonEncoderState::ensurePushDescriptorLayout(const MVKDescriptorSetLayout* layout) {
++	ensurePushDescriptorSize(layout->cpuSize());
++	_pushDescriptor.cpuBufferSize = layout->cpuSize();
++	_pushDescriptor.layout = layout;
++	_pushDescriptor.auxIndices = layout->auxOffsets();
++	if (layout->argBufMode() == MVKArgumentBufferMode::Metal3) {
++		size_t words = (layout->gpuSize() + sizeof(uint64_t) - 1) / sizeof(uint64_t);
++		if (words > _pushDescGPUData.size()) _pushDescGPUData.resize(words);
++		_pushDescriptor.gpuBuffer = reinterpret_cast<char*>(_pushDescGPUData.data());
++		_pushDescriptor.gpuBufferSize = layout->gpuSize();
++	}
++}
++
+ void MVKVulkanCommonEncoderState::setLayout(MVKPipelineLayout* layout) {
+ 	_layout = layout;
+ 	if (layout && layout->hasPushDescriptor()) {
+ 		size_t idx = layout->pushDescriptor();
+ 		_descriptorSets[idx] = &_pushDescriptor;
+ 		MVKDescriptorSetLayout* dsl = layout->getDescriptorSetLayout(idx);
+-		uint32_t size = dsl->cpuSize();
+-		_pushDescriptor.cpuBufferSize = size;
+-		ensurePushDescriptorSize(size);
++		ensurePushDescriptorLayout(dsl);
+ 	}
+ }
+ 
+ MVKVulkanCommonEncoderState::MVKVulkanCommonEncoderState(const MVKVulkanCommonEncoderState& other) {
+ 	memcpy(_descriptorSets, other._descriptorSets, sizeof(_descriptorSets));
+ 	_pushDescriptor = other._pushDescriptor;
++	_pushDescGPUData.assign(other._pushDescGPUData.begin(), other._pushDescGPUData.end());
+ 	setLayout(other._layout);
++	if (other._pushDescriptor.layout)
++		ensurePushDescriptorLayout(other._pushDescriptor.layout);
+ 	memcpy(_pushDescriptor.cpuBuffer, other._pushDescriptor.cpuBuffer, _pushDescriptor.cpuBufferSize);
+ }
+ 
+ MVKVulkanCommonEncoderState& MVKVulkanCommonEncoderState::operator=(const MVKVulkanCommonEncoderState& other) {
+ 	memmove(_descriptorSets, other._descriptorSets, sizeof(_descriptorSets));
+ 	_pushDescriptor = other._pushDescriptor;
++	_pushDescGPUData.assign(other._pushDescGPUData.begin(), other._pushDescGPUData.end());
+ 	setLayout(other._layout);
++	if (other._pushDescriptor.layout)
++		ensurePushDescriptorLayout(other._pushDescriptor.layout);
+ 	memmove(_pushDescriptor.cpuBuffer, other._pushDescriptor.cpuBuffer, _pushDescriptor.cpuBufferSize);
+ 	return *this;
+ }
+@@ -1786,8 +1815,8 @@ void MVKCommandEncoderState::pushDescriptorSet(VkPipelineBindPoint bindPoint, MV
+ 	assert(layout->pushDescriptor() == set);
+ 	if (MVKVulkanCommonEncoderState* state = getVkEncoderState(bindPoint)) [[likely]] {
+ 		MVKDescriptorSetLayout* dsl = layout->getDescriptorSetLayout(set);
+-		state->ensurePushDescriptorSize(dsl->cpuSize());
+-		mvkPushDescriptorSet(state->_pushDescriptor.cpuBuffer, dsl, writeCount, writes);
++		state->ensurePushDescriptorLayout(dsl);
++		mvkPushDescriptorSet(&state->_pushDescriptor, dsl, writeCount, writes);
+ 	}
+ }
+ 
+@@ -1795,8 +1824,8 @@ void MVKCommandEncoderState::pushDescriptorSet(MVKDescriptorUpdateTemplate* upda
+ 	assert(layout->pushDescriptor() == set);
+ 	if (MVKVulkanCommonEncoderState* state = getVkEncoderState(updateTemplate->getBindPoint())) [[likely]] {
+ 		MVKDescriptorSetLayout* dsl = layout->getDescriptorSetLayout(set);
+-		state->ensurePushDescriptorSize(dsl->cpuSize());
+-		mvkPushDescriptorSetTemplate(state->_pushDescriptor.cpuBuffer, dsl, updateTemplate, data);
++		state->ensurePushDescriptorLayout(dsl);
++		mvkPushDescriptorSetTemplate(&state->_pushDescriptor, dsl, updateTemplate, data);
+ 	}
+ }
+ 
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.h b/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.h
+index d6c738a..b54092f 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.h
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.h
+@@ -623,10 +623,13 @@ void mvkUpdateDescriptorSetWithTemplate(VkDescriptorSet descriptorSet,
+ 										VkDescriptorUpdateTemplate updateTemplate,
+ 										const void* pData);
+ 
+-/** Updates the resource bindings in the given descriptor set with the given writes, ignoring their dstSet parameter and using the given dst cpu buffer instead. */
+-void mvkPushDescriptorSet(void* dst, MVKDescriptorSetLayout* layout,
++/** Updates push CPU/GPU storage, ignoring the writes' dstSet parameter. */
++void mvkPushDescriptorSet(MVKDescriptorSet* dst, MVKDescriptorSetLayout* layout,
+                           uint32_t writeCount, const VkWriteDescriptorSet* pDescriptorWrites);
+ 
+ /** Updates the resource bindings in the given descriptor set with the given template. */
+-void mvkPushDescriptorSetTemplate(void* dst, MVKDescriptorSetLayout* layout,
++void mvkPushDescriptorSetTemplate(MVKDescriptorSet* dst, MVKDescriptorSetLayout* layout,
+                                   MVKDescriptorUpdateTemplate* updateTemplate, const void* pData);
++
++/** Populate address-dependent metadata and immutable samplers in Metal3 storage. */
++void mvkInitMetal3DescriptorMetadata(const MVKDescriptorSet* set, uint64_t gpuAddress);
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm b/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm
+index 3cdc623..f748b6a 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm
+@@ -188,8 +188,12 @@ static MVKArgumentBufferMode pickArgumentBufferMode(MVKDevice* dev, const VkDesc
+ 	MVKArgumentBufferMode mode = pickArgumentBufferMode(dev);
+ 	if (mode == MVKArgumentBufferMode::Off) // The following checks only switch argument buffers off, so we can skip them if they're already off.
+ 		return mode;
+-	// Push descriptors are always binding-based
+-	if (mvkIsAnyFlagEnabled(pCreateInfo->flags, VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT))
++	// The experimental push path uses direct Metal3 writes, never shared encoders.
++	if (mvkIsAnyFlagEnabled(pCreateInfo->flags, VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT)
++#if REQ104_PUSH_ARGUMENT_BUFFERS
++		&& mode != MVKArgumentBufferMode::Metal3
++#endif
++	)
+ 		return MVKArgumentBufferMode::Off;
+ 	auto* metalFeatures = dev->getPhysicalDevice()->getMetalFeatures();
+ 	bool useMac1ArgumentEncoders = dev->getPhysicalDevice()->isMacGPUFamily1() && metalFeatures->needsArgumentBufferEncoders;
+@@ -1817,8 +1821,8 @@ void mvkUpdateDescriptorSetWithTemplate(VkDescriptorSet set, VkDescriptorUpdateT
+ 	}
+ }
+ 
+-void mvkPushDescriptorSet(void* dst, MVKDescriptorSetLayout* layout, uint32_t writeCount, const VkWriteDescriptorSet* pDescriptorWrites) {
+-	assert(layout->argBufMode() == MVKArgumentBufferMode::Off);
++void mvkPushDescriptorSet(MVKDescriptorSet* dst, MVKDescriptorSetLayout* layout, uint32_t writeCount, const VkWriteDescriptorSet* pDescriptorWrites) {
++	assert(layout->argBufMode() != MVKArgumentBufferMode::ArgEncoder);
+ 	for (uint32_t i = 0; i < writeCount; i++) {
+ 		const VkWriteDescriptorSet& write = pDescriptorWrites[i];
+ 		MVKDescriptorUpdateSourceType type = getDescriptorUpdateSourceType(write.descriptorType);
+@@ -1828,13 +1832,13 @@ void mvkPushDescriptorSet(void* dst, MVKDescriptorSetLayout* layout, uint32_t wr
+ 			continue;
+ 
+ 		const MVKDescriptorBinding* binding = layout->getBinding(write.dstBinding);
+-		char* target = static_cast<char*>(dst) + binding->cpuOffset;
+-		writeDescriptorSetCPUBufferDispatch(layout, *binding, target, src, stride, type, write.dstArrayElement, write.descriptorCount);
++		writeDescriptorSetBinding(layout, binding, dst, nil, src, type, stride,
++		                          write.dstArrayElement, write.descriptorCount);
+ 	}
+ }
+ 
+-void mvkPushDescriptorSetTemplate(void* dst, MVKDescriptorSetLayout* layout, MVKDescriptorUpdateTemplate* updateTemplate, const void* pData) {
+-	assert(layout->argBufMode() == MVKArgumentBufferMode::Off);
++void mvkPushDescriptorSetTemplate(MVKDescriptorSet* dst, MVKDescriptorSetLayout* layout, MVKDescriptorUpdateTemplate* updateTemplate, const void* pData) {
++	assert(layout->argBufMode() != MVKArgumentBufferMode::ArgEncoder);
+ 
+ 	for (uint32_t i = 0; i < updateTemplate->getNumberOfEntries(); i++) {
+ 		const VkDescriptorUpdateTemplateEntry* pEntry = updateTemplate->getEntry(i);
+@@ -1842,8 +1846,28 @@ void mvkPushDescriptorSetTemplate(void* dst, MVKDescriptorSetLayout* layout, MVK
+ 
+ 		const MVKDescriptorBinding* binding = layout->getBinding(pEntry->dstBinding);
+ 		MVKDescriptorUpdateSourceType type = getDescriptorUpdateSourceType(pEntry->descriptorType);
+-		char* target = static_cast<char*>(dst) + binding->cpuOffset;
+-		writeDescriptorSetCPUBufferDispatch(layout, *binding, target, pCurData, pEntry->stride, type, pEntry->dstArrayElement, pEntry->descriptorCount);
++		writeDescriptorSetBinding(layout, binding, dst, nil, pCurData, type, pEntry->stride,
++		                          pEntry->dstArrayElement, pEntry->descriptorCount);
++	}
++}
++
++void mvkInitMetal3DescriptorMetadata(const MVKDescriptorSet* set, uint64_t gpuAddress) {
++	const auto* layout = set->layout;
++	char* bytes = set->gpuBuffer;
++	assert(layout->argBufMode() == MVKArgumentBufferMode::Metal3);
++	if (layout->needsSizeBuf())
++		*reinterpret_cast<uint64_t*>(bytes) = gpuAddress + layout->gpuAuxBase(set->variableDescriptorCount);
++	for (const auto& binding : layout->bindings()) {
++		if (binding.gpuLayout == MVKDescriptorGPULayout::OutlinedData)
++			*reinterpret_cast<uint64_t*>(bytes + binding.gpuOffset) =
++				gpuAddress + set->auxIndices[binding.auxIndex];
++		if (binding.hasImmutableSamplers()) {
++			MTLResourceID* write = reinterpret_cast<MTLResourceID*>(bytes + binding.gpuOffset)
++				+ descriptorTextureCount(binding.gpuLayout) * binding.descriptorCount;
++			MVKSampler*const* samplers = &layout->immutableSamplers()[binding.immSamplerIndex];
++			for (uint32_t i = 0; i < binding.descriptorCount; ++i)
++				write[i] = samplers[i]->getMTLSamplerState().gpuResourceID;
++		}
+ 	}
+ }
+ 
+@@ -2173,21 +2197,7 @@ VkResult MVKDescriptorPool::initDescriptorSet(MVKDescriptorSetLayout* mvkDSL, ui
+ 			}
+ 			case MVKArgumentBufferMode::Metal3: {
+ 				uint64_t buffer = _gpuBufferGPUAddress + baseOffset;
+-				char* base = set->gpuBuffer;
+-				if (mvkDSL->needsSizeBuf())
+-					*reinterpret_cast<uint64_t*>(base) = buffer + gpuBase;
+-				for (const auto& binding : mvkDSL->bindings()) {
+-					if (binding.gpuLayout == MVKDescriptorGPULayout::OutlinedData)
+-						*reinterpret_cast<uint64_t*>(base + binding.gpuOffset) = buffer + indices[binding.auxIndex];
+-					if (binding.hasImmutableSamplers()) {
+-						// SPIRV-Cross doesn't use constexpr samplers with argument buffers, so we need to bind them.
+-						uint32_t count = binding.descriptorCount;
+-						MTLResourceID* write = reinterpret_cast<MTLResourceID*>(base + binding.gpuOffset) + descriptorTextureCount(binding.gpuLayout) * count;
+-						MVKSampler*const* samp = &mvkDSL->immutableSamplers()[binding.immSamplerIndex];
+-						for (uint32_t i = 0; i < count; i++)
+-							write[i] = samp[i]->getMTLSamplerState().gpuResourceID;
+-					}
+-				}
++				mvkInitMetal3DescriptorMetadata(set, buffer);
+ 				break;
+ 			}
+ 			case MVKArgumentBufferMode::Off: {

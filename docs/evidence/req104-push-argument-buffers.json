@@ -1,0 +1,36 @@
+{
+  "requirement": "REQ-104",
+  "status": "isolated-gpu-regressions-passed-not-runtime-admitted",
+  "candidate_engine": "calimocho-wine11.20-gptk4b3-req104-push-ab-01",
+  "candidate_library_sha256": "5d8c0af0a40b522134ffe07661544298deb549dadc9203122a4286f72f1ca9de",
+  "patch_sha256": "a2ae0c039de3422186d47fb69c28ffb4c89669a8e4b46d60ca8c010d92544eeb",
+  "test_receipt_sha256": "a581f12ea0cebc6ae9eada7b432793925508d557572c8935fe1c487dce0840ef",
+  "test_receipt": "docs/evidence/req104-push-argument-buffers-tests.json",
+  "build_config_sha256": "a4bfa6dbf82909a48b299af04ed4eff4c690b0771e87a2c8c2fa9679796689c2",
+  "source_pins": "versions.json:req104_moltenvk",
+  "source_patch": "patches/moltenvk/0001-snapshot-metal3-push-argument-buffers.patch",
+  "compile_defines": ["MVK_USE_METAL_PRIVATE_API=1", "REQ104_PUSH_ARGUMENT_BUFFERS=1"],
+  "architecture": "x86_64",
+  "signing": "ad-hoc hardened runtime with scripts/wine-entitlements.plist",
+  "baseline_registry_sha256": "170ca4ad08a5274b614e74bf740866ef219a97fdc7855270c5d8fa03192ed609",
+  "shader_candidate_registry_sha256": "d3cfe28a681c5e7e8b9485dcbf11415c05c8e5da8be0167e1307136cd7f68190",
+  "advertised_per_stage_samplers": 16,
+  "gpu_oracle": {
+    "baseline_expected_failures": ["push", "template", "partial", "graphics"],
+    "baseline_positive_controls": ["regular", "mixed"],
+    "candidate_passes": ["push", "template", "partial", "regular", "mixed", "graphics"],
+    "expected_outputs_each_execution": ["0xaaaa", "0x15555"],
+    "executions_per_case": 2,
+    "default_guard_exit": 77
+  },
+  "limitations": [
+    "Tests explicitly exceed the advertised limit; not Vulkan conformance",
+    "NMS requested sampler threshold remains unknown",
+    "No NMS launch or warning-free acceptance",
+    "Stutter and performance remain unaccepted",
+    "Only Metal3 argument-buffer push path is changed",
+    "Distinct texture/buffer lifetime changes and immutable sampler combinations need broader coverage before any capability change",
+    "REQ80/S2 admission remains required",
+    "No remote publication or installed/default runtime changes"
+  ]
+}

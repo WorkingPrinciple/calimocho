@@ -970,3 +970,170 @@ in a source-level regression; NMS rendering with this candidate is not proved.
 REQ-80/S2 admission and a later parent-authorized real Ode Play are still
 required. Integer-format blending remains a separate warning, not fixed here.
 No game/prefix/settings/active registry was modified and no game was launched.
+
+## 2026-10-25: REQ-104 owner-authorized sampler output probes
+
+This is a later owner-authorized slice, not an extension hidden inside the
+original 45-minute investigation. The parent granted serialized isolated GPU
+execution after FH6 exited. No NMS game was launched for these checks. Neither
+the frozen shader candidate nor the default runtime was modified.
+
+The exact captured startup dialog contains no numerical sampler threshold.
+Primary upstream reports do not establish a requirement of 32. The installed
+game executable is not directly readable as a PE image; no protected content
+was decrypted or bypassed. The exact NMS threshold remains unknown.
+
+### Oracle and safety boundary
+
+`tests/make_sampler_probe.py` generates three independently validated SPIR-V
+fixtures. `tests/vulkan_sampler_render.cpp` runs headless compute sampling:
+
+- Regular: 17 sampler descriptors in one ordinary set.
+- Push: 17 sampler descriptors in one push set.
+- Mixed: 8 samplers in a push set and 9 in an ordinary set.
+
+Every sampler samples a zero-valued image outside its bounds. Alternating
+edge and white-border samplers produce an exact 17-bit mask. The next
+dispatch inverts all sampler states. The required outputs are `0xaaaa` and
+`0x15555`. The same command buffer is replayed after clearing both output
+words, requiring both masks again. Ordinary descriptor sets are distinct
+per dispatch; updating a bound ordinary set in place would be an invalid
+test. Push state changes are recorded between dispatches.
+
+These are output tests, not on-screen rendering or tessellation tests.
+On both libraries the advertised ordinary limit is still 16. The default
+runner returns SKIP (77) before logical-device creation. Only the explicit
+`--exercise-unsupported` flag permits the diagnostic. Successful output
+beyond an advertised Vulkan limit does not make the application conformant
+or establish general supported capacity.
+
+### Commands and observed results
+
+Use the existing pinned source dependencies, without installing new tools:
+
+```bash
+python3 tests/make_sampler_probe.py \
+  --assembler build/req104/spirv-assemble \
+  --output build/req104/sampler-render-02
+clang++ -arch x86_64 -std=c++17 -Wall -Wextra -Werror \
+  -Wno-missing-field-initializers \
+  -Ibuild/req104/MoltenVK/External/Volk \
+  -Ibuild/req104/MoltenVK/External/Vulkan-Headers/include \
+  tests/vulkan_sampler_render.cpp -o build/req104/vulkan-sampler-render
+```
+
+For each mode, run the following only with an exclusive GPU slot. The
+`LIBRARY` argument must select the exact source-built library under test.
+The test harness used an outer 45-second subprocess timeout for each
+process, in addition to the runner's 30-second fence timeout.
+
+```bash
+MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS=1 \
+MVK_CONFIG_USE_METAL_PRIVATE_API=1 MTL_HUD_ENABLED=0 \
+  build/req104/vulkan-sampler-render "$LIBRARY" regular \
+  build/req104/sampler-render-02/regular.spv --exercise-unsupported
+```
+
+Replace both occurrences of `regular` with `push` or `mixed` for those
+variants. Baseline library SHA-256 is `4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385`;
+candidate is `5b1260bab521a90408b0e92420eb695498b5451448441735d8876f02b8458188`.
+
+| Mode | Baseline 170ca | Shader candidate | Replay |
+| --- | --- | --- | --- |
+| Regular 17 | Exact output PASS | Exact output PASS | Both dispatch outputs exact |
+| Push 17 | Pipeline creation FAIL (-3) | Pipeline creation FAIL (-3) | Cannot submit |
+| Mixed 8 push + 9 regular | Exact output PASS | Exact output PASS | Both dispatch outputs exact |
+
+The push failure is specific: Metal rejects `array<sampler, 17>` at
+`[[sampler(0)]]` with `cannot reserve 'sampler' resource locations at index 0`.
+MoltenVK then reports sampler indices 0 through 16 exceed the limit of 16.
+This is not the previously fixed thread/device address-space error.
+
+The first fixture attempt omitted the storage-buffer SPIR-V extension and
+failed validation before GPU execution. Adding the required extension made
+all three fixtures validate. No runtime workaround was used.
+
+Local receipts and per-mode stdout/stderr are in
+`build/req104/sampler-render-02/replay-results.json` and adjacent logs.
+The exact failing push probe is retained for the next implementation slice.
+All probe processes finished, and the GPU slot was explicitly released.
+
+### Bounded implementation consequence
+
+The ordinary argument-buffer path can execute this 17-sampler fixture.
+Mixed success only demonstrates 8 direct push samplers plus 9 argument-buffer
+samplers, not 17 push samplers. The shared failure on 170ca and the candidate
+isolates an existing push representation gap, not a shader-backport regression.
+
+The next implementation would touch at least these source seams:
+
+- `MVKDescriptorSet.mm`: layout mode selection, shared CPU/GPU descriptor
+  writers, both push write and push-template paths.
+- `MVKCommandEncoderState.h/.mm`: owned push GPU bytes, state copy/replay,
+  dirty tracking, immutable snapshots and resource-use tracking.
+- The existing command-completion allocator in `MVKCommandBuffer.mm` can
+  provide transient storage; reuse it rather than introducing another pool.
+- `MVKPipeline.mm`: verify layout resource counts and translation agree
+  with the new representation, without changing advertised limits.
+
+This is an estimated 4 to 6 source-file surface plus tests, not a one-line
+fix. Before capability changes it needs push-template, partial-update,
+resource-lifetime and graphics-stage coverage beyond this compute oracle.
+No broad implementation was started in this slice. The startup warning,
+unknown game threshold and separate live-game stuttering remain unresolved.
+
+### Parent-authorized push argument-buffer slice
+
+After the red probes, the parent authorized implementation on this owned
+branch, local commits only. The limits stay at 16. New tests were added
+before the implementation: push template writes, single-element partial
+sampler updates, command replay, and an offscreen fragment-stage draw.
+Every variant retains the two-state bitmask oracle.
+
+Implementation source is isolated in `build/req104/push-ab-01-source`.
+It does not modify the original source cache, frozen shader candidate or
+170ca install. A compile-time `REQ104_PUSH_ARGUMENT_BUFFERS=1` enables only
+the direct Metal3 push path; encoder-based argument-buffer devices keep
+their old push representation. CPU resource tracking is preserved. GPU
+bytes are copied into command-completion-owned storage before binding,
+and address-dependent auxiliary pointers are rebased in each snapshot.
+CPU/GPU host storage is copied when command state is copied.
+
+The first build failed because `MVKSmallVector` deletes same-type copy
+assignment. Using its existing iterator `assign` API corrected that compile
+error. The Release rebuild succeeded. GPU execution is separately held
+until the parent grants the serialized slot.
+
+The parent granted that slot after Forza released it. A fresh process check
+found no NMS or Forza game. The isolated suite ran baseline first, then
+candidate. All 12 expected outcomes matched: baseline push, template,
+partial and graphics fail with direct sampler allocation errors; baseline
+regular and mixed pass; all six candidate cases pass. Each successful case
+reads exactly `0xaaaa,0x15555` after both original execution and replay.
+The default safety guard returns 77 for both libraries before logical
+device creation. No NMS launch was performed. The GPU slot was released
+immediately after the bounded suite.
+
+```bash
+python3 tests/test_sampler_render.py --execute \
+  --runner build/req104/vulkan-sampler-render-03 \
+  --baseline /path/to/170ca/install/lib/wine/x86_64-unix/libMoltenVK.dylib \
+  --candidate build/req104/push-ab-01-source/Package/Release/MoltenVK/dynamic/dylib/macOS/libMoltenVK.dylib \
+  --fixtures build/req104/sampler-render-03 \
+  --output build/req104/push-ab-test-01
+```
+
+`/path/to/170ca` above denotes the read-only baseline location; the actual
+command used the retained baseline install. The committed receipt is
+`docs/evidence/req104-push-argument-buffers-tests.json`, SHA-256
+`a581f12ea0cebc6ae9eada7b432793925508d557572c8935fe1c487dce0840ef`.
+The signed candidate library is SHA-256
+`5d8c0af0a40b522134ffe07661544298deb549dadc9203122a4286f72f1ca9de`.
+The source delta is four files, 80 insertions and 38 deletions, retained in
+`patches/moltenvk/0001-snapshot-metal3-push-argument-buffers.patch`.
+
+This establishes the bounded sampler-state snapshot and replay behavior,
+not comprehensive descriptor support. Distinct texture/buffer lifetime
+changes and immutable sampler combinations still need wider coverage before
+changing any capability. Advertised capacity remains 16. NMS warning-free
+startup, the unknown game threshold and performance are not accepted.

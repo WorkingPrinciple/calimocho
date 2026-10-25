@@ -1,0 +1,143 @@
+{
+  "requirement": "REQ-104",
+  "runner_sha256": "0608d7319250e2e7237f49bf5a2bc284f19b67305a7fa370493136e642897f2b",
+  "diagnostic_exceeds_advertised_limit": true,
+  "advertised_per_stage_samplers": 16,
+  "nms_threshold": "unknown",
+  "game_accepted": false,
+  "results": [
+    {
+      "library": "baseline",
+      "mode": "push",
+      "library_sha256": "4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385",
+      "shader_sha256": "09e4b3aaf6bb8adf6ab287bdbabdda6a2b68223d1ebcbe7442db1d59eecb59a1",
+      "stdout_sha256": "56dbf3e361c9d20fc1e54ca8c678e7a2d3a182300aa2c57cdb04b7cf6a84dc59",
+      "stderr_sha256": "40dc46973a1c796a981bb2ff5799c8ef0ec11d2805a27ae191dc3113141e189e",
+      "exit_code": 1,
+      "expected_failure": true,
+      "oracle_passed": true
+    },
+    {
+      "library": "baseline",
+      "mode": "template",
+      "library_sha256": "4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385",
+      "shader_sha256": "09e4b3aaf6bb8adf6ab287bdbabdda6a2b68223d1ebcbe7442db1d59eecb59a1",
+      "stdout_sha256": "29122b4c80f11b81a310741fc8cf5f562d607f7b5edaec2617592534eedfb61b",
+      "stderr_sha256": "40dc46973a1c796a981bb2ff5799c8ef0ec11d2805a27ae191dc3113141e189e",
+      "exit_code": 1,
+      "expected_failure": true,
+      "oracle_passed": true
+    },
+    {
+      "library": "baseline",
+      "mode": "partial",
+      "library_sha256": "4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385",
+      "shader_sha256": "09e4b3aaf6bb8adf6ab287bdbabdda6a2b68223d1ebcbe7442db1d59eecb59a1",
+      "stdout_sha256": "b9b588ea1a368f646fcac3f764fa177e2cf1773503af08e56a1803b115897b01",
+      "stderr_sha256": "40dc46973a1c796a981bb2ff5799c8ef0ec11d2805a27ae191dc3113141e189e",
+      "exit_code": 1,
+      "expected_failure": true,
+      "oracle_passed": true
+    },
+    {
+      "library": "baseline",
+      "mode": "regular",
+      "library_sha256": "4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385",
+      "shader_sha256": "09e4b3aaf6bb8adf6ab287bdbabdda6a2b68223d1ebcbe7442db1d59eecb59a1",
+      "stdout_sha256": "699df6c6f040b48b36edff22fd4e11931a5db9354b3b13a62bc52df59f2e94d8",
+      "stderr_sha256": "6fc6de7a53cff5a094e11ec3076fdeb35f17be90f9129bfe8645f66c4739d5a1",
+      "exit_code": 0,
+      "expected_failure": false,
+      "oracle_passed": true
+    },
+    {
+      "library": "baseline",
+      "mode": "mixed",
+      "library_sha256": "4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385",
+      "shader_sha256": "66e4e7ed2472c3461844eedfc5ac7afa2589d838e76e34bdcd39a3ab1a4056f8",
+      "stdout_sha256": "8a04d30650545d954339e20463b6f05227b4d857abd27eaa9a38fc69b8d6cb93",
+      "stderr_sha256": "d2c0d729c3326f9557ef9c0ae06e5c36ac0cfa305d193a5205301ac754f91ee8",
+      "exit_code": 0,
+      "expected_failure": false,
+      "oracle_passed": true
+    },
+    {
+      "library": "baseline",
+      "mode": "graphics",
+      "library_sha256": "4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385",
+      "shader_sha256": "66957c6f02a446d0fd9b6ceda96f0ba6a19b098939dd3d754f3554842b9a88c5",
+      "stdout_sha256": "3b44a0e024ca44008145d350a163796814f138bc764a077808d32dfa16f5b044",
+      "stderr_sha256": "d84575acb80b61b318b02e645206286342971282512a367e60e9f08c3bcc960a",
+      "exit_code": 1,
+      "expected_failure": true,
+      "oracle_passed": true
+    },
+    {
+      "library": "candidate",
+      "mode": "push",
+      "library_sha256": "5d8c0af0a40b522134ffe07661544298deb549dadc9203122a4286f72f1ca9de",
+      "shader_sha256": "09e4b3aaf6bb8adf6ab287bdbabdda6a2b68223d1ebcbe7442db1d59eecb59a1",
+      "stdout_sha256": "4eb0060389e0c90d3a915d4d50a5a79f1459c748df435bf56b9be300160b1ca2",
+      "stderr_sha256": "d2c0d729c3326f9557ef9c0ae06e5c36ac0cfa305d193a5205301ac754f91ee8",
+      "exit_code": 0,
+      "expected_failure": false,
+      "oracle_passed": true
+    },
+    {
+      "library": "candidate",
+      "mode": "template",
+      "library_sha256": "5d8c0af0a40b522134ffe07661544298deb549dadc9203122a4286f72f1ca9de",
+      "shader_sha256": "09e4b3aaf6bb8adf6ab287bdbabdda6a2b68223d1ebcbe7442db1d59eecb59a1",
+      "stdout_sha256": "f5721bd27601685a9d40a86f557881fe7b8c2ae0e0b95e1143bb0b3d3e64bbaf",
+      "stderr_sha256": "d2c0d729c3326f9557ef9c0ae06e5c36ac0cfa305d193a5205301ac754f91ee8",
+      "exit_code": 0,
+      "expected_failure": false,
+      "oracle_passed": true
+    },
+    {
+      "library": "candidate",
+      "mode": "partial",
+      "library_sha256": "5d8c0af0a40b522134ffe07661544298deb549dadc9203122a4286f72f1ca9de",
+      "shader_sha256": "09e4b3aaf6bb8adf6ab287bdbabdda6a2b68223d1ebcbe7442db1d59eecb59a1",
+      "stdout_sha256": "48cee5b3388208928c6c7976ba7b4e89783b58b6c1b87ea9203a87f0e710a42f",
+      "stderr_sha256": "d2c0d729c3326f9557ef9c0ae06e5c36ac0cfa305d193a5205301ac754f91ee8",
+      "exit_code": 0,
+      "expected_failure": false,
+      "oracle_passed": true
+    },
+    {
+      "library": "candidate",
+      "mode": "regular",
+      "library_sha256": "5d8c0af0a40b522134ffe07661544298deb549dadc9203122a4286f72f1ca9de",
+      "shader_sha256": "09e4b3aaf6bb8adf6ab287bdbabdda6a2b68223d1ebcbe7442db1d59eecb59a1",
+      "stdout_sha256": "699df6c6f040b48b36edff22fd4e11931a5db9354b3b13a62bc52df59f2e94d8",
+      "stderr_sha256": "6fc6de7a53cff5a094e11ec3076fdeb35f17be90f9129bfe8645f66c4739d5a1",
+      "exit_code": 0,
+      "expected_failure": false,
+      "oracle_passed": true
+    },
+    {
+      "library": "candidate",
+      "mode": "mixed",
+      "library_sha256": "5d8c0af0a40b522134ffe07661544298deb549dadc9203122a4286f72f1ca9de",
+      "shader_sha256": "66e4e7ed2472c3461844eedfc5ac7afa2589d838e76e34bdcd39a3ab1a4056f8",
+      "stdout_sha256": "8a04d30650545d954339e20463b6f05227b4d857abd27eaa9a38fc69b8d6cb93",
+      "stderr_sha256": "d2c0d729c3326f9557ef9c0ae06e5c36ac0cfa305d193a5205301ac754f91ee8",
+      "exit_code": 0,
+      "expected_failure": false,
+      "oracle_passed": true
+    },
+    {
+      "library": "candidate",
+      "mode": "graphics",
+      "library_sha256": "5d8c0af0a40b522134ffe07661544298deb549dadc9203122a4286f72f1ca9de",
+      "shader_sha256": "66957c6f02a446d0fd9b6ceda96f0ba6a19b098939dd3d754f3554842b9a88c5",
+      "stdout_sha256": "898e6f6b754a3ac33765f59b369747ba293e901332b81dc94e083c6fb5fc4201",
+      "stderr_sha256": "d2c0d729c3326f9557ef9c0ae06e5c36ac0cfa305d193a5205301ac754f91ee8",
+      "exit_code": 0,
+      "expected_failure": false,
+      "oracle_passed": true
+    }
+  ],
+  "all_oracles_passed": true
+}
