@@ -4107,3 +4107,27 @@ records the result.
 
 Not proven: no runtime run, the eight S-1-5-32 groups are not reproduced,
 and the native meaning of ALPC port flag 0x40000 is unverified.
+
+## 2026-10-25: cell033 registrar START_PENDING, cell034
+
+Cell033 created the registrar token and started svchost. ServiceMain
+reached `RegisterServiceCtrlHandlerExW`, but the service stayed
+START_PENDING.
+
+- The `SvchostPushServiceGlobals` FIXME is harmless. The coremessaging.dll
+  export is only `ret 0`.
+- The real stop is the sechost stub
+  `QueryTransientObjectSecurityDescriptor` (services-start.log line 741).
+  The svchost thread aborted there, before the port was created.
+- The app then hit the sechost stub `WaitServiceState`.
+
+Cell034 changes (ADR-0067):
+
+- sechost reads the transient ALPC port descriptor from the registry and
+  implements `WaitServiceState`.
+- The registrar .reg adds the `TransientObjects` key with the 264-byte
+  descriptor. The receipt adds `registrar_transient_readback_argv`.
+- The ALPC connect FIXMEs print a fixed `reason=` token, and the collector
+  keeps it. Incoming message attributes are accepted.
+
+Not proven: no runtime run, and the registrar has not reached RUNNING.

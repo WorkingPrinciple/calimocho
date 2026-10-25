@@ -63,6 +63,7 @@ def stage(root, resume=False):
             "build/dlls/apisetschema/x86_64-windows/apisetschema.dll"
     if "registrar_service" in build:
         modules["lib/wine/x86_64-windows/services.exe"] = "build/programs/services/x86_64-windows/services.exe"
+        modules["lib/wine/x86_64-windows/sechost.dll"] = "build/dlls/sechost/x86_64-windows/sechost.dll"
     if set(modules.values()) - {"windows.system.launcher.dll"} != set(build["built_files"]) - {"windows.system.launcher.dll"}:
         raise ValueError("Built and staged module sets differ")
     rebuilt = require_consistent(BASE / "source", root / "source", BASE / "install", list(modules.values()))

@@ -54,7 +54,13 @@ class ConnectAttrsTests(unittest.TestCase):
             self.assertNotIn("if (client_attr || out_attrs || in_attrs) return STATUS_NOT_IMPLEMENTED;",
                              ex[:ex.index("NTSTATUS WINAPI NtAlpcAcceptConnectPort(")])
             self.assertNotIn("pa->SecurityQos.EffectiveOnly)) return STATUS_NOT_IMPLEMENTED;", client)
-            self.assertIn("client port root/name/attributes/QoS are not implemented", client)
+            for reason in ("client_attr_root", "client_attr_name", "client_attr_attributes", "client_attr_qos",
+                           "send_attributes", "connect_flags", "max_message_length", "connect_qos"):
+                self.assertIn('FIXME( "reason=%s' % reason, client)
+            self.assertNotIn("connection message attributes are not implemented", client)
+            self.assertIn("if (!status && in_attrs) in_attrs->ValidAttributes = 0;", ex)
+            connect = client[client.index("static NTSTATUS connect_port("):]
+            self.assertNotIn("return STATUS_NOT_IMPLEMENTED;\n    if (pa", connect[:connect.index("SERVER_START_REQ")])
             self.assertIn("req->effective_only = pa && pa->SecurityQos.EffectiveOnly;", client)
             self.assertEqual(overflows(client), [])
             self.assertIn("VARARG(client_sd,bytes,client_sd_size);", protocol)

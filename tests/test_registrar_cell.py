@@ -6,7 +6,7 @@ from pathlib import Path
 from tools.build_uwp_overlay import REPO
 from tools.freeze_registrar_cell import (IMAGE_PATH, SERVICES_WINEDEBUG, SETUP_ARGVS, add_headless_setup,
                                          add_registrar_handoff, registrar_sources,
-                                         registrar_stack_build, registration_text)
+                                         registrar_stack_build, registration_text, TRANSIENT_KEY, TRANSIENT_SD)
 from tools.freeze_static_lifetime_runtime import REGISTRAR_STACK
 
 
@@ -56,12 +56,14 @@ class RegistrarCellTest(unittest.TestCase):
         path.mkdir()
         return path
 
-    def handoff(self, root, cell):
+    def handoff(self, root, cell, sechost=True):
         wine = ["/usr/bin/arch", "-x86_64", "/x/install/bin/wine"]
         receipt = {"launcher_registration_argv": wine + ["regedit"], "generated_source_sha256": {},
                    "changed_modules": [], "preconditions": [], "limitations": [],
                    "launcher_argv": wine + ["start"]}
         receipt.update({key: {"files": {}} for key in REGISTRAR_STACK})
+        if sechost:
+            receipt["sechost_services"] = {"files": {"dlls/sechost/transient_wait.c": "c0ffee"}}
         receipt["environment"] = {"WINEDLLOVERRIDES": "mscoree=;coremessaging=n", "WINEDEBUG": "-all"}
         for key in ("framework_registration_argv", "native_xaml_registration_argv", "aedebug_registration_argv"):
             receipt[key] = wine + ["regedit", "/S", key]
@@ -98,7 +100,7 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 self.handoff(root, 28)
             with self.assertRaises(ValueError):
-                self.handoff(root, 34)
+                self.handoff(root, 35)
 
     def test_cell029_setup_is_headless_and_session_steps_are_not(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -166,6 +168,31 @@ class RegistrarCellTest(unittest.TestCase):
             self.assertTrue(any("__SERVER_MAX_DATA is5" in item for item in cell033["limitations"]))
             self.assertTrue(any("not a stub" in item for item in cell033["limitations"]))
             self.assertFalse(any("__SERVER_MAX_DATA" in item for item in cell032["limitations"]))
+
+    def test_cell034_registers_transient_descriptor_and_requires_sechost(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, cell033 = self.handoff(self._mk(Path(directory) / "a"), 33)
+            wine, cell034 = self.handoff(self._mk(Path(directory) / "b"), 34)
+            self.assertEqual(set(cell034) - set(cell033), {"registrar_transient_readback_argv"})
+            self.assertEqual(cell034["registrar_transient_readback_argv"], wine + [
+                "reg", "query", "HKLM\\Software\\Microsoft\\SecurityManager\\TransientObjects\\"
+                "%5C%5C.%5CAlpcPort%5CWM_RegistrarServer"])
+            self.assertEqual(cell034["generated_source_sha256"]["dlls/sechost/transient_wait.c"], "c0ffee")
+            self.assertNotIn("dlls/sechost/transient_wait.c", cell033["generated_source_sha256"])
+            text = Path(cell034["registrar_registration"]).read_bytes().decode("utf-16")
+            self.assertIn("[" + TRANSIENT_KEY + "]\r\n", text)
+            line = next(item for item in text.splitlines() if item.startswith('"SecurityDescriptor"=hex:'))
+            self.assertEqual(bytes(int(v, 16) for v in line.split(":", 1)[1].split(",")), TRANSIENT_SD)
+            self.assertEqual(len(TRANSIENT_SD), 264)
+            self.assertEqual(registration_text(transient=True)[:len(registration_text()) - 2],
+                             registration_text()[:-2])
+            self.assertNotIn("TransientObjects", Path(cell033["registrar_registration"]).read_bytes().decode("utf-16"))
+            self.assertEqual(cell034["services_diagnostics"]["discriminators"][3:],
+                             cell033["services_diagnostics"]["discriminators"])
+            self.assertTrue(any("ret 0" in item for item in cell034["limitations"]))
+            self.assertTrue(any("registrar_transient_readback_argv" in item for item in cell034["preconditions"]))
+            with self.assertRaisesRegex(ValueError, "sechost"):
+                self.handoff(self._mk(Path(directory) / "c"), 34, sechost=False)
 
 
 if __name__ == "__main__":

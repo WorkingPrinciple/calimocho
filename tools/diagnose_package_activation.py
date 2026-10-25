@@ -74,7 +74,7 @@ class CallDiagnostics:
         self.coremessaging_stub_count = 0
         self.coremessaging_stub_limited = set()
 
-    def observe_fixme(self, pid, tid, channel, function):
+    def observe_fixme(self, pid, tid, channel, function, message=""):
         if pid not in self.running:
             return
         self.sequence += 1
@@ -84,9 +84,16 @@ class CallDiagnostics:
                 or not re.fullmatch(r"[A-Za-z0-9_]+", function)):
             return
         if len(self.fixmes) < 128:
-            self.fixmes.append({"pid": pid, "tid": tid, "sequence": self.sequence,
-                                "channel": channel, "function": function, "arguments": "redacted",
-                                "basis": "actual FIXME emission, not proof of STATUS_NOT_IMPLEMENTED"})
+            fact = {"pid": pid, "tid": tid, "sequence": self.sequence,
+                    "channel": channel, "function": function, "arguments": "redacted",
+                    "basis": "actual FIXME emission, not proof of STATUS_NOT_IMPLEMENTED"}
+            # Only a whole-message fixed reason token (and one hex value) is kept; any other text stays redacted.
+            reason = re.fullmatch(r"reason=([a-z][a-z0-9_]{0,31})(?: value=(0x[0-9a-f]{1,16}|0))?", message.strip())
+            if reason:
+                fact["reason"] = reason.group(1)
+                if reason.group(2):
+                    fact["reason_value"] = reason.group(2)
+            self.fixmes.append(fact)
 
     def observe(self, pid, tid, channel, function, message):
         if channel == "pkgcore" and function == "application_run" and message == "exception-policy no-gpfault-dialog=1":
@@ -529,7 +536,7 @@ class ActivationTrace:
             return
         pid, tid, level, channel, function, message = event.groups()
         if level == "fixme":
-            self.calls.observe_fixme(int(pid, 16), int(tid, 16), channel, function)
+            self.calls.observe_fixme(int(pid, 16), int(tid, 16), channel, function, message)
         self.calls.observe(int(pid, 16), int(tid, 16), channel, function, message)
         fact = {"pid": int(pid, 16), "tid": int(tid, 16),
                 "channel": channel, "function": function}

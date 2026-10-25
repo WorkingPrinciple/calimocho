@@ -1,4 +1,4 @@
-"""Cell027-033 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
+"""Cell027-034 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
 import importlib
 import json
 from pathlib import Path
@@ -12,6 +12,19 @@ GROUP = "LocalServiceNoNetwork"
 IMAGE_PATH = "C:\\windows\\system32\\svchost.exe -k LocalServiceNoNetwork -p"
 SERVICE_KEY = "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Services\\" + SERVICE
 SVCHOST_KEY = "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Svchost"
+# Cell034: CoreMessaging's ServiceMain reads this ALPC port descriptor before creating its port.
+TRANSIENT_KEY = ("HKEY_LOCAL_MACHINE\\Software\\Microsoft\\SecurityManager\\TransientObjects\\"
+                 "%5C%5C.%5CAlpcPort%5CWM_RegistrarServer")
+# Self-relative SD (264 bytes): owner/group absent; DACL CREATOR OWNER, SYSTEM, Administrators 0x111fffff and
+# GENERIC_READ for IU, AU, one S-1-5-32 SID with 8 more subauthorities, ALL APPLICATION PACKAGES and one capability SID.
+# Re-authored from the value an earlier lane provisioned (rt-v20b system.reg); no machine SID; native origin unmeasured.
+TRANSIENT_SD = bytes.fromhex(
+    "01000480000000000000000000000000140000000200f4000800000000001400ffff1f110101000000000003000000000000"
+    "140000000080010100000000000504000000000014000000008001010000000000050b00000000001400ffff1f1101010000"
+    "000000051200000000001800ffff1f11010200000000000520000000200200000000340000000080010900000000000520000000"
+    "ce4a9359b9cf0b7575c0f29bb2b4c298d446ddf9027a87ec14651177d6e996550000180000000080010200000000000f02000000"
+    "010000000000380000000080010a00000000000f0300000000040000ce4a9359b9cf0b7575c0f29bb2b4c298d446ddf9027a87ec"
+    "14651177d6e99655")
 # Cell028 scopes tracing to the services.exe/svchost.exe tree; activation keeps the run's WINEDEBUG.
 SERVICES_WINEDEBUG = ",".join((
     "-all", "+pid", "+timestamp",
@@ -26,18 +39,20 @@ DOCS = tuple("docs/ADR/%s.md" % name for name in (
     "0063-replace-token-session-and-integrity-success-stubs",
     "0064-authenticate-delivered-alpc-connection-impersonation",
     "0065-construct-a-scoped-registrar-service-token",
-    "0066-host-coremessaging-thread-dispatch"))
+    "0066-host-coremessaging-thread-dispatch",
+    "0067-read-transient-alpc-port-security-descriptor"))
 TESTS = ("tests/test_alpc_transport.py", "tests/alpc_transport_host.c", "tests/test_restricted_token.py",
          "tests/restricted_token_host.c", "tests/test_alpc_identity.py", "tests/test_token_identity.py",
          "tests/token_identity_host.c", "tests/test_token_security.py", "tests/token_security_host.c",
          "tests/test_alpc_impersonation.py", "tests/test_registrar_service.py", "tests/registrar_service_host.c",
          "tests/test_coremsg_dispatch.py", "tests/coremsg_dispatch_host.c", "tests/test_server_protocol_gate.py",
-         "tests/test_registrar_cell.py")
+         "tests/test_registrar_cell.py", "tests/test_sechost_services.py", "tests/sechost_services_host.c",
+         "tests/test_server_request_limits.py")
 
 
 def registrar_sources():
     sources = ["tools/freeze_registrar_cell.py", "tools/server_protocol_gate.py"]
-    for key in REGISTRAR_STACK:
+    for key in REGISTRAR_STACK + ("sechost_services",):
         for relative in importlib.import_module("tools.port_" + key).SOURCES:
             if relative not in sources:
                 sources.append(relative)
@@ -59,6 +74,11 @@ def registrar_stack_build(root, build):
     if gate.get("status") != "passed" or not {"win32u", "server", "services"} <= set(gate["rebuilt_modules"]):
         raise ValueError("Cell027 requires a staged install with consistent server request numbering")
     result["server_protocol_gate"] = gate
+    if "sechost_services" in build:
+        for relative, value in build["sechost_services"]["files"].items():
+            if sha256(root / "source" / relative) != value:
+                raise ValueError("Sechost source changed: " + relative)
+        result["sechost_services"] = build["sechost_services"]
     return result
 
 
@@ -67,7 +87,7 @@ def multi_sz(*values):
     return "hex(7):" + ",".join("%02x" % byte for byte in data.encode("utf-16-le"))
 
 
-def registration_text():
+def registration_text(transient=False):
     def escaped(value):
         return value.replace("\\", "\\\\")
     return "\r\n".join([
@@ -84,18 +104,22 @@ def registration_text():
         "[" + SERVICE_KEY + "\\Parameters]",
         '"ServiceDll"="C:\\\\windows\\\\system32\\\\coremessaging.dll"', "",
         "[" + SVCHOST_KEY + "]",
-        '"' + GROUP + '"=' + multi_sz(SERVICE), "", ""])
+        '"' + GROUP + '"=' + multi_sz(SERVICE), ""] + ([
+        "[" + TRANSIENT_KEY + "]",
+        '"SecurityDescriptor"=hex:' + ",".join("%02x" % byte for byte in TRANSIENT_SD), ""] if transient else []) + [""])
 
 
 def add_registrar_handoff(root, receipt, cell=27):
-    if cell not in (27, 28, 29, 30, 31, 32, 33):
-        raise ValueError("Registrar handoff supports cells027-033")
+    if cell not in (27, 28, 29, 30, 31, 32, 33, 34):
+        raise ValueError("Registrar handoff supports cells027-034")
     label = "%03d" % cell
     root = Path(root)
     registration = root / ("registrar-CELL%s-FROZEN.reg" % label)
     if registration.exists():
         raise FileExistsError("Refuse existing%s registrar registration" % label)
-    registration.write_bytes(registration_text().encode("utf-16"))
+    if cell >= 34 and "sechost_services" not in receipt:
+        raise ValueError("Cell034 requires the sechost transient descriptor and WaitServiceState build")
+    registration.write_bytes(registration_text(transient=cell >= 34).encode("utf-16"))
     wine = receipt["launcher_registration_argv"][:3]
     receipt["scope"] = ("cell" + label + " native CoreMessaging with ALPC transport, scoped restricted registrar "
                         "service token and per-thread CoreMessaging dispatch; source-built, unexecuted")
@@ -119,7 +143,9 @@ def add_registrar_handoff(root, receipt, cell=27):
             ]}
     receipt["registrar_start_argv"] = wine + ["sc", "start", SERVICE]
     receipt["registrar_query_argv"] = wine + ["sc", "query", SERVICE]
-    for key in REGISTRAR_STACK:
+    if cell >= 34:
+        receipt["registrar_transient_readback_argv"] = wine + ["reg", "query", TRANSIENT_KEY.replace("HKEY_LOCAL_MACHINE", "HKLM")]
+    for key in REGISTRAR_STACK + (("sechost_services",) if cell >= 34 else ()):
         receipt["generated_source_sha256"].update(receipt[key]["files"])
     receipt["changed_modules"] = sorted(receipt["changed_modules"])
     receipt["preconditions"] = [item for item in receipt["preconditions"]
@@ -182,6 +208,22 @@ def add_registrar_handoff(root, receipt, cell=27):
             "Cell033 accepts an unnamed unrooted client port with an optional SACL-free security descriptor and static EffectiveOnly (disabled privileges and disabled optional groups dropped); other client attribute fields and message attributes still return STATUS_NOT_IMPLEMENTED with a FIXME",
             "Identification-level ALPC impersonation still returns STATUS_BAD_IMPERSONATION_LEVEL; CoreMessaging requests SecurityIdentification",
             "Wine treats ALPC port flag 0x40000 as non-blocking receive; CoreMessaging sets port flags 0x70000; native meaning of that bit is unverified here",
+        ]
+    if cell >= 34:
+        receipt["services_diagnostics"]["discriminators"] = [
+            "'transient sd type 8 name' then 'transient sd status 0 size 264' (svchost, +service): the registrar read its ALPC port descriptor; a nonzero status names the failed open or query",
+            "'reason=transient_type' FIXME: CoreMessaging asked for a transient object type other than the ALPC port",
+            "'unimplemented function sechost.dll.' on a svchost thread: another sechost stub stops ServiceMain (cell033 stopped at QueryTransientObjectSecurityDescriptor)",
+        ] + receipt["services_diagnostics"]["discriminators"]
+        receipt["preconditions"] += [
+            "Run registrar_transient_readback_argv right after registrar_readback_argv in the setup session and record its exit and output; a missing SecurityDescriptor value is a setup failure, not an app result",
+        ]
+        receipt["limitations"] += [
+            "Cell033 diagnosis: the svchost thread that ran CoreMessaging ServiceMain aborted in the sechost stub QueryTransientObjectSecurityDescriptor (stub RVA 0x119be), so the service stayed START_PENDING. The SvchostPushServiceGlobals fixme is not the blocker: coremessaging.dll exports it as an empty function (c2 00 00, ret 0)",
+            "Cell034 implements QueryTransientObjectSecurityDescriptor for type 8 (ALPC port) from a builtin relay trace of an earlier lane, not native documentation; other types fail closed with STATUS_NOT_IMPLEMENTED and open/query NTSTATUS values are returned unchanged (native failure convention unmeasured)",
+            "The WM_RegistrarServer descriptor value is re-authored from an earlier lane's provisioned prefix; its native origin and parity with Windows 26300 are unmeasured",
+            "WaitServiceState follows the documented contract with 50 ms QueryServiceStatusEx polling, not service status notifications",
+            "NtAlpcConnectPortEx now accepts a receive message attribute buffer (returned with no valid attributes) and refuses send attributes; every remaining NOT_IMPLEMENTED connect path logs a fixed reason token that the collector keeps",
         ]
 
 

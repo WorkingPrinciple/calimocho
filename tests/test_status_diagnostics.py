@@ -25,6 +25,23 @@ class StatusDiagnosticsTests(unittest.TestCase):
         self.assertEqual(result["run_fixme_fingerprints"][0]["arguments"], "redacted")
         self.assertNotIn("SECRET", json.dumps(result))
 
+    def test_fixme_keeps_only_a_whole_message_reason_token(self):
+        trace = self.trace()
+        trace.stderr("0100:0104:fixme:alpc:NtAlpcConnectPortEx reason=send_attributes value=0x20000000")
+        trace.stderr("0100:0104:fixme:alpc:connect_port reason=connect_qos value=0x10002")
+        trace.stderr("0100:0104:fixme:alpc:connect_port reason=client_attr_name")
+        trace.stderr("0100:0104:fixme:alpc:connect_port reason=leak SECRET")
+        trace.stderr("0100:0104:fixme:alpc:connect_port reason=Upper")
+        trace.stderr("0100:0104:fixme:alpc:connect_port SECRET reason=hidden")
+        trace.stderr("0100:0104:fixme:alpc:connect_port reason=x value=/Users/SECRET")
+        result = trace.verdict()["call_diagnostics"]["run_fixme_fingerprints"]
+        self.assertEqual([(row.get("reason"), row.get("reason_value")) for row in result],
+                         [("send_attributes", "0x20000000"), ("connect_qos", "0x10002"),
+                          ("client_attr_name", None), (None, None), (None, None), (None, None), (None, None)])
+        self.assertTrue(all(row["arguments"] == "redacted" for row in result))
+        self.assertNotIn("SECRET", json.dumps(result))
+        self.assertNotIn("hidden", json.dumps(result))
+
     def test_scalar_relay_status_and_owned_hresult_are_not_conflated(self):
         trace = self.trace()
         for status in ("c0000002", "d0000002"):

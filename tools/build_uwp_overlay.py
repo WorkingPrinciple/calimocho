@@ -193,6 +193,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if registrar_service:
         from tools.port_registrar_service import port as registrar_source
         registrar_port = registrar_source(root / "source")
+        from tools.port_sechost_services import port as sechost_source
+        sechost_port = sechost_source(root / "source")
     dispatch_port = None
     if coremsg_dispatch:
         from tools.port_coremsg_dispatch import port as dispatch_source
@@ -281,6 +283,7 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         receipt["alpc_connect_attrs"] = connect_attrs_port
     if registrar_port is not None:
         receipt["registrar_service"] = registrar_port
+        receipt["sechost_services"] = sechost_port
     if dispatch_port is not None:
         receipt["coremsg_dispatch"] = dispatch_port
     receipt["server_request_limits"] = request_limits_port
@@ -317,6 +320,7 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         targets.append("dlls/ucrtbase/x86_64-windows/ucrtbase.dll")
     if registrar_service:
         targets.append("programs/services/x86_64-windows/services.exe")
+        targets.append("dlls/sechost/x86_64-windows/sechost.dll")
     if coremsg_dispatch:
         targets += ["dlls/win32u/win32u.so", "dlls/win32u/x86_64-windows/win32u.dll",
                     "dlls/apisetschema/x86_64-windows/apisetschema.dll"]
@@ -463,7 +467,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
             receipt["source_inputs"][relative] = sha256(REPO / relative)
     if registrar_service:
         from tools.port_registrar_service import SOURCES
-        for relative in SOURCES:
+        from tools.port_sechost_services import SOURCES as SECHOST_SOURCES
+        for relative in SOURCES + SECHOST_SOURCES:
             receipt["source_inputs"][relative] = sha256(REPO / relative)
     if coremsg_dispatch:
         from tools.port_coremsg_dispatch import SOURCES
@@ -495,8 +500,9 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         relative = "build/dlls/ucrtbase/x86_64-windows/ucrtbase.dll"
         receipt["built_files"][relative] = sha256(root / relative)
     if registrar_service:
-        relative = "build/programs/services/x86_64-windows/services.exe"
-        receipt["built_files"][relative] = sha256(root / relative)
+        for relative in ("build/programs/services/x86_64-windows/services.exe",
+                         "build/dlls/sechost/x86_64-windows/sechost.dll"):
+            receipt["built_files"][relative] = sha256(root / relative)
     if coremsg_dispatch:
         for relative in ("build/dlls/win32u/win32u.so", "build/dlls/win32u/x86_64-windows/win32u.dll",
                          "build/dlls/apisetschema/x86_64-windows/apisetschema.dll"):

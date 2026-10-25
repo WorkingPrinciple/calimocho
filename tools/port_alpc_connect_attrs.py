@@ -3,6 +3,11 @@
 The client port object attributes are accepted only as an unnamed, unrooted
 object whose optional security descriptor is applied at creation. Any other
 client attribute field still returns STATUS_NOT_IMPLEMENTED with a FIXME.
+Connection message attributes are not transported: a send buffer with valid
+attributes is refused, and a receive buffer comes back with no valid
+attributes. Every NOT_IMPLEMENTED path in the connect logs a fixed
+"reason=<token>" FIXME with at most one numeric value, so a redacted
+collector can still name the rejected check.
 Static EffectiveOnly captures a client token without disabled privileges and
 without disabled optional groups (deny-only and mandatory groups are kept).
 """
@@ -55,10 +60,25 @@ CLIENT_ATTR_CHECK = """    if (client_attr)
                (unsigned)client_attr->Attributes, client_attr->SecurityDescriptor,
                client_attr->SecurityQualityOfService );
         if (client_attr->Length != sizeof(*client_attr)) return STATUS_INVALID_PARAMETER;
-        if (client_attr->RootDirectory || client_attr->ObjectName ||
-            (client_attr->Attributes & ~OBJ_CASE_INSENSITIVE) || client_attr->SecurityQualityOfService)
+        /* FIXME reasons are fixed tokens and numeric masks only; the collector keeps nothing else. */
+        if (client_attr->RootDirectory)
         {
-            FIXME( "client port root/name/attributes/QoS are not implemented\\n" );
+            FIXME( "reason=client_attr_root\\n" );
+            return STATUS_NOT_IMPLEMENTED;
+        }
+        if (client_attr->ObjectName)
+        {
+            FIXME( "reason=client_attr_name\\n" );
+            return STATUS_NOT_IMPLEMENTED;
+        }
+        if (client_attr->Attributes & ~OBJ_CASE_INSENSITIVE)
+        {
+            FIXME( "reason=client_attr_attributes value=%#x\\n", (unsigned)client_attr->Attributes );
+            return STATUS_NOT_IMPLEMENTED;
+        }
+        if (client_attr->SecurityQualityOfService)
+        {
+            FIXME( "reason=client_attr_qos\\n" );
             return STATUS_NOT_IMPLEMENTED;
         }
         if (client_attr->SecurityDescriptor)
@@ -68,9 +88,14 @@ CLIENT_ATTR_CHECK = """    if (client_attr)
                 return status;
         }
     }
-    if (out_attrs || in_attrs)
+    if (out_attrs) TRACE( "send attributes allocated %#x valid %#x\\n",
+                          (unsigned)out_attrs->AllocatedAttributes, (unsigned)out_attrs->ValidAttributes );
+    if (in_attrs) TRACE( "receive attributes allocated %#x\\n", (unsigned)in_attrs->AllocatedAttributes );
+    /* No connection message attribute is transported yet: sending one is refused, and a receive
+     * buffer is returned with no valid attributes, which is what an attribute-free reply carries. */
+    if (out_attrs && out_attrs->ValidAttributes)
     {
-        FIXME( "connection message attributes are not implemented\\n" );
+        FIXME( "reason=send_attributes value=%#x\\n", (unsigned)out_attrs->ValidAttributes );
         free( client_packed );
         return STATUS_NOT_IMPLEMENTED;
     }
@@ -187,12 +212,39 @@ def port(source):
         "    free( packed );\n",
         "                           NULL, packed ? packed + 1 : NULL, packed ? packed->sd_len : 0, packed ? 2 : 0,\n"
         "                           client_packed ? client_packed + 1 : NULL, client_packed ? client_packed->sd_len : 0 );\n"
-        "    free( packed );\n    free( client_packed );\n")
+        "    free( packed );\n    free( client_packed );\n"
+        "    if (!status && in_attrs) in_attrs->ValidAttributes = 0;\n")
+    client = client[:begin] + section + client[finish:]
+
+    begin = client.index("static NTSTATUS connect_port(")
+    finish = client.index("NTSTATUS WINAPI NtAlpcConnectPort(", begin)
+    section = client[begin:finish]
+    section = replace(section,
+        "    if (flags & ~ALPC_SYNC_CONNECTION) return STATUS_NOT_IMPLEMENTED;\n"
+        "    if (pa && pa->MaxMessageLength > 0x8000) return STATUS_NOT_IMPLEMENTED;\n"
+        "    if (pa && (pa->SecurityQos.Length != sizeof(pa->SecurityQos) ||\n"
+        "        pa->SecurityQos.ImpersonationLevel > SecurityImpersonation ||\n"
+        "        pa->SecurityQos.ContextTrackingMode != SECURITY_STATIC_TRACKING)) return STATUS_NOT_IMPLEMENTED;\n",
+        "    if (flags & ~ALPC_SYNC_CONNECTION)\n"
+        "    {\n        FIXME( \"reason=connect_flags value=%#x\\n\", (unsigned)flags );\n"
+        "        return STATUS_NOT_IMPLEMENTED;\n    }\n"
+        "    if (pa && pa->MaxMessageLength > 0x8000)\n"
+        "    {\n        FIXME( \"reason=max_message_length value=%#lx\\n\", (unsigned long)pa->MaxMessageLength );\n"
+        "        return STATUS_NOT_IMPLEMENTED;\n    }\n"
+        "    if (pa && (pa->SecurityQos.Length != sizeof(pa->SecurityQos) ||\n"
+        "        pa->SecurityQos.ImpersonationLevel > SecurityImpersonation ||\n"
+        "        pa->SecurityQos.ContextTrackingMode != SECURITY_STATIC_TRACKING))\n"
+        "    {\n        FIXME( \"reason=connect_qos value=%#x\\n\", (unsigned)pa->SecurityQos.ImpersonationLevel |\n"
+        "               ((unsigned)pa->SecurityQos.ContextTrackingMode << 8) |\n"
+        "               ((pa->SecurityQos.Length == sizeof(pa->SecurityQos)) ? 0 : 0x10000) );\n"
+        "        return STATUS_NOT_IMPLEMENTED;\n    }\n")
     client = client[:begin] + section + client[finish:]
 
     for path, text in zip(PATHS, (server, token, security, protocol, client)):
         (source / path).write_text(text)
     return {"files": {p: sha256(source / p) for p in PATHS},
             "client_attr": "unnamed unrooted client port; optional SD without SACL; other fields NOT_IMPLEMENTED",
+            "message_attributes": "send attributes with ValidAttributes NOT_IMPLEMENTED; receive buffer returns ValidAttributes 0",
+            "fixme_reasons": "each NOT_IMPLEMENTED path logs reason=<token> and at most one numeric value",
             "effective_only": "static capture drops disabled privileges and disabled optional groups",
             "identification_impersonation": "still STATUS_BAD_IMPERSONATION_LEVEL"}
