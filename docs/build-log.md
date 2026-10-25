@@ -5,6 +5,24 @@ the recipe is reliable.
 
 ## 2026-10-25: native XAML loader discriminator after actual009 handoff
 
+Actual010 subsequently loaded native Windows.UI.Xaml.dll from the expected
+prefix system32 path in AppL PID256. The Application factory returned S_OK.
+The next requests for Windows.UI.Xaml.FrameworkViewSource returned CLASSNOTREG
+for both its factory and RoActivateInstance, with registration absent.
+The exact-image, admitted-token process observer recorded AppL exit3 through
+a signaled process handle, separately from CE exit0. No activation callback
+or window was observed.
+
+The redacted010 evidence was read and hash-checked as
+`53e6a14d60abb9ce0e65ce7e3a1b8efaf7f25a2a7888f6d77abf8f5698124415`
+at `xbox-calimocho-packaged-20261025-010/evidence/activation-redacted.json`
+under `xodus-runs`. Collection took4.084 seconds, not the180-second cap.
+Its final two-second post-target-exit drain cutoff is explicitly truncated;
+this does not invalidate the separately observed target exit.
+An owned exact native factory probe now compiles without execution or
+registration mutation. The next mapping must use actual native registration
+and matching retained DLL evidence, not invent a replacement interface.
+
 The actual009 redacted evidence was read and hash-checked as
 `5b11eb94534ba745c2394e1a55f7105a51504674f4292d029d98fa6c853eb58b`
 at `xbox-calimocho-packaged-20261025-009/evidence/activation-redacted.json`
