@@ -201,6 +201,11 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         dispatch_port = dispatch_source(root / "source")
     from tools.port_server_request_limits import port as request_limits_source
     request_limits_port = request_limits_source(root / "source")
+    telemetry_port = None
+    if coremsg_dispatch:
+        # Last: wraps the final ALPC, wait-packet and kernelbase fail-fast sources.
+        from tools.port_alpc_telemetry import port as telemetry_source
+        telemetry_port = telemetry_source(root / "source")
     attempt = 1
     while (root / ("attempt-%02d" % attempt)).exists():
         attempt += 1
@@ -287,6 +292,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if dispatch_port is not None:
         receipt["coremsg_dispatch"] = dispatch_port
     receipt["server_request_limits"] = request_limits_port
+    if telemetry_port is not None:
+        receipt["alpc_telemetry"] = telemetry_port
 
     def run(name, command, budget=300, cwd=directory):
         step = run_step(command, cwd, env, logs / (name + ".log"), budget)
@@ -323,7 +330,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         targets.append("dlls/sechost/x86_64-windows/sechost.dll")
     if coremsg_dispatch:
         targets += ["dlls/win32u/win32u.so", "dlls/win32u/x86_64-windows/win32u.dll",
-                    "dlls/apisetschema/x86_64-windows/apisetschema.dll"]
+                    "dlls/apisetschema/x86_64-windows/apisetschema.dll",
+                    "dlls/kernelbase/x86_64-windows/kernelbase.dll"]
     run("server-ntdll", targets, budget=600)
     compiler = shutil.which("x86_64-w64-mingw32-gcc")
     if not compiler:
@@ -481,6 +489,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
             if isinstance(value, dict) and "files" in value:
                 for relative in value["files"]:
                     value["files"][relative] = sha256(root / "source" / relative)
+    if coremsg_dispatch:
+        from tools.port_alpc_telemetry import SOURCES as TELEMETRY_SOURCES
+        for relative in TELEMETRY_SOURCES:
+            receipt["source_inputs"][relative] = sha256(REPO / relative)
     receipt["built_files"] = {str(path.relative_to(root)): sha256(path) for path in (
         directory / "server/wineserver", directory / "dlls/ntdll/ntdll.so",
         directory / "dlls/ntdll/x86_64-windows/ntdll.dll",
@@ -505,7 +517,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
             receipt["built_files"][relative] = sha256(root / relative)
     if coremsg_dispatch:
         for relative in ("build/dlls/win32u/win32u.so", "build/dlls/win32u/x86_64-windows/win32u.dll",
-                         "build/dlls/apisetschema/x86_64-windows/apisetschema.dll"):
+                         "build/dlls/apisetschema/x86_64-windows/apisetschema.dll",
+                         "build/dlls/kernelbase/x86_64-windows/kernelbase.dll"):
             receipt["built_files"][relative] = sha256(root / relative)
     from tools.check_ntdll_syscall_exports import check as check_syscall_exports
     receipt["ntdll_syscall_exports"] = check_syscall_exports(

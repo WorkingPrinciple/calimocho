@@ -73,6 +73,9 @@ class CallDiagnostics:
         self.coremessaging_stubs = deque(maxlen=128)
         self.coremessaging_stub_count = 0
         self.coremessaging_stub_limited = set()
+        self.alpc_returns = deque(maxlen=256)
+        self.alpc_return_count = 0
+        self.alpc_return_limited = set()
 
     def observe_fixme(self, pid, tid, channel, function, message=""):
         if pid not in self.running:
@@ -149,24 +152,45 @@ class CallDiagnostics:
                             basis="matching low32 return bits; relay metadata does not prove semantic return type")
                 self.status_returns.append(fact)
                 self.status_return_count += 1
-        elif channel == "pkgexception" and function == "diagnostic_exception" and pid in self.running:
+        elif channel == "pkgstatus" and function == "diagnostic_alpc_return" and pid in self.running:
+            if message == "alpc-return limited=1":
+                self.alpc_return_limited.add(pid)
+                return
+            match = re.fullmatch(
+                r"alpc-return export=(NtAlpc[A-Za-z]{1,40}) result=([0-9a-f]{8}) "
+                r"target=(registrar|registrar-relative|other|none)", message)
+            if match:
+                fact.update(export=match[1], result="0x" + match[2], target=match[3],
+                            source="unix-syscall-return",
+                            basis="actual ntdll unix return; target is a fixed class, port names are not emitted")
+                self.alpc_returns.append(fact)
+                self.alpc_return_count += 1
+        elif channel == "pkgexception" and function in ("diagnostic_exception", "diagnostic_failfast") and pid in self.running:
             if message == "exception limited=1":
                 self.exception_limited.add(pid)
                 return
+            stage = "failfast" if function == "diagnostic_failfast" else "unhandled-filter"
             match = re.fullmatch(
-                r"exception stage=unhandled-filter id=([0-9]{1,2}) code=([0-9a-f]{8}) flags=([0-9a-f]{8}) "
-                r"count=([0-9]{1,10}) module=([A-Za-z0-9_.-]{1,127}) offset=([0-9a-f]{1,16}) hresult=unknown", message)
+                r"exception stage=" + stage + r" id=([0-9]{1,2}) code=([0-9a-f]{8}) flags=([0-9a-f]{8}) "
+                r"count=([0-9]{1,10}) module=([A-Za-z0-9_.-]{1,127}) offset=([0-9a-f]{1,16}) hresult=unknown"
+                r"(?: failfast_flags=([0-9a-f]{8}))?", message)
+            if match and (match[7] is None) == (stage == "failfast"):
+                match = None
             parameter = re.fullmatch(
                 r"parameter id=([0-9]{1,2}) slot=([0-9]{1,2}) kind=(scalar|cpp-magic) value=([0-9a-f]{8})", message)
             address = re.fullmatch(
                 r"parameter id=([0-9]{1,2}) slot=([0-9]{1,2}) kind=address module=([A-Za-z0-9_.-]{1,127}) offset=([0-9a-f]{1,16})", message)
             if match and len(self.exceptions) < 256:
-                fact.update(id=int(match[1]), stage="unhandled-filter-entry", code="0x" + match[2],
+                fact.update(id=int(match[1]), stage="unhandled-filter-entry" if stage == "unhandled-filter" else "raise-failfast-entry",
+                            code="0x" + match[2],
                             flags="0x" + match[3], parameter_count=int(match[4]),
                             module=match[5], offset=match[6], hresult=None, parameters=[],
                             relay_tail=[dict(row) for row in list(self.relays[pid])[-50:]],
                             origin_candidates=[dict(row) for row in self.origins if row["pid"] == pid and row["tid"] == tid],
                             basis="actual unhandled-filter entry, not necessarily final termination")
+                if stage == "failfast":
+                    fact.update(failfast_flags="0x" + match[7],
+                                basis="actual kernelbase RaiseFailFastException entry record before termination")
                 self.exceptions.append(fact)
             elif parameter or address:
                 item = parameter or address
@@ -454,6 +478,9 @@ class CallDiagnostics:
             "coremessaging_stub_hits": select(self.coremessaging_stubs),
             "coremessaging_stub_tail_overwritten": max(0, self.coremessaging_stub_count - self.coremessaging_stubs.maxlen),
             "coremessaging_stub_source_limited": bool(target_pids & self.coremessaging_stub_limited),
+            "alpc_returns": select(self.alpc_returns),
+            "alpc_return_tail_overwritten": max(0, self.alpc_return_count - self.alpc_returns.maxlen),
+            "alpc_return_source_limited": bool(target_pids & self.alpc_return_limited),
             "no_gpfault_dialog_policy_observed": sorted(target_pids & self.exception_policy_pids),
             "basis": "instrumented calls, not a deadlock or unsignalled-event cause determination",
         }

@@ -100,7 +100,7 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 self.handoff(root, 28)
             with self.assertRaises(ValueError):
-                self.handoff(root, 37)
+                self.handoff(root, 38)
 
     def test_cell029_setup_is_headless_and_session_steps_are_not(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -215,6 +215,17 @@ class RegistrarCellTest(unittest.TestCase):
                              cell035["services_diagnostics"]["discriminators"])
             self.assertTrue(any("(HANDLE)-2" in item for item in cell036["limitations"]))
             self.assertFalse(any("(HANDLE)-2" in item for item in cell035["limitations"]))
+
+    def test_cell037_records_waitable_port_wake_and_telemetry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, cell036 = self.handoff(self._mk(Path(directory) / "a"), 36)
+            _, cell037 = self.handoff(self._mk(Path(directory) / "b"), 37)
+            self.assertEqual(cell037["services_diagnostics"]["discriminators"][4:],
+                             cell036["services_diagnostics"]["discriminators"])
+            self.assertTrue(cell037["services_diagnostics"]["discriminators"][0].startswith(
+                "'wineserver: wait-packet associate target=alpc-port"))
+            self.assertTrue(any("STATUS_OBJECT_TYPE_MISMATCH" in item for item in cell037["limitations"]))
+            self.assertFalse(any("STATUS_OBJECT_TYPE_MISMATCH" in item for item in cell036["limitations"]))
 
 
 if __name__ == "__main__":

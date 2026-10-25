@@ -1,4 +1,4 @@
-"""Cell027-036 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
+"""Cell027-037 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
 import importlib
 import json
 from pathlib import Path
@@ -42,14 +42,16 @@ DOCS = tuple("docs/ADR/%s.md" % name for name in (
     "0066-host-coremessaging-thread-dispatch",
     "0067-read-transient-alpc-port-security-descriptor",
     "0068-validate-transient-descriptor-and-admit-default-connect-security",
-    "0069-admit-coremessaging-connect-security-sentinel"))
+    "0069-admit-coremessaging-connect-security-sentinel",
+    "0070-wake-waitable-alpc-ports-and-trace-connect"))
 TESTS = ("tests/test_alpc_transport.py", "tests/alpc_transport_host.c", "tests/test_restricted_token.py",
          "tests/restricted_token_host.c", "tests/test_alpc_identity.py", "tests/test_token_identity.py",
          "tests/token_identity_host.c", "tests/test_token_security.py", "tests/token_security_host.c",
          "tests/test_alpc_impersonation.py", "tests/test_registrar_service.py", "tests/registrar_service_host.c",
          "tests/test_coremsg_dispatch.py", "tests/coremsg_dispatch_host.c", "tests/test_server_protocol_gate.py",
          "tests/test_registrar_cell.py", "tests/test_sechost_services.py", "tests/sechost_services_host.c",
-         "tests/test_server_request_limits.py")
+         "tests/test_server_request_limits.py", "tests/test_alpc_telemetry.py",
+         "tests/test_wait_completion_packet.py", "tests/wait_completion_packet_host.c")
 
 
 def registrar_sources():
@@ -112,8 +114,8 @@ def registration_text(transient=False):
 
 
 def add_registrar_handoff(root, receipt, cell=27):
-    if cell not in (27, 28, 29, 30, 31, 32, 33, 34, 35, 36):
-        raise ValueError("Registrar handoff supports cells027-036")
+    if cell not in (27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37):
+        raise ValueError("Registrar handoff supports cells027-037")
     label = "%03d" % cell
     root = Path(root)
     registration = root / ("registrar-CELL%s-FROZEN.reg" % label)
@@ -246,6 +248,19 @@ def add_registrar_handoff(root, receipt, cell=27):
             "Cell035 diagnosis: the registrar reached RUNNING; the app connect failed with reason=send_security_context. CoreMessaging (+0x3f428..0x3f4a9) calloc's the security attribute, sets QoS NULL and ContextHandle (HANDLE)-2 and does not import NtAlpcCreateSecurityContext",
             "Cell036 takes ContextHandle (HANDLE)-2 like NULL (the connection security context captured at connect); this native meaning is inferred from CoreMessaging's use, not from public documentation (phnt names no -2 constant)",
             "Any other non-NULL ContextHandle still fails with reason=send_security_context and its value; NtAlpcCreateSecurityContext and NtAlpcDeleteSecurityContext remain unimplemented because CoreMessaging does not call them",
+        ]
+    if cell >= 37:
+        receipt["services_diagnostics"]["discriminators"] = [
+            "'wineserver: wait-packet associate target=alpc-port status=00000000' (registered-server-start.log): the registrar re-armed its port wait; status c0000024 would be the cell036 type mismatch",
+            "'wineserver: alpc queue kind=0 type=...' (0 is the connection port) then 'alpc alpc_receive_message ... status=00000000 ... type=...' (registered-server-start.log): a connect request was queued on the registrar port and the server dequeued it",
+            "'alpc alpc_accept_connect_port ... accept=1' and 'alpc alpc_connect_result ... state=...' (registered-server-start.log): the registrar accepted and the client collected the reply",
+            "'return NtAlpc... status ... target ...' (svchost +alpc in services-start.log): registrar-side ALPC syscall statuses",
+        ] + receipt["services_diagnostics"]["discriminators"]
+        receipt["limitations"] += [
+            "Cell036 diagnosis: the registrar port is created with flags 0x70000; 0x40000 (ALPC_PORTFLG_NON_BLOCKING_RECEIVE in Wine's winternl.h, a waitable port in phnt) makes an empty receive return STATUS_UNSUCCESSFUL, which CoreMessaging (+0x277b) treats as no message and then waits through NtAssociateWaitCompletionPacket",
+            "Cell036 wineserver accepted only event, timer, semaphore, thread and process wait-packet targets, so the registrar's port wait was rejected with STATUS_OBJECT_TYPE_MISMATCH and the server never woke for the queued connect; that the target handle is the port is inferred from CoreMessaging's call sequence, not traced",
+            "Cell037 accepts any ALPC port as a wait-packet target, signalled by the existing queue state; whether native also allows ports created without the waitable flag is unmeasured",
+            "Cell037 telemetry is bounded and redacted: app NtAlpc* unix returns (256 lines, pkgstatus, fixed target class registrar|registrar-relative|other|none, no port names), RaiseFailFastException records (8, pkgexception, code/flags/count/module+offset and parameters as 32-bit scalars or module+offset), wineserver connect/accept/receive/queue/wait-packet lines (512 on stderr)",
         ]
 
 

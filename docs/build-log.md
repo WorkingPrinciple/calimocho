@@ -4157,3 +4157,12 @@ its ALPC port created and the server waiting for messages. The app connect
 failed with `reason=send_security_context`. CoreMessaging passes
 ContextHandle `(HANDLE)-2` with no QoS and never creates a security
 context. Cell036 takes -2 like NULL (ADR-0069). Not proven: no runtime run.
+
+## 2026-10-25: cell036 waitable registrar port, cell037
+
+Cell036 reached a RUNNING registrar and an unrejected app connect, but the
+registrar never received the connection. Its port is waitable (0x40000),
+so it re-arms its wait with a wait completion packet on the port, and our
+wineserver refused ALPC ports as wait-packet targets. Cell037 accepts
+them and adds bounded, redacted ALPC and fail-fast telemetry (ADR-0070).
+A host test reproduces the refusal and the fix. Not proven: no runtime run.

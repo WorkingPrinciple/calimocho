@@ -76,7 +76,7 @@ struct completion {
 };
 struct completion_wait { struct object obj; struct list wait_queue_entry; };
 static struct { struct process *process; } current_value, *current = &current_value;
-static struct type_descr event_type,timer_type,semaphore_type,thread_type,process_type;
+static struct type_descr event_type,timer_type,semaphore_type,thread_type,process_type,alpc_port_type,file_type;
 static struct object *handles[32];
 static unsigned access_masks[32], error, objects;
 static bool fail_alloc;
@@ -153,6 +153,8 @@ static const struct object_ops sync_ops = {
 };
 static const struct object_ops target_ops = {.size=sizeof(struct object),.type=&event_type};
 static const struct object_ops port_ops = {.size=sizeof(struct completion)};
+static const struct object_ops alpc_target_ops = {.size=sizeof(struct object),.type=&alpc_port_type};
+static const struct object_ops file_target_ops = {.size=sizeof(struct object),.type=&file_type};
 static void signal_target(struct object *sync) {
     sync->signals=1;
     while(!list_empty(&sync->wait_queue)) {
@@ -201,7 +203,26 @@ int main(void) {
     cancel_completion_packets(port);assert(!port->depth&&list_empty(&port->packets));
     sync->signals=0;associate(&req,&reply);assert(!error&&!reply.already_signaled);
     close_handle(packet);assert(list_empty(&sync->wait_queue)&&list_empty(&port->packets));
-    close_handle(req.target);release_object(sync);
+    close_handle(req.target);
+    {
+        /* A waitable ALPC port signals while its message queue is non-empty (manual sync). */
+        struct object *alpc=allocate(&alpc_target_ops),*file=allocate(&file_target_ops);
+        alpc->sync=sync;file->sync=sync;sync->signals=0;
+        create_wait_completion_packet(&req,&reply);packet=reply.handle;req.packet=packet;
+        req.target=add_handle(file,SYNCHRONIZE);
+        associate(&req,&reply);assert(error==STATUS_OBJECT_TYPE_MISMATCH&&list_empty(&sync->wait_queue));
+        close_handle(req.target);
+        req.target=add_handle(alpc,SYNCHRONIZE);
+        associate(&req,&reply);assert(!error&&!reply.already_signaled&&!port->depth);
+        signal_target(sync);assert(port->depth==1&&sync->signals&&list_empty(&sync->wait_queue));
+        msg=LIST_ENTRY(list_head(&port->queue),struct comp_msg,queue_entry);
+        assert(msg->ckey==req.ckey&&msg->status==req.status);
+        list_remove(&msg->queue_entry);--port->depth;wait_packet_dequeued(msg);free(msg);
+        associate(&req,&reply);assert(!error&&reply.already_signaled&&port->depth==1);
+        req.remove_signaled=1;cancel(&req);assert(!error&&!port->depth);
+        close_handle(packet);close_handle(req.target);
+    }
+    release_object(sync);
     release_object(port->sync);close_handle(req.completion);
     assert(!objects);
     return 0;

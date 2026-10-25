@@ -61,6 +61,8 @@ def stage(root, resume=False):
         modules["lib/wine/x86_64-windows/win32u.dll"] = "build/dlls/win32u/x86_64-windows/win32u.dll"
         modules["lib/wine/x86_64-windows/apisetschema.dll"] = \
             "build/dlls/apisetschema/x86_64-windows/apisetschema.dll"
+        # ALPC telemetry adds the RaiseFailFastException record hook; exports are unchanged.
+        modules["lib/wine/x86_64-windows/kernelbase.dll"] = "build/dlls/kernelbase/x86_64-windows/kernelbase.dll"
     if "registrar_service" in build:
         modules["lib/wine/x86_64-windows/services.exe"] = "build/programs/services/x86_64-windows/services.exe"
         modules["lib/wine/x86_64-windows/sechost.dll"] = "build/dlls/sechost/x86_64-windows/sechost.dll"
@@ -104,7 +106,7 @@ def stage(root, resume=False):
         command.append("-DCALIMOCHO_STATUS_DIAGNOSTICS")
     command += [str(root / "build/dlls" / module / "x86_64-windows" / ("lib" + module + ".a"))
                 for module in ("ntdll", "kernelbase", "combase")]
-    # kernelbase was unchanged, so use the frozen framework build's import library.
+    # kernelbase exports are unchanged, so use the frozen framework build's import library.
     command = [str(BASE.parent / "package-framework-01/build/dlls/kernelbase/x86_64-windows/libkernelbase.a")
                if arg.endswith("/kernelbase/x86_64-windows/libkernelbase.a") else arg for arg in command]
     result = subprocess.run(command + ["-o", str(helper)], capture_output=True, text=True, timeout=60)

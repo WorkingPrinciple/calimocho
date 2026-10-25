@@ -168,7 +168,7 @@ DECL_HANDLER(associate_wait_completion_packet)
     if (!(target = get_handle_obj(current->process, req->target, SYNCHRONIZE, NULL))) goto done;
     if (target->ops->type != &event_type && target->ops->type != &timer_type &&
         target->ops->type != &semaphore_type && target->ops->type != &thread_type &&
-        target->ops->type != &process_type)
+        target->ops->type != &process_type && target->ops->type != &alpc_port_type)
     {
         set_error(STATUS_OBJECT_TYPE_MISMATCH);
         goto done;
