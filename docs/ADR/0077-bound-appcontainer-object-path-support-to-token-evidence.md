@@ -53,6 +53,10 @@ RtlFreeUnicodeString. Free intermediate strings and locally opened
 token handles on success and failure. Reject token plus explicit SID,
 invalid SID and null output. Child SIDs and private namespaces remain
 unsupported rather than returning an incorrect parent-only path.
+Initialize non-null output before rejecting token plus explicit SID.
+Do not free incoming output-only storage. This consistent failure-output
+policy is tested with stale bytes, not claimed as measured native error
+precedence.
 
 For TokenIsAppContainer=0, return STATUS_NOT_SUPPORTED with empty output
 and a diagnostic, not success with a guessed empty or BaseNamedObjects

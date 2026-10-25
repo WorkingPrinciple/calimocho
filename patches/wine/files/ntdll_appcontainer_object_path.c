@@ -40,8 +40,8 @@ NTSTATUS WINAPI RtlGetAppContainerNamedObjectPath( HANDLE token, PSID sid, BOOLE
     NTSTATUS status;
 
     if (!path) return object_path_error( "null_output", STATUS_INVALID_PARAMETER );
-    if (token && sid) return object_path_error( "token_and_sid", STATUS_INVALID_PARAMETER_MIX );
     memset( path, 0, sizeof(*path) );
+    if (token && sid) return object_path_error( "token_and_sid", STATUS_INVALID_PARAMETER_MIX );
     if (sid)
         token = (HANDLE)(LONG_PTR)-4; /* Explicit SID uses the current process session. */
     else if (!token)

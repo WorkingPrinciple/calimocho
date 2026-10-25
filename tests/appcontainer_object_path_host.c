@@ -199,7 +199,10 @@ int main(void)
     assert(guard.before == 123 && guard.after == 456);
     assert(RtlGetAppContainerNamedObjectPath(NULL, NULL, FALSE, NULL) == STATUS_INVALID_PARAMETER);
     before = opens;
+    /* Output-only storage can contain stale bytes; it must not be freed or exposed. */
+    memset(p, 0xcc, sizeof(*p));
     assert(RtlGetAppContainerNamedObjectPath(process, &container_sid, FALSE, p) == STATUS_INVALID_PARAMETER_MIX);
+    assert_empty(p);
     assert(opens == before);
     assert(RtlGetAppContainerNamedObjectPath((HANDLE)99, NULL, FALSE, p) == STATUS_INVALID_HANDLE);
     assert_empty(p);
