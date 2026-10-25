@@ -2717,3 +2717,19 @@ suite passed180 tests. Its expected rejected-input fixtures print configure
 failures and an invalid revision diagnostic; the runner completed with no
 test failures. These host checks do not replace the pending native fixture
 or actual AppL result.
+
+The actual012 headless map fixture subsequently completed in a separate
+plain owned prefix. Fixed stdout is exactly
+`static-lifetime-fixture failures=0`, exit0, no timeout, with owned server
+stop/wait both0 and cleanup complete. The returned observation at
+`xbox-calimocho-static-lifetime-20261025-001/evidence/observation.json`
+has SHA-256
+`0521d56ed1a4b230ebfe0b04307ca613c87b7ef544cf6b33f521723bf84a6e9a`.
+The fixed output has SHA-256
+`d32c9f74040b8b4dd2fa255d822f7471bcae73b3ed98990b57b9efb1bc23db25`.
+Both were read and hash-checked against the actual012 receipt, fixture,
+Wine, server and ntdll bytes. The observation spans
+03:41:40.275679 through03:41:51.278369 UTC. No package identity, graph or
+registration table was assigned; no Xbox activation, CoreWindow, Run,
+window or input was exercised. This establishes the tested real map
+contract, not native XAML or AppL/UI acceptance.
