@@ -3,6 +3,24 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: owned token owner, group and source identity
+
+ADR-0062 adds independently selected token owner and primary group, including
+the user SID observed for LocalService. Source/authentication identifiers are
+preserved instead of discarded, with separate TOKEN_QUERY_SOURCE enforcement.
+Duplication remaps identity pointers into the copied token and preserves
+default privilege attributes independently from current enablement.
+
+`package-token-identity-01` compiles the initial identity implementation.
+`package-token-identity-02` also preserves creation-time default privilege
+attributes. The focused coupled suite passes25 tests, including sanitized
+execution of the actual create/query handlers and identity helpers.
+No service token has been installed or used to start a process.
+
+This is another source prerequisite, not a cell027 admission result. Session
+and integrity setters, SCM construction, authenticated ALPC impersonation and
+dispatch integration remain unfinished; the runtime freezer hold remains.
+
 ## 2026-10-25: captured server identity for ALPC connects
 
 ADR-0061 adds required-user-SID and server-descriptor checking against an owned
