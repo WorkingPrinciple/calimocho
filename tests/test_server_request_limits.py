@@ -80,6 +80,7 @@ SEND_ATTR_HARNESS = r"""
 #include <string.h>
 typedef unsigned int ULONG;
 typedef void *HANDLE;
+typedef unsigned long long ULONG_PTR;
 typedef struct { ULONG Length; } SECURITY_QUALITY_OF_SERVICE;
 typedef struct { ULONG AllocatedAttributes; ULONG ValidAttributes; } ALPC_MESSAGE_ATTRIBUTES;
 typedef struct { ULONG Flags; SECURITY_QUALITY_OF_SERVICE *QoS; HANDLE ContextHandle; } ALPC_SECURITY_ATTR;
@@ -113,7 +114,15 @@ int main( void )
     a.s.Flags = 0; a.s.QoS = &qos;
     EXPECT( check( &a.h ) == STATUS_NOT_IMPLEMENTED && !strcmp( reason, "reason=send_security_qos\n" ) );
     a.s.QoS = NULL; a.s.ContextHandle = (HANDLE)4;
-    EXPECT( check( &a.h ) == STATUS_NOT_IMPLEMENTED && !strcmp( reason, "reason=send_security_context\n" ) );
+    EXPECT( check( &a.h ) == STATUS_NOT_IMPLEMENTED && !strcmp( reason, "reason=send_security_context value=0x4\n" ) );
+    /* CoreMessaging+0x3f495: calloc'd attribute, QoS NULL, ContextHandle (HANDLE)-2, Valid 0x80000000 */
+    a.s.ContextHandle = (HANDLE)-2;
+    EXPECT( check( &a.h ) == 0 && !reason[0] );
+    a.s.ContextHandle = (HANDLE)-1;
+    EXPECT( check( &a.h ) == STATUS_NOT_IMPLEMENTED && !strcmp( reason, "reason=send_security_context value=0xffffffffffffffff\n" ) );
+    a.s.ContextHandle = (HANDLE)-2; a.s.QoS = &qos;
+    EXPECT( check( &a.h ) == STATUS_NOT_IMPLEMENTED && !strcmp( reason, "reason=send_security_qos\n" ) );
+    a.s.QoS = NULL;
     a.s.ContextHandle = NULL; a.h.ValidAttributes = 0xa0000000u;
     EXPECT( check( &a.h ) == STATUS_NOT_IMPLEMENTED && !strcmp( reason, "reason=send_attributes value=0xa0000000\n" ) );
     a.h.AllocatedAttributes = 0x80000000u; a.h.ValidAttributes = 0xa0000000u;

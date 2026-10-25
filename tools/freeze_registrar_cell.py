@@ -1,4 +1,4 @@
-"""Cell027-035 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
+"""Cell027-036 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
 import importlib
 import json
 from pathlib import Path
@@ -41,7 +41,8 @@ DOCS = tuple("docs/ADR/%s.md" % name for name in (
     "0065-construct-a-scoped-registrar-service-token",
     "0066-host-coremessaging-thread-dispatch",
     "0067-read-transient-alpc-port-security-descriptor",
-    "0068-validate-transient-descriptor-and-admit-default-connect-security"))
+    "0068-validate-transient-descriptor-and-admit-default-connect-security",
+    "0069-admit-coremessaging-connect-security-sentinel"))
 TESTS = ("tests/test_alpc_transport.py", "tests/alpc_transport_host.c", "tests/test_restricted_token.py",
          "tests/restricted_token_host.c", "tests/test_alpc_identity.py", "tests/test_token_identity.py",
          "tests/token_identity_host.c", "tests/test_token_security.py", "tests/token_security_host.c",
@@ -111,8 +112,8 @@ def registration_text(transient=False):
 
 
 def add_registrar_handoff(root, receipt, cell=27):
-    if cell not in (27, 28, 29, 30, 31, 32, 33, 34, 35):
-        raise ValueError("Registrar handoff supports cells027-035")
+    if cell not in (27, 28, 29, 30, 31, 32, 33, 34, 35, 36):
+        raise ValueError("Registrar handoff supports cells027-036")
     label = "%03d" % cell
     root = Path(root)
     registration = root / ("registrar-CELL%s-FROZEN.reg" % label)
@@ -236,6 +237,15 @@ def add_registrar_handoff(root, receipt, cell=27):
             "Cell034 app diagnosis: NtAlpcConnectPortEx reason=send_attributes value=0x80000000, the security attribute only",
             "Cell035 admits a connect send security attribute only with Flags 0, no QoS and no context handle, which selects the connection security context already captured at connect; other flags, a QoS, a context handle or any other valid send attribute still fail with reason=send_security_flags|send_security_qos|send_security_context|send_attributes",
             "Valid send attributes outside the allocated set, or allocated bits outside ALPC_MESSAGE_ATTRIBUTE_ALL, return STATUS_INVALID_PARAMETER",
+        ]
+    if cell >= 36:
+        receipt["services_diagnostics"]["discriminators"] = [
+            "'reason=send_security_context value=0x...' (alpc FIXME): the connect carried a security context handle other than NULL or (HANDLE)-2; the value names it",
+        ] + receipt["services_diagnostics"]["discriminators"]
+        receipt["limitations"] += [
+            "Cell035 diagnosis: the registrar reached RUNNING; the app connect failed with reason=send_security_context. CoreMessaging (+0x3f428..0x3f4a9) calloc's the security attribute, sets QoS NULL and ContextHandle (HANDLE)-2 and does not import NtAlpcCreateSecurityContext",
+            "Cell036 takes ContextHandle (HANDLE)-2 like NULL (the connection security context captured at connect); this native meaning is inferred from CoreMessaging's use, not from public documentation (phnt names no -2 constant)",
+            "Any other non-NULL ContextHandle still fails with reason=send_security_context and its value; NtAlpcCreateSecurityContext and NtAlpcDeleteSecurityContext remain unimplemented because CoreMessaging does not call them",
         ]
 
 

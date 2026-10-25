@@ -100,7 +100,7 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 self.handoff(root, 28)
             with self.assertRaises(ValueError):
-                self.handoff(root, 36)
+                self.handoff(root, 37)
 
     def test_cell029_setup_is_headless_and_session_steps_are_not(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -206,6 +206,15 @@ class RegistrarCellTest(unittest.TestCase):
             self.assertTrue(any("semi-stub" in item for item in cell035["limitations"]))
             self.assertTrue(any("Flags 0, no QoS and no context handle" in item for item in cell035["limitations"]))
             self.assertFalse(any("semi-stub" in item for item in cell034["limitations"]))
+
+    def test_cell036_records_the_context_sentinel(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, cell035 = self.handoff(self._mk(Path(directory) / "a"), 35)
+            _, cell036 = self.handoff(self._mk(Path(directory) / "b"), 36)
+            self.assertEqual(cell036["services_diagnostics"]["discriminators"][1:],
+                             cell035["services_diagnostics"]["discriminators"])
+            self.assertTrue(any("(HANDLE)-2" in item for item in cell036["limitations"]))
+            self.assertFalse(any("(HANDLE)-2" in item for item in cell035["limitations"]))
 
 
 if __name__ == "__main__":

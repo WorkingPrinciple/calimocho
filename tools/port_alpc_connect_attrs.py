@@ -99,7 +99,8 @@ CLIENT_ATTR_CHECK = """    if (client_attr)
         return STATUS_INVALID_PARAMETER;
     }
     /* Only a default security attribute is admitted on the connection message: no flags, no QoS
-     * and no security context handle select the connection's own security context, which the
+     * and no security context handle (NULL or the (HANDLE)-2 sentinel) select the connection's
+     * own security context, which the
      * server already captures at connect. Every other send attribute is refused, and a receive
      * buffer is returned with no valid attributes, which is what an attribute-free reply carries. */
     if (out_attrs && (out_attrs->ValidAttributes & ~ALPC_MESSAGE_SECURITY_ATTRIBUTE))
@@ -124,9 +125,12 @@ CLIENT_ATTR_CHECK = """    if (client_attr)
             free( client_packed );
             return STATUS_NOT_IMPLEMENTED;
         }
-        if (security->ContextHandle)
+        /* CoreMessaging (+0x3f45a..0x3f4a2) sends ContextHandle (HANDLE)-2 with no QoS and never
+         * creates an ALPC security context; it is not a context handle, so it is taken like NULL. */
+        if (security->ContextHandle && security->ContextHandle != (HANDLE)~(ULONG_PTR)1)
         {
-            FIXME( "reason=send_security_context\\n" );
+            FIXME( "reason=send_security_context value=%#llx\\n",
+                   (unsigned long long)(ULONG_PTR)security->ContextHandle );
             free( client_packed );
             return STATUS_NOT_IMPLEMENTED;
         }

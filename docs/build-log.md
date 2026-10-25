@@ -4149,3 +4149,11 @@ The 20/60 s state snapshots were already active in cell034. Window facts
 were empty because no window existed.
 
 Not proven: no runtime run.
+
+## 2026-10-25: cell035 registrar RUNNING, cell036
+
+Cell035 reached the genuine CoreMessagingRegistrar RUNNING state, with
+its ALPC port created and the server waiting for messages. The app connect
+failed with `reason=send_security_context`. CoreMessaging passes
+ContextHandle `(HANDLE)-2` with no QoS and never creates a security
+context. Cell036 takes -2 like NULL (ADR-0069). Not proven: no runtime run.
