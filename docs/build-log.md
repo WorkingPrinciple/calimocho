@@ -1302,3 +1302,34 @@ The owner then directed: no quick fix, leave it be. The no-2719 bisect copy
 was never compiled, frozen or admitted. No candidate is adopted or
 deployed. The stutter cause stays unproven; the warning stays unresolved by
 owner choice.
+
+### Next try prepared (source only, not built)
+
+Goal: start NMS without the sampler warning while keeping the smooth
+performance of the original engine. Owner re-confirmed run
+`26d9c575-7b8b-4ed6-9109-bca0f3d9f479` on original 170ca: no stutter,
+warning still shown.
+
+Source copy `build/req104/push-ab-03-no2719-source` (ignored build tree):
+
+- SPIRV-Cross is clean at upstream `6c09849fe88c48eaed08413aa022aaa136a3a057`
+  (proposal 2719 backport removed; the 02 copy still carries it).
+- MoltenVK keeps the gated 128 push argument buffer change from patch 0002.
+- `build/req104/push-ab-03.xcconfig` adds
+  `REQ104_NO2719_CACHE_NAMESPACE=1`, which changes the pipeline cache UUID
+  so no pipelines cached by earlier candidates are reused. No user cache
+  is deleted.
+
+Build steps, only after the coordinator releases the slot (Forza first):
+
+1. Rebuild the `SPIRV-Cross-macOS` scheme from `ExternalDependencies.xcodeproj`
+   and copy the new archive into this copy's
+   `External/build/Release/SPIRVCross.xcframework/macos-x86_64/`
+   (Xcode does not refresh the cached XCFramework by itself).
+2. Build MoltenVK Release x86_64 with `push-ab-03.xcconfig`, sign, freeze
+   as a new engine identity with its own registry digest.
+3. Rerun the 128 sampler suite, then S2 admission.
+4. One owner-judged NMS launch, same prefix/save/spot as run 26d9c575,
+   comparing frame-time spikes (Metal HUD) and owner judgment.
+
+If it still stutters, the per-draw push snapshot copy is the next suspect.
