@@ -1,8 +1,13 @@
 import json
+import hashlib
+from pathlib import Path
+import subprocess
 import unittest
 
+from tools.build_minidump_overlay import inventory
 from tools.build_uwp_overlay import REPO
 from tools.diagnose_package_activation import ActivationTrace
+from tools.freeze_launcher_runtime import checked_assets
 from tools.probe_wine_source import sha256
 
 
@@ -10,6 +15,36 @@ ROOT = REPO / "build/winehq-11.20/package-uwp-handle-provenance-01"
 
 
 class HandleProvenanceTests(unittest.TestCase):
+    def test_frozen016_binds_exact_sources_all_assets_and_sealed015(self):
+        path = ROOT / "cell016-receipt.json"
+        receipt = json.loads(path.read_text())
+        self.assertEqual(sha256(path), "b55779b754cacf0b091dac907c381a9dcf3133acdbe8169b8f18a226705d38d5")
+        self.assertFalse(receipt["runtime_executed"])
+        self.assertEqual(receipt["producer_commit"], "2c1cc61777225c92fb64c900692a5378f76375cd")
+        self.assertEqual(receipt["predecessor_receipt_sha256"], "58eccd9ec5d9aba954eb80251efadb8d8117b2f49aba6088604e981b5b50a122")
+        for key in ("registry", "inventory", "build_receipt", "staging_receipt", "diagnostic_collector",
+                    "helper", "native_fixture", "launcher_registration", "state_observer_build", "predecessor_receipt"):
+            self.assertEqual(sha256(Path(receipt[key])), receipt[key + "_sha256"])
+        for relative, digest in receipt["source_inputs"].items():
+            blob = subprocess.check_output(["git", "show", receipt["producer_commit"] + ":" + relative], cwd=REPO)
+            self.assertEqual(hashlib.sha256(blob).hexdigest(), digest)
+        files = json.loads(Path(receipt["inventory"]).read_text())["files"]
+        self.assertEqual(len(files), 3915)
+        self.assertEqual(inventory(Path(receipt["install"])), files)
+        checked_assets(json.loads(Path(receipt["registry"]).read_text())["engines"][0])
+        previous = json.loads(Path(receipt["predecessor_receipt"]).read_text())
+        for key in ("native_xaml_input", "native_xaml_registration", "native_mapping", "native_mapping_count",
+                    "factory_observation", "protocol_table", "server_registration_table", "verification", "graph"):
+            self.assertEqual(receipt[key], previous[key])
+        self.assertEqual(receipt["collector_limit_seconds"], 180)
+        self.assertEqual(receipt["environment"]["WINEPREFIX"], receipt["prefix"])
+        self.assertTrue(receipt["prefix"].endswith("xbox-calimocho-packaged-20261025-016/prefix"))
+        self.assertEqual(receipt["state_observer"]["offset_seconds"], [20, 60])
+        self.assertEqual(sha256(Path(receipt["state_observer"]["path"])), receipt["state_observer"]["sha256"])
+        self.assertEqual(receipt["state_observer"]["argv"][:3], receipt["activation_argv"][:3])
+        self.assertIn("lib/wine/x86_64-windows/rpcrt4.dll", receipt["changed_modules"])
+        self.assertEqual(len(receipt["changed_modules"]), 8)
+
     def trace(self):
         trace = ActivationTrace()
         trace.stdout("calimocho-activation child_pid 240")

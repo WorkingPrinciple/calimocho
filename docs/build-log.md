@@ -3001,3 +3001,13 @@ The source build, eight-module stage and bounded observer compilation
 completed without executing Wine. The fresh build retained existing
 process/token enum-case warnings and resource-parser conflicts; no new
 diagnostic-source warning was emitted. Native016 is not yet observed.
+
+The source producer is `2c1cc61777225c92fb64c900692a5378f76375cd`.
+Frozen016 receipt SHA-256 is
+`b55779b754cacf0b091dac907c381a9dcf3133acdbe8169b8f18a226705d38d5`.
+Its frozen audit checks all3915 installed entries and registered assets,
+producer blobs, eighth rpcrt4 module, observer/collector commands and hashes,
+original native recipe,180-second cap and sealed015 predecessor.
+All210 deterministic host tests pass. The frozen receipt was sent to0ab
+for the once-only runtime observation, copying the coordinator. Actual016
+remains unobserved at this handoff.
