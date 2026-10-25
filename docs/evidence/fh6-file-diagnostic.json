@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "requirement": "REQ-108",
+  "authorization": "Owner-directed single follow-up file-path diagnostic, relayed by Calimocho coordinator after COR-148",
+  "kind": "diagnostic-only-not-a-fix",
+  "qualified": false,
+  "engineName": "calimocho-wine11.20-fh6-opcode-diag-01",
+  "provider": "calimocho",
+  "registryPath": "build/fh6-opcode-01/fh6-file.registry.FROZEN.json",
+  "registrySha256": "6d6a656ed5ee62cc7b45f9e7845f7717d82a992031869b503782f39a3d791680",
+  "baseRegistrySha256": "b21f9b4d3f55ace3ff583738d7d53f99281cffd25d3a849fdb5086cdca0ef89d",
+  "baseProducerCommit": "40dc3c37b5f5ed0944c8f58a5f572a7c55a4c060",
+  "baseEvidencePath": "docs/evidence/cor148-fh6-opcode-diag.json",
+  "baseEvidenceSha256": "e297ad49106f6c950095214582006b54759691b7e67d4274238722a83b76be3b",
+  "onlyChange": {
+    "field": "engines[0].environment.WINEDEBUG",
+    "before": "-all,+seh,+loaddll,+syscall",
+    "after": "-all,+seh,+loaddll,+syscall,+file"
+  },
+  "wineSha256": "f6d0546fad2d0dafaa09a9fe6cabe75bb070567df6b0933ecd3622dcb6349194",
+  "wineserverSha256": "e3ec4e7e76cee273f17d5fa3459902642f73d6921e94c576aa74e8cdbdcd7da1",
+  "ntdllSha256": "b654840831f5ffb5f66fddcd078667135368c0177ad764efc25e69e2acc4a278",
+  "receiptPath": "build/fh6-opcode-01/receipt-v2.json",
+  "receiptSha256": "9086685a1da510c86ab45aa5342615e39d7e1e06d2e9d08a56d6552ac6f9710a",
+  "objective": "Identify paths of three direct NtCreateFile failures before the illegal opcode, distinguishing optional probes from a required missing file or Wine path-mapping mismatch.",
+  "sourceSeam": "Existing Wine file.c NtCreateFile TRACE records attr->ObjectName; no binary change.",
+  "rawTracePolicy": "Keep raw file traces private; publish only relevant non-sensitive observations and artifact hashes.",
+  "gameRun": "not-run"
+}
