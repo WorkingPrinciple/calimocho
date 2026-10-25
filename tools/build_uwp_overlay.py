@@ -14,7 +14,7 @@ from tools.probe_wine_source import run_step, sha256
 BASE = REPO / "build/winehq-11.20/package-launcher-01"
 
 
-def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False, handle_provenance=False, exception_diagnostics=False, failfast_diagnostics=False, status_diagnostics=False, claims_site_b=False):
+def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False, handle_provenance=False, exception_diagnostics=False, failfast_diagnostics=False, status_diagnostics=False, claims_site_b=False, claims_thread_token=False):
     root = Path(root).resolve()
     if not root.is_relative_to(REPO / "build") or root == BASE:
         raise ValueError("Require a new owned009 sibling")
@@ -32,6 +32,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         raise ValueError("Status diagnostics require fail-fast diagnostics")
     if claims_site_b and not status_diagnostics:
         raise ValueError("Claims Site B requires retained status diagnostics")
+    if claims_thread_token and (not status_diagnostics or claims_site_b):
+        raise ValueError("Thread-token claims require status diagnostics and exclude the r6 mode")
     frozen = BASE / "cell008-receipt.json"
     if sha256(frozen) != "ac5b627263c409b804e3f812160c6dd0ba8d39cec52910255725939de12915bc":
         raise ValueError("Frozen008 receipt changed")
@@ -53,6 +55,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
             raise ValueError("Resume must preserve the status diagnostic mode")
         if "steps" in previous and bool(previous.get("claims_site_b")) != claims_site_b:
             raise ValueError("Resume must preserve the claims Site B mode")
+        if "steps" in previous and bool(previous.get("claims_thread_token")) != claims_thread_token:
+            raise ValueError("Resume must preserve the claims thread-token mode")
     else:
         root.mkdir(exist_ok=False)
         shutil.copytree(BASE / "source", root / "source", symlinks=True)
@@ -110,6 +114,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if claims_site_b:
         from tools.port_claims_site_b import port as claims_port_source
         claims_port = claims_port_source(root / "source")
+    thread_token_port = None
+    if claims_thread_token:
+        from tools.port_claims_thread_token import port as thread_token_source
+        thread_token_port = thread_token_source(root / "source")
     attempt = 1
     while (root / ("attempt-%02d" % attempt)).exists():
         attempt += 1
@@ -158,6 +166,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
                 receipt[group]["files"][relative] = sha256(root / "source" / relative)
     if claims_port is not None:
         receipt["claims_site_b"] = claims_port
+    if thread_token_port is not None:
+        receipt["claims_thread_token"] = thread_token_port
 
     def run(name, command, budget=300, cwd=directory):
         step = run_step(command, cwd, env, logs / (name + ".log"), budget)
@@ -248,6 +258,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         from tools.port_claims_site_b import SOURCES
         for relative in SOURCES:
             receipt["source_inputs"][relative] = sha256(REPO / relative)
+    if claims_thread_token:
+        from tools.port_claims_thread_token import SOURCES
+        for relative in SOURCES:
+            receipt["source_inputs"][relative] = sha256(REPO / relative)
     receipt["built_files"] = {str(path.relative_to(root)): sha256(path) for path in (
         directory / "server/wineserver", directory / "dlls/ntdll/ntdll.so",
         directory / "dlls/ntdll/x86_64-windows/ntdll.dll",
@@ -275,5 +289,6 @@ if __name__ == "__main__":
     parser.add_argument("--failfast-diagnostics", action="store_true")
     parser.add_argument("--status-diagnostics", action="store_true")
     parser.add_argument("--claims-site-b", action="store_true")
+    parser.add_argument("--claims-thread-token", action="store_true")
     args = parser.parse_args()
-    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics, args.handle_provenance, args.exception_diagnostics, args.failfast_diagnostics, args.status_diagnostics, args.claims_site_b))
+    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics, args.handle_provenance, args.exception_diagnostics, args.failfast_diagnostics, args.status_diagnostics, args.claims_site_b, args.claims_thread_token))

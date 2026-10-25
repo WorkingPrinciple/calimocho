@@ -3,6 +3,26 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: effective-token claims sibling022
+
+The producer's static follow-through identifies token-6 at both native
+XAML Site B callers, not token-4. Whiny r8 from main bf40ff9 adds only the
+observed unpackaged token-6 result. ADR-0054 records the corrected scope.
+The unchanged artifact SHA-256 is
+`5acbb35eaa18c874272e91a1169b997373496aa6277f9ccbb7f3bcc3d840b9ed`.
+Packaged token-6 still returns C0000002 as unobserved. No alias or guessed
+success is introduced.
+
+The fresh `package-uwp-claims-thread-token-01` source build, stage and
+target-only observer compilation succeed without runtime execution.
+Fixed-field telemetry logs handle category, seven optional-pointer presence
+bits, both genuine context samples and actual return status. The context
+helper is unchanged; the samples do not prove selected generated branch.
+Source and collector limits are explicit. All237 host tests pass, including
+compiled actual-wrapper/context/generated-source checks and parser redaction.
+The initial cap test stopped at128 instead of triggering marker129; its
+iteration count was corrected, with no source cap behavior change.
+
 ## 2026-10-25: observation-backed claims Site B sibling021
 
 ADR-0053 records the producer's unchanged Whiny r6 replacement, SHA-256

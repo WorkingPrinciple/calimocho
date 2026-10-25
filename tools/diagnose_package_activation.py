@@ -67,6 +67,9 @@ class CallDiagnostics:
         self.status_returns = deque(maxlen=128)
         self.status_return_count = 0
         self.status_return_limited = set()
+        self.claims_context = deque(maxlen=128)
+        self.claims_context_count = 0
+        self.claims_context_limited = set()
 
     def observe_fixme(self, pid, tid, channel, function):
         if pid not in self.running:
@@ -96,7 +99,21 @@ class CallDiagnostics:
             self.relays[pid] = deque(maxlen=300)
         self.sequence += 1
         fact = {"pid": pid, "tid": tid, "sequence": self.sequence}
-        if channel == "pkgstatus" and function == "diagnostic_status_return" and pid in self.running:
+        if channel == "pkgstatus" and function == "diagnostic_claims_context" and pid in self.running:
+            if message == "claims-context limited=1":
+                self.claims_context_limited.add(pid)
+                return
+            match = re.fullmatch(
+                r"claims-context handle=(null|process-token|thread-effective-token|process-handle|other) "
+                r"presence=([0-7][0-9a-f]) unpackaged=([01]) gamingapp=([01]) result=([0-9a-f]{8})", message)
+            if match:
+                fact.update(handle_category=match[1], optional_pointer_presence=int(match[2], 16),
+                            unpackaged=bool(int(match[3])), packaged_gamingapp_signed=bool(int(match[4])),
+                            result="0x" + match[5],
+                            basis="sampled genuine contexts before unchanged generated call; selected branch unobserved")
+                self.claims_context.append(fact)
+                self.claims_context_count += 1
+        elif channel == "pkgstatus" and function == "diagnostic_status_return" and pid in self.running:
             if message == "status-return limited=1":
                 self.status_return_limited.add(pid)
                 return
@@ -408,6 +425,9 @@ class CallDiagnostics:
             "not_implemented_returns": select(self.status_returns),
             "status_return_tail_overwritten": max(0, self.status_return_count - self.status_returns.maxlen),
             "status_return_source_limited": bool(target_pids & self.status_return_limited),
+            "claims_context": select(self.claims_context),
+            "claims_context_tail_overwritten": max(0, self.claims_context_count - self.claims_context.maxlen),
+            "claims_context_source_limited": bool(target_pids & self.claims_context_limited),
             "no_gpfault_dialog_policy_observed": sorted(target_pids & self.exception_policy_pids),
             "basis": "instrumented calls, not a deadlock or unsignalled-event cause determination",
         }
