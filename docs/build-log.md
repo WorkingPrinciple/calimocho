@@ -23,6 +23,14 @@ compiled actual-wrapper/context/generated-source checks and parser redaction.
 The initial cap test stopped at128 instead of triggering marker129; its
 iteration count was corrected, with no source cap behavior change.
 
+Producer `9a1076a9dd338619f252aab805b79dab2b0e3266` is frozen in
+`package-uwp-claims-thread-token-01/cell022-receipt.json`, SHA-256
+`f02c2ccbb85538da61c56c14fb6370b7e1882bb36cdc9267663120af7faf5b7a`.
+Independent audit verifies all3915 installed entries and assets, eight changed
+modules,133 typed slots, exact producer blobs, compiled helpers, collector
+commands, unchanged genuine-context helper and sealed021 predecessor.
+All238 host tests pass. No022 runtime or fixture execution occurred here.
+
 ## 2026-10-25: observation-backed claims Site B sibling021
 
 ADR-0053 records the producer's unchanged Whiny r6 replacement, SHA-256
