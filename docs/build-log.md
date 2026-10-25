@@ -26,6 +26,55 @@ are in `build/winehq-11.20/superseded-object-prune-20261025.json`, SHA-256
 Future incremental builds in those four superseded directories must
 regenerate the removed object files. No runtime or screen action was taken.
 
+## 2026-10-25: actual024 reaches the next CoreMessaging gap
+
+The owner explicitly selected "Explicitly resume the bounded cell024 runtime
+verification" through `ask_user`. The exact decision was retained separately
+in `cell024-owner-resume.json`, SHA-256
+`f2c54793f8ef3a4c3194b200cada73add06b30f3aff3402184139e342256d094`.
+The exclusive execution owner consumed that once-only grant. The frozen
+source receipt remained unchanged; all other runtime, screen and VM holds
+remain in force.
+
+Actual024 passes the previous missing IsOneCoreTransformMode export and
+advances to `coremessaging!CoreUICreate`, called from original XAML+4fed65.
+The query's actual return value was not instrumented. The first retained
+exception is80000100 at kernelbase+4f2dc; the exact target256 handle also
+reports exit80000100. Initialize enters but no exit or later lifecycle is
+retained. Claims again returns S_OK with mask0x60, thread-effective-token
+and sampled signed GamingApp context. Neither selected branch nor claim
+output contents were observed. No UI or Bridge acceptance follows.
+
+Final analysis at
+`/Users/dragoshont/xodus-runs/xbox-calimocho-packaged-20261025-024/evidence/analysis.json`
+has SHA-256 `b05fc2b754605d0c68cb584f51e2cdc608e41b696726d767cdf81ba4f9c0ead0`.
+It binds runtime `d5ea250980fa7bb7cadd34fb07667d431daf5416eefa65e6f9311d13c1d9f5e9`
+and redacted `d4d2d7b3145bc3fda696e85738e14a4ef6b1918f408d1ddbd7cecf951a4f2c9d`.
+Independently rehashed the final analysis, five evidence bindings and seven
+prefix modules, and rechecked all13 recorded host PIDs absent and `lsof`
+exit1 with no prefix handles. The run ended after5.582 seconds with an
+explicit post-exit drain cutoff, not a180-second timeout or complete EOF.
+There was no sampler attach, screenshot or window-count observation.
+
+Source-only follow-up finds the exact Wine CoreUICreate export is a stub.
+The retained native CoreMessaging candidate has SHA-256
+`88c7b4d6ee26f7695de0885f39db2949ad77bffc20902b0d19fde7f7ad9d31bc`
+and the same10.0.26100.9444 version as original XAML16302bfe. Version and
+retained provenance do not establish fresh signature or host-build proof.
+This locally retained Microsoft input is not a redistributable Wine asset.
+It has not been copied into this repository or loaded by this source lane.
+
+Static direct-import comparison against frozen024 finds eight absent ntdll
+exports: RtlGetAppContainerNamedObjectPath, RtlSetThreadWorkOnBehalfTicket,
+RtlGetThreadWorkOnBehalfTicket, NtCancelWaitCompletionPacket,
+NtCreateWaitCompletionPacket, NtAssociateWaitCompletionPacket,
+NtAlpcConnectPortEx and NtAlpcQueryInformation. Existing ALPC accept,
+connect, disconnect, send/receive and impersonation paths also return
+STATUS_NOT_IMPLEMENTED. A native override alone is not execution-ready.
+Source-only025 must implement real wait/IOCP ownership and cancellation,
+retain explicit logged failures for unsupported operations, and remain
+held until a separate owner resume. No025 or guest launch is authorized.
+
 ## 2026-10-25: observed OneCore query sibling024
 
 The native iocm-r2 reference now supplies BOOL(void) query0 twice in both
@@ -3578,3 +3627,47 @@ signed GamingApp context. The runtime token, output values and selected
 generated-table branch were not captured. The coordinator was given this
 exact source/static evidence to obtain an observation-backed generated
 artifact from its Whiny owner. The generated source remains unchanged.
+
+### Source-only025: native CoreMessaging prerequisites, runtime still held
+
+Actual024's next failure is CoreMessaging!CoreUICreate, not another claims
+failure. ADR-0057 follows the retained native dispatcher rather than
+inventing its private factory. The owner-selected native DLL is an external
+local evaluation input, version10.0.26100.9444, SHA-256
+`88c7b4d6ee26f7695de0885f39db2949ad77bffc20902b0d19fde7f7ad9d31bc`.
+It was not copied into Calimocho, loaded, committed or published.
+
+The025 source adds real server-owned wait-completion packets: create,
+one-shot association, IOCP payload delivery, busy/rearm states, cancellation
+and owned reference cleanup. Five other dependencies remain explicitly
+unsupported, typed and logged with cleared outputs. Their run-scoped
+counter is capped at128 plus one limit marker. Existing024 claims and
+diagnostic behavior remains unchanged.
+
+Complete public metadata inspection found a ninth missing dependency,
+ucrtbase!__C_specific_handler_noexcept. The retained native CRT publicly
+forwards that exact export to ntdll.__C_specific_handler. Source-built
+AMD64 ucrtbase now reproduces that forwarder, with no native code copy
+or invented exception semantics. All178 mandatory imports across31
+descriptors and recursive forwarders statically resolve against six staged
+source-built modules. Nineteen delay descriptors remain unqualified.
+Static resolution does not establish that the private dispatcher initializes.
+
+The first025 compile failed because the new syscall list had not been
+regenerated. Wine's existing make_specfiles generator fixes that source
+dependency. The first resume also encountered the genuine claims Makefile
+pin: resume now removes only025's additive source-entry line before
+revalidating the unchanged claims seam, then reapplies025. Neither pin nor
+predicate was weakened. Attempt logs remain in the owned025 build tree.
+
+The final source build and staging succeeded, with ten changed modules.
+The observer and fixtures were compiled, not executed. All251 host tests
+passed, including actual packet handlers, unsupported-output canaries,
+bounded counter parsing, observed CRT forwarder and native import closure.
+The actual packet-handler harness also passed AddressSanitizer and
+UndefinedBehaviorSanitizer checks. These are not native parity or UI proof.
+
+The025 recipe retains a distinct explicit-user-resume hold. The consumed024
+grant does not authorize025, general screen control or VM actions. No025
+prefix, setup, server, app, fixture, screenshot or input was launched here.
+NMS sampler and shader changes belong to the separate REQ-104 source lane.

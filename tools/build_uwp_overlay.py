@@ -14,7 +14,7 @@ from tools.probe_wine_source import run_step, sha256
 BASE = REPO / "build/winehq-11.20/package-launcher-01"
 
 
-def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False, handle_provenance=False, exception_diagnostics=False, failfast_diagnostics=False, status_diagnostics=False, claims_site_b=False, claims_thread_token=False, claims_packaged_thread=False, onecore_transform=False):
+def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False, handle_provenance=False, exception_diagnostics=False, failfast_diagnostics=False, status_diagnostics=False, claims_site_b=False, claims_thread_token=False, claims_packaged_thread=False, onecore_transform=False, coremessaging_prerequisites=False):
     root = Path(root).resolve()
     if not root.is_relative_to(REPO / "build") or root == BASE:
         raise ValueError("Require a new owned009 sibling")
@@ -38,6 +38,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         raise ValueError("Packaged thread claims require status diagnostics and exclude older claims modes")
     if onecore_transform and not claims_packaged_thread:
         raise ValueError("OneCore query requires retained023 claims and diagnostics")
+    if coremessaging_prerequisites and not onecore_transform:
+        raise ValueError("CoreMessaging prerequisites require retained024 query and diagnostics")
     frozen = BASE / "cell008-receipt.json"
     if sha256(frozen) != "ac5b627263c409b804e3f812160c6dd0ba8d39cec52910255725939de12915bc":
         raise ValueError("Frozen008 receipt changed")
@@ -65,6 +67,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
             raise ValueError("Resume must preserve the packaged thread-token mode")
         if "steps" in previous and bool(previous.get("onecore_transform")) != onecore_transform:
             raise ValueError("Resume must preserve the OneCore query mode")
+        if "steps" in previous and bool(previous.get("coremessaging_prerequisites")) != coremessaging_prerequisites:
+            raise ValueError("Resume must preserve the CoreMessaging prerequisite mode")
     else:
         root.mkdir(exist_ok=False)
         shutil.copytree(BASE / "source", root / "source", symlinks=True)
@@ -119,6 +123,15 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         from tools.port_status_diagnostics import port as status_port_source
         status_port = status_port_source(root / "source")
     claims_port = None
+    if resume and coremessaging_prerequisites:
+        # Revalidate the unchanged claims seam before reapplying our additive source entry.
+        make = root / "source/dlls/ntdll/Makefile.in"
+        text = make.read_text()
+        extra = "\tcoremessaging_ntdll_stubs.c \\\n"
+        if text.count(extra) == 1:
+            make.write_text(text.replace(extra, ""))
+        elif extra in text:
+            raise ValueError("Repeated CoreMessaging stub source entry")
     if claims_site_b:
         from tools.port_claims_site_b import port as claims_port_source
         claims_port = claims_port_source(root / "source")
@@ -130,6 +143,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if onecore_transform:
         from tools.port_onecore_transform import port as onecore_source
         onecore_port = onecore_source(root / "source")
+    coremessaging_port = None
+    if coremessaging_prerequisites:
+        from tools.port_coremessaging_prerequisites import port as coremessaging_source
+        coremessaging_port = coremessaging_source(root / "source")
     attempt = 1
     while (root / ("attempt-%02d" % attempt)).exists():
         attempt += 1
@@ -182,6 +199,13 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         receipt["claims_packaged_thread" if claims_packaged_thread else "claims_thread_token"] = thread_token_port
     if onecore_port is not None:
         receipt["onecore_transform"] = onecore_port
+    if coremessaging_port is not None:
+        receipt["coremessaging_prerequisites"] = coremessaging_port
+        for group in ("call_diagnostics", "activation_wait_diagnostics", "handle_provenance",
+                      "exception_diagnostics", "failfast_diagnostics", "status_diagnostics",
+                      "claims_packaged_thread", "onecore_transform"):
+            for relative in receipt[group]["files"]:
+                receipt[group]["files"][relative] = sha256(root / "source" / relative)
 
     def run(name, command, budget=300, cwd=directory):
         step = run_step(command, cwd, env, logs / (name + ".log"), budget)
@@ -192,7 +216,14 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
 
     args = [str(root / "source/configure")] + baseline["steps"][0]["command"][1:]
     args = [arg for arg in args if not arg.startswith("--prefix=")] + ["--prefix=" + str(root / "install")]
+    if coremessaging_prerequisites:
+        run("syscalls", ["/usr/bin/perl", "tools/make_specfiles"], cwd=root / "source")
+        for relative in ("dlls/ntdll/ntsyscalls.h", "dlls/ntdll/ntdll.spec"):
+            receipt["coremessaging_prerequisites"]["files"][relative] = sha256(root / "source" / relative)
     run("protocol", ["/usr/bin/perl", "tools/make_requests"], cwd=root / "source")
+    if coremessaging_prerequisites:
+        for relative in ("include/wine/server_protocol.h", "server/request_handlers.h", "server/request_trace.h"):
+            receipt["coremessaging_prerequisites"]["files"][relative] = sha256(root / "source" / relative)
     run("configure", args)
     targets = ["/usr/bin/make", "-j4", "server/wineserver",
                        "dlls/ntdll/ntdll.so", "dlls/ntdll/x86_64-windows/ntdll.dll",
@@ -204,6 +235,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         targets.append("dlls/rpcrt4/x86_64-windows/rpcrt4.dll")
     if onecore_transform:
         targets.append("dlls/user32/x86_64-windows/user32.dll")
+    if coremessaging_prerequisites:
+        targets.append("dlls/ucrtbase/x86_64-windows/ucrtbase.dll")
     run("server-ntdll", targets, budget=600)
     compiler = shutil.which("x86_64-w64-mingw32-gcc")
     if not compiler:
@@ -286,6 +319,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         from tools.port_onecore_transform import SOURCES
         for relative in SOURCES:
             receipt["source_inputs"][relative] = sha256(REPO / relative)
+    if coremessaging_prerequisites:
+        from tools.port_coremessaging_prerequisites import SOURCES
+        for relative in SOURCES:
+            receipt["source_inputs"][relative] = sha256(REPO / relative)
     receipt["built_files"] = {str(path.relative_to(root)): sha256(path) for path in (
         directory / "server/wineserver", directory / "dlls/ntdll/ntdll.so",
         directory / "dlls/ntdll/x86_64-windows/ntdll.dll",
@@ -300,6 +337,9 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         receipt["built_files"][relative] = sha256(root / relative)
     if onecore_transform:
         relative = "build/dlls/user32/x86_64-windows/user32.dll"
+        receipt["built_files"][relative] = sha256(root / relative)
+    if coremessaging_prerequisites:
+        relative = "build/dlls/ucrtbase/x86_64-windows/ucrtbase.dll"
         receipt["built_files"][relative] = sha256(root / relative)
     record.write_text(json.dumps(receipt, indent=2) + "\n")
     return record
@@ -319,5 +359,6 @@ if __name__ == "__main__":
     parser.add_argument("--claims-thread-token", action="store_true")
     parser.add_argument("--claims-packaged-thread", action="store_true")
     parser.add_argument("--onecore-transform", action="store_true")
+    parser.add_argument("--coremessaging-prerequisites", action="store_true")
     args = parser.parse_args()
-    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics, args.handle_provenance, args.exception_diagnostics, args.failfast_diagnostics, args.status_diagnostics, args.claims_site_b, args.claims_thread_token, args.claims_packaged_thread, args.onecore_transform))
+    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics, args.handle_provenance, args.exception_diagnostics, args.failfast_diagnostics, args.status_diagnostics, args.claims_site_b, args.claims_thread_token, args.claims_packaged_thread, args.onecore_transform, args.coremessaging_prerequisites))

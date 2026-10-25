@@ -1,5 +1,17 @@
 {
   "_doc": "Single source of truth for upstream URLs + sha256 pins. Read by scripts/fetch-sources.sh and .github/workflows/upstream-watch.yml.",
+  "native_coremessaging_reference": {
+    "path": "/Users/dragoshont/xodus-runs/rt-v20b/drive_c/windows/system32/CoreMessaging.dll",
+    "sha256": "88c7b4d6ee26f7695de0885f39db2949ad77bffc20902b0d19fde7f7ad9d31bc",
+    "size": 1241120,
+    "file_product_version": "10.0.26100.9444",
+    "xaml_sha256": "16302bfe92cd6d1cdae9666767e53323fa11e10ab1c751d8142e6f95f3a82899",
+    "provenance": "Retained owner Windows x64 system-file evaluation input; execution-owner historical hash record, not fresh signature or original host-build-chain proof",
+    "rights": "Local evaluation only; not Wine/LGPL or a redistributable Calimocho asset; never commit or publish the DLL",
+    "native_ucrtbase_sha256": "1a6f2371123e37cfa6138840f31a2cb82db10f1fb36fad87ea732a4e3c6841f5",
+    "observed_noexcept_forwarder": "ntdll.__C_specific_handler",
+    "scope": "Public static import/export metadata only; no native load or private ABI guessed"
+  },
   "onecore_transform_reference": {
     "producer": "VM iocm-r2, once-only interactive session1 query",
     "collection_envelope_sha256": "087edc856c6edc1a1af70106b9e540c21f1bf1f500f4e0bc0bb754365d363a27",

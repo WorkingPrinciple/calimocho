@@ -70,6 +70,9 @@ class CallDiagnostics:
         self.claims_context = deque(maxlen=128)
         self.claims_context_count = 0
         self.claims_context_limited = set()
+        self.coremessaging_stubs = deque(maxlen=128)
+        self.coremessaging_stub_count = 0
+        self.coremessaging_stub_limited = set()
 
     def observe_fixme(self, pid, tid, channel, function):
         if pid not in self.running:
@@ -99,6 +102,19 @@ class CallDiagnostics:
             self.relays[pid] = deque(maxlen=300)
         self.sequence += 1
         fact = {"pid": pid, "tid": tid, "sequence": self.sequence}
+        if channel == "pkgstatus" and function == "diagnostic_coremessaging_stub" and pid in self.running:
+            if message == "coremessaging-stub limited=1":
+                self.coremessaging_stub_limited.add(pid)
+                return
+            match = re.fullmatch(
+                r"coremessaging-stub name=(RtlGetAppContainerNamedObjectPath|RtlGetThreadWorkOnBehalfTicket|"
+                r"RtlSetThreadWorkOnBehalfTicket|NtAlpcConnectPortEx|NtAlpcQueryInformation) "
+                r"hit=([1-9][0-9]{0,2}) result=c0000002", message)
+            if match and int(match[2]) <= 128:
+                fact.update(export=match[1], hit=int(match[2]), result="0xc0000002")
+                self.coremessaging_stubs.append(fact)
+                self.coremessaging_stub_count += 1
+            return
         if channel == "pkgstatus" and function == "diagnostic_claims_context" and pid in self.running:
             if message == "claims-context limited=1":
                 self.claims_context_limited.add(pid)
@@ -428,6 +444,9 @@ class CallDiagnostics:
             "claims_context": select(self.claims_context),
             "claims_context_tail_overwritten": max(0, self.claims_context_count - self.claims_context.maxlen),
             "claims_context_source_limited": bool(target_pids & self.claims_context_limited),
+            "coremessaging_stub_hits": select(self.coremessaging_stubs),
+            "coremessaging_stub_tail_overwritten": max(0, self.coremessaging_stub_count - self.coremessaging_stubs.maxlen),
+            "coremessaging_stub_source_limited": bool(target_pids & self.coremessaging_stub_limited),
             "no_gpfault_dialog_policy_observed": sorted(target_pids & self.exception_policy_pids),
             "basis": "instrumented calls, not a deadlock or unsignalled-event cause determination",
         }

@@ -53,6 +53,8 @@ def stage(root, resume=False):
         modules["lib/wine/x86_64-windows/rpcrt4.dll"] = "build/dlls/rpcrt4/x86_64-windows/rpcrt4.dll"
     if "onecore_transform" in build:
         modules["lib/wine/x86_64-windows/user32.dll"] = "build/dlls/user32/x86_64-windows/user32.dll"
+    if "coremessaging_prerequisites" in build:
+        modules["lib/wine/x86_64-windows/ucrtbase.dll"] = "build/dlls/ucrtbase/x86_64-windows/ucrtbase.dll"
     for relative in ("build/server/wineserver", "build/dlls/ntdll/ntdll.so"):
         result = subprocess.run(["/usr/bin/otool", "-L", str(root / relative)],
                                 capture_output=True, text=True, check=True)
