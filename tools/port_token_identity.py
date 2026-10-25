@@ -63,6 +63,9 @@ def port(source):
         "    if (data_size < sizeof(*identity)) { set_error( STATUS_INVALID_PARAMETER ); return; }\n"
         "    identity = (const struct token_identity_data *)user;\n"
         "    data_size -= sizeof(*identity);\n    user = (struct sid *)(identity + 1);\n"
+        "    fprintf( stderr, \"wineserver: create_token pid %04x data %u groups %d privs %d primary %d owner %d\\n\",\n"
+        "             current->process->id, data_size, req->group_count, req->priv_count,\n"
+        "             req->primary_group, identity->owner );\n"
         "    if (req->group_count < 0 || req->priv_count < 0 || identity->reserved ||\n"
         "        !sid_valid_size( user, data_size ))")
     section = replace(section,
@@ -142,9 +145,24 @@ DECL_HANDLER(get_token_identity)
         "    if (primary_group == -2)")
     section = replace(section, "    groups_info = malloc( groups_size );",
         "    groups_info = malloc( groups_size ? groups_size : 1 );")
-    section = replace(section, "        wine_server_add_data( req, objattr, objattr_size );",
-        "        wine_server_add_data( req, objattr, objattr_size );\n"
-        "        wine_server_add_data( req, &identity, sizeof(identity) );")
+    # A request carries at most __SERVER_MAX_DATA (5) data chunks. Upstream already uses five here
+    # (objattr, user, groups, privileges, DACL), so identity shares one buffer with the user SID:
+    # the server reads the same byte stream. A sixth chunk overflowed __req.data (cell027-032).
+    section = replace(section, "    BYTE *p;", "    BYTE *p, *head;\n    data_size_t head_size;")
+    section = replace(section, "    SERVER_START_REQ( create_token )",
+        "    sid = user->User.Sid;\n"
+        "    head_size = sizeof(identity) + offsetof( SID, SubAuthority[sid->SubAuthorityCount] );\n"
+        "    if (!(head = malloc( head_size )))\n"
+        "    {\n        free( groups_info );\n        free( objattr );\n        return STATUS_NO_MEMORY;\n    }\n"
+        "    memcpy( head, &identity, sizeof(identity) );\n"
+        "    memcpy( head + sizeof(identity), sid, head_size - sizeof(identity) );\n\n"
+        "    SERVER_START_REQ( create_token )")
+    section = replace(section,
+        "        sid = user->User.Sid;\n"
+        "        wine_server_add_data( req, sid, offsetof( SID, SubAuthority[sid->SubAuthorityCount] ) );",
+        "        wine_server_add_data( req, head, head_size );")
+    section = replace(section, "    free( groups_info );\n    free( objattr );\n\n    return status;",
+        "    free( head );\n    free( groups_info );\n    free( objattr );\n\n    return status;")
     client = client[:start] + section + client[end:]
     client = replace(client,
         "                statistics->AuthenticationId.LowPart  = 0; /* FIXME */\n"

@@ -1,4 +1,4 @@
-"""Cell027-032 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
+"""Cell027-033 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
 import importlib
 import json
 from pathlib import Path
@@ -88,8 +88,8 @@ def registration_text():
 
 
 def add_registrar_handoff(root, receipt, cell=27):
-    if cell not in (27, 28, 29, 30, 31, 32):
-        raise ValueError("Registrar handoff supports cells027-032")
+    if cell not in (27, 28, 29, 30, 31, 32, 33):
+        raise ValueError("Registrar handoff supports cells027-033")
     label = "%03d" % cell
     root = Path(root)
     registration = root / ("registrar-CELL%s-FROZEN.reg" % label)
@@ -170,6 +170,18 @@ def add_registrar_handoff(root, receipt, cell=27):
         receipt["limitations"] += [
             "Cell031: services.exe thread 0060 logged the image path, then 'wine client error:60: read: Bad file descriptor' (client protocol abort) while holding the scmdatabase lock; the failing call inside token construction is unobserved",
             "Cell032 builds the registrar token on a worker thread before the SCM lock, waits at most 10 s and fails closed; this contains the loss but does not fix its cause",
+        ]
+    if cell >= 33:
+        receipt["services_diagnostics"]["discriminators"] = [
+            "'wineserver: create_token pid ...' on wineserver stderr: the create_token request reached the server intact; its absence before a 'wine client error' line means the client aborted first",
+        ] + receipt["services_diagnostics"]["discriminators"]
+        receipt["limitations"] += [
+            "Cell032 diagnosis: NtCreateToken added six request data chunks (objattr, identity, user, groups, privileges, DACL) where __SERVER_MAX_DATA is5; the registrar DACL wrote past the client request buffer. Cell033 sends identity with the user SID (five chunks) and a build gate rejects any request above five",
+            "Cell033 also fixes a latent six-chunk new_process request (package identity) by appending identity to the job list buffer",
+            "Cell032 app 0xC0000002 came from this build's NtAlpcConnectPortEx NOT_IMPLEMENTED paths (client object attributes, EffectiveOnly QoS), not a stub; the ntdll export was already the syscall thunk",
+            "Cell033 accepts an unnamed unrooted client port with an optional SACL-free security descriptor and static EffectiveOnly (disabled privileges and disabled optional groups dropped); other client attribute fields and message attributes still return STATUS_NOT_IMPLEMENTED with a FIXME",
+            "Identification-level ALPC impersonation still returns STATUS_BAD_IMPERSONATION_LEVEL; CoreMessaging requests SecurityIdentification",
+            "Wine treats ALPC port flag 0x40000 as non-blocking receive; CoreMessaging sets port flags 0x70000; native meaning of that bit is unverified here",
         ]
 
 

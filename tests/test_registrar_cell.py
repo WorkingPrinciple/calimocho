@@ -98,7 +98,7 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 self.handoff(root, 28)
             with self.assertRaises(ValueError):
-                self.handoff(root, 33)
+                self.handoff(root, 34)
 
     def test_cell029_setup_is_headless_and_session_steps_are_not(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -152,6 +152,20 @@ class RegistrarCellTest(unittest.TestCase):
             self.assertTrue(cell032["services_diagnostics"]["discriminators"][0].startswith("'registrar token worker start'"))
             self.assertTrue(any(item.startswith("Cell032 builds the registrar token") for item in cell032["limitations"]))
             self.assertFalse(any("token worker" in item for item in cell031["services_diagnostics"]["discriminators"]))
+
+    def test_cell033_records_request_limit_and_connect_fixes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, cell032 = self.handoff(self._mk(Path(directory) / "a"), 32)
+            _, cell033 = self.handoff(self._mk(Path(directory) / "b"), 33)
+            self.assertEqual(set(cell032), set(cell033))
+            self.assertEqual(cell033["services_start_argv"], cell032["services_start_argv"])
+            self.assertEqual(cell033["setup_wineboot_timeout_seconds"], 120)
+            self.assertTrue(cell033["services_diagnostics"]["discriminators"][0].startswith("'wineserver: create_token"))
+            self.assertEqual(cell033["services_diagnostics"]["discriminators"][1:],
+                             cell032["services_diagnostics"]["discriminators"])
+            self.assertTrue(any("__SERVER_MAX_DATA is5" in item for item in cell033["limitations"]))
+            self.assertTrue(any("not a stub" in item for item in cell033["limitations"]))
+            self.assertFalse(any("__SERVER_MAX_DATA" in item for item in cell032["limitations"]))
 
 
 if __name__ == "__main__":

@@ -59,8 +59,8 @@ def compile_observer(root, resume=False):
 
 def prepare(root, producer, cell=13):
     requested_cell = cell
-    # Cells026-032 carry the same diagnostic contract into fresh run namespaces.
-    if cell in (26, 27, 28, 29, 30, 31, 32):
+    # Cells026-033 carry the same diagnostic contract into fresh run namespaces.
+    if cell in (26, 27, 28, 29, 30, 31, 32, 33):
         cell = 25
     root = Path(root).resolve(strict=True)
     record = json.loads((root / "state-observer-build.json").read_text())
@@ -232,7 +232,7 @@ def prepare(root, producer, cell=13):
                 "__C_specific_handler_noexcept") != pins["observed_noexcept_forwarder"]:
             raise ValueError("Observed AMD64 CRT forwarder not reproduced")
     cell026 = {}
-    if requested_cell in (26, 27, 28, 29, 30, 31, 32):
+    if requested_cell in (26, 27, 28, 29, 30, 31, 32, 33):
         extra += ("docs/ADR/0058-fail-unsupported-coremessaging-ordinals-explicitly.md",)
         from tools.qualify_coremessaging_imports import qualify_ordinal_guards
         cell026["ordinal_guard_qualification"] = qualify_ordinal_guards(root / "install")
@@ -255,7 +255,7 @@ def prepare(root, producer, cell=13):
             raise ValueError("Relayed owner decision record changed")
         cell026.update(cell="%03d" % requested_cell, owner_resume_sha256=resume_digest,
                        owner_resume_record=str(resume))
-    if requested_cell in (27, 28, 29, 30, 31, 32):
+    if requested_cell in (27, 28, 29, 30, 31, 32, 33):
         extra += registrar_sources()
         cell026.update(registrar_stack_build(root, build))
     path = freeze(root, producer, cell=requested_cell, predecessor=previous,
@@ -482,7 +482,7 @@ def prepare(root, producer, cell=13):
             "Native CoreMessaging same file/product version as original XAML is compatible-candidate evidence, not fresh signature or host-build-chain proof",
             "No025 native execution, UI/Bridge acceptance or general screen/VM resume; consumed024 decision is not025 authorization",
         ]
-    if requested_cell in (26, 27, 28, 29, 30, 31, 32):
+    if requested_cell in (26, 27, 28, 29, 30, 31, 32, 33):
         receipt.update(cell026)
         receipt["runtime_execution_hold"] = "Execution owner must independently reconcile retained owner decision for once-only%03d; source lane does not grant runtime authority" % requested_cell
         receipt["preconditions"][0] = receipt["runtime_execution_hold"]
@@ -491,7 +491,7 @@ def prepare(root, producer, cell=13):
             "All other combase ordinals preserved; three colliding named exports moved to356-358",
             "Private user32 dispatcher ordinals and unhosted API-set remain unsupported; actual first reached call is unobserved",
         ]
-    if requested_cell in (27, 28, 29, 30, 31, 32):
+    if requested_cell in (27, 28, 29, 30, 31, 32, 33):
         add_registrar_handoff(root, receipt, requested_cell)
     if requested_cell == 29:
         add_headless_setup(receipt)
@@ -505,7 +505,7 @@ if __name__ == "__main__":
     parser.add_argument("--producer-commit")
     parser.add_argument("--compile-only", action="store_true")
     parser.add_argument("--resume", action="store_true")
-    parser.add_argument("--cell", type=int, choices=(13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32), default=13)
+    parser.add_argument("--cell", type=int, choices=(13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33), default=13)
     args = parser.parse_args()
     if args.compile_only:
         print(json.dumps(compile_observer(args.root, args.resume), indent=2))

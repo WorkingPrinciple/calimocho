@@ -4060,3 +4060,50 @@ Cell032 changes:
   reached. The cause of the bad file descriptor is still unknown.
 
 Checks: focused unit tests (22) pass, including the services host compile.
+
+## 2026-10-25: cell032 request overflow and connect, cell033
+
+Cell032 contained the loss: no SCM lock hang. Two failures remained.
+
+Registrar: both attempts reached `registrar token step create`, then
+printed `wine client error: read: Bad file descriptor`. The cause is on
+the client side. A Wine request can carry at most five data chunks
+(`__SERVER_MAX_DATA` is 5). Our token identity port added a sixth chunk to
+`NtCreateToken` (object attributes, identity, user, groups, privileges,
+DACL). The registrar passes a DACL, so the sixth chunk was written past the
+request buffer on the stack.
+
+Cell033 changes:
+
+- `NtCreateToken` sends the identity and the user SID as one buffer. The
+  server reads the same bytes, in five chunks.
+- `new_process` could also reach six chunks (package identity). The
+  identity now follows the job list in one buffer.
+- `tools/server_request_gate.py` runs during the build. It fails the build
+  if any request in `dlls` or `programs` can add more than five chunks.
+- wineserver prints `wineserver: create_token pid ...` when a create
+  request arrives.
+
+App: `NtAlpcConnectPortEx` returned 0xC0000002. This was not the stub: the
+export was already the syscall thunk. Our own connect code returned
+STATUS_NOT_IMPLEMENTED for two inputs CoreMessaging uses:
+
+- client port object attributes (unnamed, possibly with a security
+  descriptor);
+- static QoS with `EffectiveOnly` set (level Identification).
+
+Cell033 accepts an unnamed, unrooted client port and applies its security
+descriptor when the port is created. A descriptor with a SACL, a name, a
+root, extra attributes or a QoS still returns STATUS_NOT_IMPLEMENTED with a
+FIXME. For `EffectiveOnly`, the server captures a client token without the
+disabled privileges and without disabled optional groups. Mandatory and
+deny-only groups are kept. Identification-level impersonation still returns
+STATUS_BAD_IMPERSONATION_LEVEL.
+
+`tools/check_ntdll_syscall_exports.py` reads the built `ntdll.dll` export
+table. It requires the ALPC and `NtCreateToken` exports to start with the
+`mov eax, <id>` syscall thunk from `ntsyscalls.h`. The build receipt
+records the result.
+
+Not proven: no runtime run, the eight S-1-5-32 groups are not reproduced,
+and the native meaning of ALPC port flag 0x40000 is unverified.

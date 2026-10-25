@@ -187,6 +187,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if alpc_impersonation:
         from tools.port_alpc_impersonation import port as impersonation_source
         impersonation_port = impersonation_source(root / "source")
+        from tools.port_alpc_connect_attrs import port as connect_attrs_source
+        connect_attrs_port = connect_attrs_source(root / "source")
     registrar_port = None
     if registrar_service:
         from tools.port_registrar_service import port as registrar_source
@@ -195,6 +197,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if coremsg_dispatch:
         from tools.port_coremsg_dispatch import port as dispatch_source
         dispatch_port = dispatch_source(root / "source")
+    from tools.port_server_request_limits import port as request_limits_source
+    request_limits_port = request_limits_source(root / "source")
     attempt = 1
     while (root / ("attempt-%02d" % attempt)).exists():
         attempt += 1
@@ -274,10 +278,12 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         receipt["token_security"] = token_security_port
     if impersonation_port is not None:
         receipt["alpc_impersonation"] = impersonation_port
+        receipt["alpc_connect_attrs"] = connect_attrs_port
     if registrar_port is not None:
         receipt["registrar_service"] = registrar_port
     if dispatch_port is not None:
         receipt["coremsg_dispatch"] = dispatch_port
+    receipt["server_request_limits"] = request_limits_port
 
     def run(name, command, budget=300, cwd=directory):
         step = run_step(command, cwd, env, logs / (name + ".log"), budget)
@@ -452,7 +458,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
             receipt["source_inputs"][relative] = sha256(REPO / relative)
     if alpc_impersonation:
         from tools.port_alpc_impersonation import SOURCES
-        for relative in SOURCES:
+        from tools.port_alpc_connect_attrs import SOURCES as CONNECT_SOURCES
+        for relative in SOURCES + CONNECT_SOURCES:
             receipt["source_inputs"][relative] = sha256(REPO / relative)
     if registrar_service:
         from tools.port_registrar_service import SOURCES
@@ -462,6 +469,9 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         from tools.port_coremsg_dispatch import SOURCES
         for relative in SOURCES:
             receipt["source_inputs"][relative] = sha256(REPO / relative)
+    from tools.port_server_request_limits import SOURCES
+    for relative in SOURCES:
+        receipt["source_inputs"][relative] = sha256(REPO / relative)
         for group, value in list(receipt.items()):
             if isinstance(value, dict) and "files" in value:
                 for relative in value["files"]:
@@ -491,6 +501,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         for relative in ("build/dlls/win32u/win32u.so", "build/dlls/win32u/x86_64-windows/win32u.dll",
                          "build/dlls/apisetschema/x86_64-windows/apisetschema.dll"):
             receipt["built_files"][relative] = sha256(root / relative)
+    from tools.check_ntdll_syscall_exports import check as check_syscall_exports
+    receipt["ntdll_syscall_exports"] = check_syscall_exports(
+        directory / "dlls/ntdll/x86_64-windows/ntdll.dll", root / "source/dlls/ntdll/ntsyscalls.h")
+    receipt["source_inputs"]["tools/check_ntdll_syscall_exports.py"] = sha256(REPO / "tools/check_ntdll_syscall_exports.py")
     record.write_text(json.dumps(receipt, indent=2) + "\n")
     return record
 

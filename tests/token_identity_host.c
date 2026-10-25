@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "wine/list.h"
@@ -27,7 +28,9 @@ static void set_error(unsigned status) {error=status;}
 static struct token *input;
 static unsigned rights,query_capacity;
 static unsigned char output[8];
-static struct {void *process;} current_value,*current=&current_value;
+struct test_process {unsigned int id;};
+static struct test_process test_process={0x20};
+static struct {struct test_process *process;} current_value={&test_process},*current=&current_value;
 static struct token *get_token_obj(void *process,unsigned handle,unsigned access) {
     if(handle!=1 || (rights&access)!=access) {set_error(STATUS_ACCESS_DENIED);return NULL;}
     return input;
