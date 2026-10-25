@@ -91,6 +91,19 @@ passes the existing guard. A full-screen Dock window with alpha 1 was not
 silently declared transparent, and the user's ChatGPT window was not moved
 or closed. No actual DIRT5 title-screen result for this builtin exists yet.
 
+The owner later authorized one exact exception: Dock PID 716, window 33,
+for this bounded 11d qualification only. The guard accepts that explicitly
+supplied tuple only while the window exists uniquely at layer 20. It still
+checks every other window and records the exception in runtime evidence.
+This is an owner-directed exception, not a transparency inference or a new
+default. Wrong PID, window ID or layer fails closed in focused tests.
+
+A fresh read-only inventory after this approval still had no free 400 by
+340 region: several ordinary main-display windows now occupied the remaining
+area. The exact Dock exception did not extend to those windows. No runtime
+was spawned. The scheduler was given the fresh inventory rather than the
+earlier assumption that Dock was the only main-display obstacle.
+
 ## Reproduction
 
 Use installed tools only and require a new build directory:

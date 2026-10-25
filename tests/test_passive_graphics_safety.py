@@ -16,6 +16,24 @@ SNAPSHOT = {
 
 
 class PassiveGeometryTests(unittest.TestCase):
+    def test_explicit_window_exception_does_not_ignore_other_dock_windows(self):
+        data = copy.deepcopy(SNAPSHOT)
+        data["windows"][0].update(pid=716, id=33, layer=20)
+        data["windows"][0]["bounds"].update(Width=1000, Height=800)
+        with self.assertRaises(ValueError):
+            free_position(data)
+        self.assertEqual(free_position(data, ignored_window=(716, 33)), (40, 50))
+        for identity in ((716, 34), (717, 33), (True, 33)):
+            with self.assertRaises(ValueError):
+                free_position(data, ignored_window=identity)
+        data["windows"].append(dict(data["windows"][0], id=34))
+        with self.assertRaises(ValueError):
+            free_position(data, ignored_window=(716, 33))
+        data["windows"].pop()
+        data["windows"][0]["layer"] = 19
+        with self.assertRaises(ValueError):
+            free_position(data, ignored_window=(716, 33))
+
     def test_paused_ode_excludes_only_exact_foreground_window(self):
         data = copy.deepcopy(SNAPSHOT)
         data["windows"][0]["bounds"].update(Width=1000, Height=800)

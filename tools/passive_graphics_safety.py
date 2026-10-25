@@ -14,7 +14,7 @@ def bounds(window):
     return tuple(frame[key] for key in ("X", "Y", "Width", "Height"))
 
 
-def obstacles(snapshot, paused_ode_window=None):
+def obstacles(snapshot, paused_ode_window=None, ignored_window=None):
     """Exclude only the explicitly paused, exact foreground Ode window."""
     if paused_ode_window is not None:
         pid, window_id = paused_ode_window
@@ -23,13 +23,20 @@ def obstacles(snapshot, paused_ode_window=None):
                 or sum(w["pid"] == pid and w["id"] == window_id
                        for w in snapshot["windows"]) != 1):
             raise ValueError("Paused Ode window identity/foreground no longer matches")
+    if ignored_window is not None:
+        pid, window_id = ignored_window
+        matches = [w for w in snapshot["windows"] if (w["pid"], w["id"]) == (pid, window_id)]
+        if (type(pid) is not int or type(window_id) is not int or min(pid, window_id) <= 0
+                or len(matches) != 1 or matches[0]["layer"] != 20):
+            raise ValueError("Explicit ignored window identity/layer no longer matches")
     return [window for window in snapshot["windows"] if window["layer"] >= 0
+            and (ignored_window is None or (window["pid"], window["id"]) != ignored_window)
             and (paused_ode_window is None
                  or (window["pid"], window["id"]) != paused_ode_window)]
 
 
-def free_position(snapshot, paused_ode_window=None):
-    frames = [bounds(window) for window in obstacles(snapshot, paused_ode_window)]
+def free_position(snapshot, paused_ode_window=None, ignored_window=None):
+    frames = [bounds(window) for window in obstacles(snapshot, paused_ode_window, ignored_window)]
     for display in snapshot["displays"]:
         for y in range(int(display["y"]) + 50, int(display["y"] + display["height"]) - 360, 40):
             for x in range(int(display["x"]) + 40, int(display["x"] + display["width"]) - 420, 40):

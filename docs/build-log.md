@@ -30,6 +30,13 @@ report. After the scheduler cleared the lane, only TLS02/03 ran, not another
 AGS replay. Graphics remains blocked by the non-overlap guard; no Dock
 transparency exception, desktop control or DIRT5 title-screen claim was made.
 
+The owner subsequently allowed ignoring exact Dock PID716/window33 for one
+bounded 11d qualification. That opt-in exception is implemented and tested,
+including wrong identity/layer and a second blocking window. Fresh native
+geometry still had no free400x340 area because ordinary windows occupied the
+remaining main-display space. The exception was not broadened and no graphics
+probe was started. The scheduler received the current geometry blocker.
+
 ## 2026-10-25: bounded cell005 activation diagnostics
 
 The Xbox owner's cell004 result was a zero helper exit without observed CE
