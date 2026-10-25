@@ -2699,3 +2699,15 @@ mappings and frozen authenticated graph, with new runtime, helper, collector
 and Launcher import paths. It preserves sealed009/010/011 and does not
 rewrite or copy Microsoft binaries. See
 [ADR-0044](ADR/0044-retain-genuine-static-lifetime-factories.md).
+
+The012 receipt is frozen at SHA-256
+`d28d3873654eaf4c563db8cf64ef4b2368176729befb6c72eec847b128a9c39f`,
+with source producer `b2d6ce31414defdc5b3ef5ca6522134d8a9a7a60`.
+The follow-up reproducible audit passes77 checks, including exact producer
+blobs, all3915 installed entries, asset/dependency hashes, generated-source
+hashes,558 unchanged mappings, command/environment rebasing and overwrite
+rejection. The reused authenticated package and framework snapshot also
+passed a fresh signature, signed-content and dependency-closure check.
+Xbox's observer owner received the receipt and the separate headless
+fixture request, followed by the already-approved actual012 cell. Sent is
+not executed: neither native result is available in this source handoff.
