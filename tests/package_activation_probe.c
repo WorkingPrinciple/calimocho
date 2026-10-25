@@ -126,18 +126,42 @@ static int verify_identity(BOOL packaged, BOOL registered)
     return failures ? 1 : 0;
 }
 
-static int activate(const WCHAR *blob_path, const WCHAR *executable, BOOL fixture, BOOL registered)
+static void diagnostic_text(const char *key, const WCHAR *value)
+{
+    char buffer[65536];
+    if (!value) value = L"";
+    if (!WideCharToMultiByte(CP_UTF8, 0, value, -1, buffer, sizeof(buffer), NULL, NULL))
+        strcpy(buffer, "<UTF-8 conversion failed>");
+    printf("calimocho-activation %s %s\n", key, buffer);
+    fflush(stdout);
+}
+
+static void diagnostic_time(const char *key)
+{
+    SYSTEMTIME time;
+    GetSystemTime(&time);
+    printf("calimocho-activation %s %04u-%02u-%02uT%02u:%02u:%02u.%03uZ\n", key,
+           time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute,
+           time.wSecond, time.wMilliseconds);
+    fflush(stdout);
+}
+
+static int activate(const WCHAR *blob_path, const WCHAR *executable, BOOL fixture, BOOL registered,
+                    BOOL diagnostic)
 {
     struct wine_package_identity package;
     struct { SIZE_T TotalLength; PS_ATTRIBUTE Attributes[2]; } attributes;
     PRTL_USER_PROCESS_PARAMETERS params = NULL;
     PS_CREATE_INFO create_info;
     UNICODE_STRING image, command;
-    HANDLE file, process = NULL, thread = NULL;
+    HANDLE file, process = NULL, thread = NULL, output = NULL, token = NULL;
+    WCHAR *environment = NULL;
     DWORD read, extra;
     BYTE byte;
     WCHAR cmdline[32768];
     NTSTATUS status;
+    ULONGLONG started = GetTickCount64();
+    DWORD wait_result = WAIT_FAILED;
 
     file = CreateFileW(blob_path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
     if (file == INVALID_HANDLE_VALUE) return 2;
@@ -156,12 +180,56 @@ static int activate(const WCHAR *blob_path, const WCHAR *executable, BOOL fixtur
                                 L"\" --verify-packaged") : L"\"");
     if ((status = RtlDosPathNameToNtPathName_U_WithStatus(executable, &image, NULL, NULL))) return 2;
     RtlInitUnicodeString(&command, cmdline);
-    status = RtlCreateProcessParametersEx(&params, &image, NULL, NULL, &command, NULL,
+    if (diagnostic)
+    {
+        UNICODE_STRING name, value;
+        status = RtlCreateEnvironment(TRUE, &environment);
+        RtlInitUnicodeString(&name, L"WINEDEBUG");
+        RtlInitUnicodeString(&value, L"err+all,trace+process,trace+loaddll,+pid,+tid");
+        if (!status) status = RtlSetEnvironmentVariable(&environment, &name, &value);
+        if (status)
+        {
+            fprintf(stderr, "child diagnostic environment failed NTSTATUS=%08lx\n", status);
+            if (environment) RtlDestroyEnvironment(environment);
+            RtlFreeUnicodeString(&image);
+            return 2;
+        }
+        {
+            WCHAR parent_debug[128] = {0};
+            GetEnvironmentVariableW(L"WINEDEBUG", parent_debug, 128);
+            diagnostic_text("parent_winedebug", parent_debug);
+            diagnostic_text("child_winedebug", value.Buffer);
+        }
+    }
+    status = RtlCreateProcessParametersEx(&params, &image, NULL, NULL, &command, environment,
                                          NULL, NULL, NULL, NULL, PROCESS_PARAMS_FLAG_NORMALIZED);
     if (status)
     {
+        if (environment) RtlDestroyEnvironment(environment);
         RtlFreeUnicodeString(&image);
         return 2;
+    }
+    if (diagnostic)
+    {
+        /* Child output goes to the host collector's redacted stderr stream.
+         * The helper alone writes authoritative metadata to stdout. */
+        if (!DuplicateHandle(GetCurrentProcess(), GetStdHandle(STD_ERROR_HANDLE),
+                             GetCurrentProcess(), &output, 0, TRUE, DUPLICATE_SAME_ACCESS))
+        {
+            fprintf(stderr, "child diagnostic handle failed error=%lu\n", GetLastError());
+            RtlDestroyProcessParameters(params);
+            RtlDestroyEnvironment(environment);
+            RtlFreeUnicodeString(&image);
+            return 2;
+        }
+        params->hStdOutput = params->hStdError = output;
+        params->hStdInput = NULL;
+        params->ConsoleHandle = NtCurrentTeb()->Peb->ProcessParameters->ConsoleHandle;
+        params->dwFlags |= STARTF_USESTDHANDLES;
+        diagnostic_text("image", image.Buffer);
+        diagnostic_text("command", command.Buffer);
+        diagnostic_text("cwd", params->CurrentDirectory.DosPath.Buffer);
+        diagnostic_time("create_utc");
     }
     memset(&attributes, 0, sizeof(attributes));
     attributes.TotalLength = sizeof(attributes);
@@ -174,25 +242,90 @@ static int activate(const WCHAR *blob_path, const WCHAR *executable, BOOL fixtur
     memset(&create_info, 0, sizeof(create_info));
     create_info.Size = sizeof(create_info);
     status = NtCreateUserProcess(&process, &thread, PROCESS_ALL_ACCESS, THREAD_ALL_ACCESS,
-                                 NULL, NULL, 0, THREAD_CREATE_FLAGS_CREATE_SUSPENDED,
+                                 NULL, NULL, diagnostic ? PROCESS_CREATE_FLAGS_INHERIT_HANDLES : 0,
+                                 THREAD_CREATE_FLAGS_CREATE_SUSPENDED,
                                  params, &create_info, (PS_ATTRIBUTE_LIST *)&attributes);
+    if (output) CloseHandle(output);
     RtlDestroyProcessParameters(params);
+    if (environment) RtlDestroyEnvironment(environment);
     RtlFreeUnicodeString(&image);
+    if (diagnostic) printf("calimocho-activation create_status %08lx\n", status);
     if (status)
     {
         fprintf(stderr, "explicit package activation failed NTSTATUS=%08lx\n", status);
         return 2;
     }
-    status = NtResumeThread(thread, NULL);
-    CloseHandle(thread);
-    if (!status && WaitForSingleObject(process, fixture ? 10000 : 45000) != WAIT_OBJECT_0)
+    if (diagnostic)
     {
+        struct wine_package_identity bound;
+        printf("calimocho-activation child_pid %lu\n", GetProcessId(process));
+        if (!OpenProcessToken(process, TOKEN_QUERY, &token))
+            status = STATUS_ACCESS_DENIED;
+        else
+        {
+            status = wine_query_package_identity(token, &bound);
+            CloseHandle(token);
+        }
+        printf("calimocho-activation token_status %08lx\n", status);
+        if (!status)
+        {
+            diagnostic_text("full_name", bound.full_name);
+            diagnostic_text("family_name", bound.family_name);
+            diagnostic_text("app_id", bound.app_id);
+            printf("calimocho-activation verified_gamingapp %u\n", bound.verified_gamingapp);
+        }
+        if (status)
+        {
+            TerminateProcess(process, 2);
+            WaitForSingleObject(process, 5000);
+            CloseHandle(thread);
+            CloseHandle(process);
+            return 2;
+        }
+    }
+    status = NtResumeThread(thread, NULL);
+    if (diagnostic)
+    {
+        printf("calimocho-activation resume_status %08lx\n", status);
+        fflush(stdout);
+    }
+    CloseHandle(thread);
+    if (!status) wait_result = WaitForSingleObject(process, fixture ? 10000 : 45000);
+    if (diagnostic) printf("calimocho-activation wait_result %lu\n", wait_result);
+    if (status || wait_result != WAIT_OBJECT_0)
+    {
+        if (diagnostic)
+        {
+            printf("calimocho-activation still_running %u\n", wait_result == WAIT_TIMEOUT);
+            diagnostic_time("termination_requested_utc");
+        }
         TerminateProcess(process, 2);
         WaitForSingleObject(process, 5000);
-        status = STATUS_TIMEOUT;
+        if (!status) status = STATUS_TIMEOUT;
     }
-    if (status || !GetExitCodeProcess(process, &extra)) extra = 2;
+    if (!GetExitCodeProcess(process, &extra))
+    {
+        fprintf(stderr, "child exit query failed error=%lu\n", GetLastError());
+        extra = 2;
+        status = STATUS_UNSUCCESSFUL;
+    }
+    if (diagnostic)
+    {
+        FILETIME creation, exit, kernel, user;
+        SYSTEMTIME time;
+        if (WaitForSingleObject(process, 0) == WAIT_OBJECT_0 &&
+            GetProcessTimes(process, &creation, &exit, &kernel, &user) &&
+            FileTimeToSystemTime(&exit, &time))
+            printf("calimocho-activation exit_utc %04u-%02u-%02uT%02u:%02u:%02u.%03uZ\n",
+                   time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute,
+                   time.wSecond, time.wMilliseconds);
+        diagnostic_time("exit_observed_utc");
+        printf("calimocho-activation exit_code %lu\n", extra);
+        printf("calimocho-activation elapsed_ms %llu\n", GetTickCount64() - started);
+        fflush(stdout);
+    }
     CloseHandle(process);
+    if (status) return 2;
     if (fixture)
     {
         fprintf(stdout, "registered child exit=%lu (expected 17)\n", extra);
@@ -207,9 +340,12 @@ int wmain(int argc, WCHAR **argv)
     if (argc == 2 && !lstrcmpW(argv[1], L"--verify-host-registered")) return verify_identity(TRUE, TRUE) ? 1 : 17;
     if (argc == 2 && !lstrcmpW(argv[1], L"--verify-plain-child")) return verify_identity(FALSE, FALSE) ? 1 : 19;
     if (argc == 2 && !lstrcmpW(argv[1], L"--verify-plain")) return verify_identity(FALSE, FALSE);
-    if (argc == 4 && !lstrcmpW(argv[1], L"--activate")) return activate(argv[2], argv[3], FALSE, FALSE);
-    if (argc == 4 && !lstrcmpW(argv[1], L"--activate-fixture")) return activate(argv[2], argv[3], TRUE, FALSE);
-    if (argc == 4 && !lstrcmpW(argv[1], L"--activate-registered-fixture")) return activate(argv[2], argv[3], TRUE, TRUE);
+    if (argc == 4 && !lstrcmpW(argv[1], L"--activate")) return activate(argv[2], argv[3], FALSE, FALSE, FALSE);
+    if (argc == 4 && !lstrcmpW(argv[1], L"--activate-fixture")) return activate(argv[2], argv[3], TRUE, FALSE, FALSE);
+    if (argc == 4 && !lstrcmpW(argv[1], L"--activate-registered-fixture")) return activate(argv[2], argv[3], TRUE, TRUE, FALSE);
+    if (argc == 4 && !lstrcmpW(argv[1], L"--activate-diagnostic")) return activate(argv[2], argv[3], FALSE, FALSE, TRUE);
+    if (argc == 4 && !lstrcmpW(argv[1], L"--activate-diagnostic-fixture")) return activate(argv[2], argv[3], TRUE, FALSE, TRUE);
+    if (argc == 4 && !lstrcmpW(argv[1], L"--activate-diagnostic-registered-fixture")) return activate(argv[2], argv[3], TRUE, TRUE, TRUE);
     fputs("Usage: package-activation-probe --verify-plain | --activate IDENTITY.bin EXE\n", stderr);
     return 2;
 }

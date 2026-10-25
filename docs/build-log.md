@@ -3,6 +3,26 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: bounded cell005 activation diagnostics
+
+The Xbox owner's cell004 result was a zero helper exit without observed CE
+or handoff telemetry. No XAML or sign-in success was inferred.
+ADR-0036 adds actual creation parameters, suspended-child token metadata,
+PID, resume/wait status, exit code and UTC times to a new v3 helper.
+Its child-only process/loader trace is drained by a bounded redacting host
+collector. Raw child output and XGAMERUNTIME traces are not persisted.
+
+The helper compiled against the exact package candidate's import libraries.
+Fresh headless fixture08 and fixture09 each passed all four cases. The
+registered diagnostic observed creation/resume, authoritative token metadata,
+21 process events, child exit 17 and matching exit/observation UTC. Different
+images had no verified eligibility; guest spoofing remained rejected.
+Both fixture servers were stopped and waited. No Xbox or game ran here.
+
+The delivered cell004 engine, registry, helper and snapshot remain unchanged.
+Cell005 uses a new helper and receipt with a fresh owned prefix; actual CE,
+XAML and handoff outcomes await the Xbox owner's run.
+
 ## 2026-10-25: explicit local package identity and installed verification
 
 ADR-0035 records the opt-in package-identity delta. The isolated
