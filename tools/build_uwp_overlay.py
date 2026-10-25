@@ -205,6 +205,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if coremsg_dispatch:
         from tools.port_coremsg_dispatch import port as dispatch_source
         dispatch_port = dispatch_source(root / "source")
+        from tools.port_theme_color_preference import port as theme_source
+        theme_port = theme_source(root / "source")
     from tools.port_server_request_limits import port as request_limits_source
     request_limits_port = request_limits_source(root / "source")
     telemetry_port = None
@@ -300,6 +302,7 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         receipt["sechost_services"] = sechost_port
     if dispatch_port is not None:
         receipt["coremsg_dispatch"] = dispatch_port
+        receipt["theme_color_preference"] = theme_port
     receipt["server_request_limits"] = request_limits_port
     if telemetry_port is not None:
         receipt["alpc_telemetry"] = telemetry_port
@@ -340,7 +343,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if coremsg_dispatch:
         targets += ["dlls/win32u/win32u.so", "dlls/win32u/x86_64-windows/win32u.dll",
                     "dlls/apisetschema/x86_64-windows/apisetschema.dll",
-                    "dlls/kernelbase/x86_64-windows/kernelbase.dll"]
+                    "dlls/kernelbase/x86_64-windows/kernelbase.dll",
+                    "dlls/uxtheme/x86_64-windows/uxtheme.dll"]
     run("server-ntdll", targets, budget=600)
     compiler = shutil.which("x86_64-w64-mingw32-gcc")
     if not compiler:
@@ -492,7 +496,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
             receipt["source_inputs"][relative] = sha256(REPO / relative)
     if coremsg_dispatch:
         from tools.port_coremsg_dispatch import SOURCES
-        for relative in SOURCES:
+        from tools.port_theme_color_preference import SOURCES as THEME_SOURCES
+        for relative in SOURCES + THEME_SOURCES:
             receipt["source_inputs"][relative] = sha256(REPO / relative)
     from tools.port_server_request_limits import SOURCES
     for relative in SOURCES:
@@ -530,7 +535,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if coremsg_dispatch:
         for relative in ("build/dlls/win32u/win32u.so", "build/dlls/win32u/x86_64-windows/win32u.dll",
                          "build/dlls/apisetschema/x86_64-windows/apisetschema.dll",
-                         "build/dlls/kernelbase/x86_64-windows/kernelbase.dll"):
+                         "build/dlls/kernelbase/x86_64-windows/kernelbase.dll",
+                         "build/dlls/uxtheme/x86_64-windows/uxtheme.dll"):
             receipt["built_files"][relative] = sha256(root / relative)
     from tools.check_ntdll_syscall_exports import check as check_syscall_exports
     receipt["ntdll_syscall_exports"] = check_syscall_exports(

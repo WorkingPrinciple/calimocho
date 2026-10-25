@@ -2,12 +2,14 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from tools.build_uwp_overlay import REPO
 from tools.freeze_registrar_cell import (IMAGE_PATH, SERVICES_WINEDEBUG, SETUP_ARGVS, add_headless_setup,
                                          add_registrar_handoff, registrar_sources,
                                          registrar_stack_build, registration_text, TRANSIENT_KEY, TRANSIENT_SD)
 from tools.freeze_static_lifetime_runtime import REGISTRAR_STACK
+from tools.probe_wine_source import sha256
 
 
 def multi_sz(text, name):
@@ -51,6 +53,32 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "server request numbering"):
                 registrar_stack_build(root, build)
 
+    def test_theme_stack_binds_source_and_stage_qualification(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source/dlls/uxtheme/color_preference.c"
+            source.parent.mkdir(parents=True)
+            source.write_text("fixture")
+            theme = {"files": {"dlls/uxtheme/color_preference.c": sha256(source)}}
+            build = {key: {"files": {}} for key in REGISTRAR_STACK}
+            build["theme_color_preference"] = theme
+            stage = {"server_protocol_gate": {"status": "passed",
+                                              "rebuilt_modules": ["server", "services", "win32u"]},
+                     "theme_color_preference_qualification": {"status": "fixture-qualified"}}
+            (root / "staging-receipt.json").write_text(json.dumps(stage))
+            with patch("tools.port_theme_color_preference.qualify",
+                       return_value=stage["theme_color_preference_qualification"]) as qualify:
+                result = registrar_stack_build(root, build)
+                self.assertEqual(result["theme_color_preference"], theme)
+                self.assertEqual(result["theme_color_preference_qualification"],
+                                 stage["theme_color_preference_qualification"])
+                qualify.return_value = {"status": "changed"}
+                with self.assertRaisesRegex(ValueError, "qualification changed"):
+                    registrar_stack_build(root, build)
+                source.write_text("changed")
+                with self.assertRaisesRegex(ValueError, "source changed"):
+                    registrar_stack_build(root, build)
+
     @staticmethod
     def _mk(path):
         path.mkdir()
@@ -64,6 +92,9 @@ class RegistrarCellTest(unittest.TestCase):
         receipt.update({key: {"files": {}} for key in REGISTRAR_STACK})
         if sechost:
             receipt["sechost_services"] = {"files": {"dlls/sechost/transient_wait.c": "c0ffee"}}
+        if cell >= 43:
+            receipt["theme_color_preference"] = {"files": {"dlls/uxtheme/color_preference.c": "decaf"}}
+            receipt["theme_color_preference_qualification"] = {"status": "source-pe-exports-qualified-not-executed"}
         receipt["environment"] = {"WINEDLLOVERRIDES": "mscoree=;coremessaging=n", "WINEDEBUG": "-all"}
         for key in ("framework_registration_argv", "native_xaml_registration_argv", "aedebug_registration_argv"):
             receipt[key] = wine + ["regedit", "/S", key]
@@ -100,7 +131,7 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 self.handoff(root, 28)
             with self.assertRaises(ValueError):
-                self.handoff(root, 43)
+                self.handoff(root, 44)
 
     def test_cell029_setup_is_headless_and_session_steps_are_not(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -278,6 +309,16 @@ class RegistrarCellTest(unittest.TestCase):
             self.assertIn("listener 0x74", cell042["services_diagnostics"]["discriminators"][0])
             self.assertTrue(any("target state is unknown" in item.lower() for item in cell042["limitations"]))
             self.assertTrue(any("delivered pending request" in item for item in cell042["limitations"]))
+
+    def test_cell043_binds_theme_source_qualification_and_limitations(self):
+        with tempfile.TemporaryDirectory() as directory:
+            wine, receipt = self.handoff(Path(directory), 43)
+            self.assertEqual(receipt["generated_source_sha256"]["dlls/uxtheme/color_preference.c"], "decaf")
+            self.assertEqual(receipt["setup_wineboot_timeout_seconds"], 120)
+            self.assertEqual(receipt["registrar_start_argv"], wine + ["sc", "start", "CoreMessagingRegistrar"])
+            self.assertTrue(any("0xd2..0xd6" in item for item in receipt["limitations"]))
+            self.assertTrue(any("qualification" in item for item in receipt["preconditions"]))
+            self.assertTrue(any("unmeasured" in item for item in receipt["limitations"]))
 
 if __name__ == "__main__":
     unittest.main()

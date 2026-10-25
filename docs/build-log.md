@@ -4216,3 +4216,21 @@ request's ClientId, MessageId, callback and endpoint (ADR-0075).
 The host regression reproduces the old failure and checks the corrected
 96-byte response and identity refusal cases. Native Windows differential
 testing and a cell042 app run are not proven.
+
+## 2026-10-25: cell042 XAML theme preference gap, cell043
+
+The coordinator's one sealed cell042 run delivered the registrar reply
+and entered FrameworkView.Initialize. The exact app then exited
+0x80000100 without a window. Its complete capture, Wine loader failure
+and missing staged export identify GetUserColorPreference; the next
+paired call is GetColorFromPreference. The exact XAML caller uses an
+eight-byte preference and does not check its first HRESULT.
+
+Cell043 adds that pair only (ADR-0076). Public measured role values
+match the caller. The implementation uses Wine's existing app-theme,
+system-color and accent-palette mechanisms, with initialized output
+and explicit unsupported/error paths rather than a success stub.
+The build/stager explicitly replaces uxtheme and the frozen handoff
+binds its source, specification, installed PE and direct named exports.
+Host tests cover the ABI, roles, flags, refresh and failures. Native
+output/failure parity, cell043 activation and visible UI are not proven.

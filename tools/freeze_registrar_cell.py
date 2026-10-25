@@ -1,4 +1,4 @@
-"""Cell027-042 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
+"""Cell027-043 additions: registrar service, ALPC/token/dispatch and theme prerequisites."""
 import importlib
 import json
 from pathlib import Path
@@ -48,7 +48,8 @@ DOCS = tuple("docs/ADR/%s.md" % name for name in (
     "0072-impersonate-alpc-clients-at-their-requested-level",
     "0073-use-native-alpc-message-flags-and-sync-requests",
     "0074-accept-alpc-work-on-behalf-send-attribute",
-    "0075-route-alpc-release-responses-by-delivered-message-identity"))
+    "0075-route-alpc-release-responses-by-delivered-message-identity",
+    "0076-provide-the-eight-byte-theme-color-preference-pair"))
 TESTS = ("tests/test_alpc_transport.py", "tests/alpc_transport_host.c", "tests/test_restricted_token.py",
          "tests/restricted_token_host.c", "tests/test_alpc_identity.py", "tests/test_token_identity.py",
          "tests/token_identity_host.c", "tests/test_token_security.py", "tests/token_security_host.c",
@@ -58,13 +59,14 @@ TESTS = ("tests/test_alpc_transport.py", "tests/alpc_transport_host.c", "tests/t
          "tests/test_server_request_limits.py", "tests/test_alpc_telemetry.py",
          "tests/test_wait_completion_packet.py", "tests/wait_completion_packet_host.c",
          "tests/test_alpc_sync_request.py", "tests/test_alpc_work_on_behalf.py",
-         "tests/test_alpc_release_reply.py")
+         "tests/test_alpc_release_reply.py", "tests/test_theme_color_preference.py",
+         "tests/theme_color_preference_host.c")
 
 
 def registrar_sources():
     sources = ["tools/freeze_registrar_cell.py", "tools/server_protocol_gate.py"]
     for key in REGISTRAR_STACK + ("sechost_services", "alpc_connect_attrs", "alpc_sync_request",
-                                 "alpc_work_on_behalf", "alpc_release_reply"):
+                                 "alpc_work_on_behalf", "alpc_release_reply", "theme_color_preference"):
         for relative in importlib.import_module("tools.port_" + key).SOURCES:
             if relative not in sources:
                 sources.append(relative)
@@ -91,6 +93,16 @@ def registrar_stack_build(root, build):
             if sha256(root / "source" / relative) != value:
                 raise ValueError("Sechost source changed: " + relative)
         result["sechost_services"] = build["sechost_services"]
+    if "theme_color_preference" in build:
+        for relative, value in build["theme_color_preference"]["files"].items():
+            if sha256(root / "source" / relative) != value:
+                raise ValueError("Theme preference source changed: " + relative)
+        from tools.port_theme_color_preference import qualify
+        qualification = qualify(root)
+        if qualification != stage.get("theme_color_preference_qualification"):
+            raise ValueError("Theme preference PE qualification changed")
+        result["theme_color_preference"] = build["theme_color_preference"]
+        result["theme_color_preference_qualification"] = qualification
     return result
 
 
@@ -122,8 +134,8 @@ def registration_text(transient=False):
 
 
 def add_registrar_handoff(root, receipt, cell=27):
-    if cell not in (27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42):
-        raise ValueError("Registrar handoff supports cells027-042")
+    if cell not in (27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43):
+        raise ValueError("Registrar handoff supports cells027-043")
     label = "%03d" % cell
     root = Path(root)
     registration = root / ("registrar-CELL%s-FROZEN.reg" % label)
@@ -131,6 +143,9 @@ def add_registrar_handoff(root, receipt, cell=27):
         raise FileExistsError("Refuse existing%s registrar registration" % label)
     if cell >= 34 and "sechost_services" not in receipt:
         raise ValueError("Cell034 requires the sechost transient descriptor and WaitServiceState build")
+    if cell >= 43 and ("theme_color_preference" not in receipt or
+                       "theme_color_preference_qualification" not in receipt):
+        raise ValueError("Cell043 requires the theme preference source and installed PE qualification")
     registration.write_bytes(registration_text(transient=cell >= 34).encode("utf-16"))
     wine = receipt["launcher_registration_argv"][:3]
     receipt["scope"] = ("cell" + label + " native CoreMessaging with ALPC transport, scoped restricted registrar "
@@ -159,6 +174,8 @@ def add_registrar_handoff(root, receipt, cell=27):
         receipt["registrar_transient_readback_argv"] = wine + ["reg", "query", TRANSIENT_KEY.replace("HKEY_LOCAL_MACHINE", "HKLM")]
     for key in REGISTRAR_STACK + (("sechost_services",) if cell >= 34 else ()):
         receipt["generated_source_sha256"].update(receipt[key]["files"])
+    if cell >= 43:
+        receipt["generated_source_sha256"].update(receipt["theme_color_preference"]["files"])
     receipt["changed_modules"] = sorted(receipt["changed_modules"])
     receipt["preconditions"] = [item for item in receipt["preconditions"]
                                 if not item.startswith("Execution owner must verify and copy only native_coremessaging")]
@@ -321,6 +338,17 @@ def add_registrar_handoff(root, receipt, cell=27):
             "Cell041 ran once but the collector timed out with a truncated trace; target state is unknown. The recovered request id257 was delivered to the registrar, whose RELEASE_MESSAGE response reused the received Type=1 header on listener 0x74 and returned STATUS_INVALID_PORT_HANDLE",
             "Cell042 supersedes cell040's RELEASE no-op and nonzero-MessageId limitations for RELEASE plus nonzero MessageId: a response must match a delivered pending request by original ClientId, callback and endpoint, and consumes that pending record exactly once",
             "This release-response contract is inferred from CoreMessaging's response construction (read for understanding only) and tested against our real server handlers, not measured on native Windows; other ALPC retained-message, callback and release-only forms are not implemented",
+        ]
+    if cell >= 43:
+        receipt["scope"] += "; uxtheme eight-byte color preference pair"
+        receipt["limitations"] += [
+            "Cell042 RELEASE response reached the app, then native XAML delay-load failed for GetUserColorPreference; target exited 0x80000100 with no window. The paired GetColorFromPreference is also absent from the predecessor",
+            "Cell043 initializes exactly two COLORREFs and supports measured roles 0, 1..7 and 0xd2..0xd6 with Wine's existing palette, app-theme and high-contrast mechanisms. No native differential output/failure-contract parity is claimed",
+            "Both cache modes read current settings, force_reload is always honored by fresh reads; no persistent preference/high-contrast cache is implemented",
+            "color1 uses Wine's desktop background system color; the exact native color1 derivation is unmeasured. Arbitrary preference accent shade generation is unsupported; mismatched palette, unsupported roles and query errors fail explicitly rather than invent colors",
+        ]
+        receipt["preconditions"] += [
+            "Verify theme_color_preference_qualification against both built and installed uxtheme.dll before admission; retain this builtin uxtheme, do not substitute native XAML or a native theme payload",
         ]
 
 

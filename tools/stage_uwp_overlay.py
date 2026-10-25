@@ -66,6 +66,8 @@ def stage(root, resume=False):
     if "registrar_service" in build:
         modules["lib/wine/x86_64-windows/services.exe"] = "build/programs/services/x86_64-windows/services.exe"
         modules["lib/wine/x86_64-windows/sechost.dll"] = "build/dlls/sechost/x86_64-windows/sechost.dll"
+    if "theme_color_preference" in build:
+        modules["lib/wine/x86_64-windows/uxtheme.dll"] = "build/dlls/uxtheme/x86_64-windows/uxtheme.dll"
     if set(modules.values()) - {"windows.system.launcher.dll"} != set(build["built_files"]) - {"windows.system.launcher.dll"}:
         raise ValueError("Built and staged module sets differ")
     rebuilt = require_consistent(BASE / "source", root / "source", BASE / "install", list(modules.values()))
@@ -166,6 +168,9 @@ def stage(root, resume=False):
         "probe_source_sha256": sha256(REPO / "tests/uwp_activation_probe.c"),
         "probe_command": probe_command + ["-o", str(probe)], "probe_exit": result.returncode,
     }
+    if "theme_color_preference" in build:
+        from tools.port_theme_color_preference import qualify
+        receipt["theme_color_preference_qualification"] = qualify(root)
     record = root / "staging-receipt.json"
     record.write_text(json.dumps(receipt, indent=2) + "\n")
     return record
