@@ -228,6 +228,29 @@ static void test_send_flags(void) {
         assert(!strcmp(fixme,cases[i].reason));
     }
 }
+#ifdef ALPC_WORK_ON_BEHALF_TEST
+#define ALPC_MESSAGE_SECURITY_ATTRIBUTE 0x80000000u
+#define ALPC_MESSAGE_VIEW_ATTRIBUTE 0x40000000u
+#define ALPC_MESSAGE_CONTEXT_ATTRIBUTE 0x20000000u
+#define ALPC_MESSAGE_WORK_ON_BEHALF_ATTRIBUTE 0x02000000u
+#include "alpc_send_attrs_under_test.c"
+static void test_send_attrs(void) {
+    /* CoreMessaging +21b6: allocated 0xe2000000, valid CONTEXT|WORK_ON_BEHALF 0x22000000. */
+    static const struct { ULONG allocated,valid; NTSTATUS status; const char *reason; } cases[]={
+        {0xe2000000u,0x22000000u,0,""},{0xe2000000u,0x02000000u,0,""},{0xe2000000u,0x20000000u,0,""},
+        {0xe2000000u,0,0,""},{0x22000000u,0x22000000u,0,""},
+        {0x20000000u,0x22000000u,STATUS_INVALID_PARAMETER,""},
+        {0xe2000000u,0xa2000000u,STATUS_NOT_IMPLEMENTED,"reason=send_attrs value=0x80000000\n"},
+        {0xe2000000u,0x62000000u,STATUS_NOT_IMPLEMENTED,"reason=send_attrs value=0x40000000\n"},
+        {0xf2000000u,0x12000000u,STATUS_NOT_IMPLEMENTED,"reason=send_attrs value=0x10000000\n"},
+    };
+    for(unsigned i=0;i<sizeof(cases)/sizeof(cases[0]);++i) {
+        fixme[0]=0;
+        assert(alpc_send_attrs_status(cases[i].allocated,cases[i].valid)==cases[i].status);
+        assert(!strcmp(fixme,cases[i].reason));
+    }
+}
+#endif
 #endif
 
 static struct reply call(void (*handler)(const struct request *,struct reply *),struct request req) {
@@ -251,6 +274,9 @@ int main(void) {
     reply_capacity=sizeof(reply_data);
 #ifdef ALPC_SYNC_REQUEST_TEST
     test_send_flags();
+#endif
+#ifdef ALPC_WORK_ON_BEHALF_TEST
+    test_send_attrs();
 #endif
     reply=call(alpc_create_port,(struct request){0});conn=reply.handle;assert(!error&&conn);
 #ifdef ALPC_IDENTITY_TEST

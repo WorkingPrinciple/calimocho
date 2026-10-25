@@ -4195,3 +4195,11 @@ unlabeled flag gate. Wine's ALPC reply flag also had the native release
 value. Cell040 uses the native flag values, accepts synchronous requests
 and gives every send gate a FIXME reason (ADR-0073). Not proven: no
 runtime run.
+
+## 2026-10-25: cell040 work-on-behalf attribute, cell041
+
+Cell040 kept the successful connect. The app's first synchronous request
+was then rejected by the send attribute check with
+`reason=send_attrs value=0x2000000` (WORK_ON_BEHALF). Cell041 accepts that
+attribute without carrying a ticket, because Wine has no thread
+work-on-behalf tickets (ADR-0074). Not proven: no runtime run.

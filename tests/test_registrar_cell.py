@@ -100,7 +100,7 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 self.handoff(root, 28)
             with self.assertRaises(ValueError):
-                self.handoff(root, 41)
+                self.handoff(root, 42)
 
     def test_cell029_setup_is_headless_and_session_steps_are_not(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -258,6 +258,16 @@ class RegistrarCellTest(unittest.TestCase):
             self.assertIn("reason=send_flags", cell040["services_diagnostics"]["discriminators"][1])
             self.assertTrue(any("RELEASE_MESSAGE" in item for item in cell040["limitations"]))
             self.assertFalse(any("RELEASE_MESSAGE" in item for item in cell039["limitations"]))
+
+    def test_cell041_records_work_on_behalf_attribute(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, cell040 = self.handoff(self._mk(Path(directory) / "a"), 40)
+            _, cell041 = self.handoff(self._mk(Path(directory) / "b"), 41)
+            self.assertEqual(cell041["services_diagnostics"]["discriminators"][2:],
+                             cell040["services_diagnostics"]["discriminators"])
+            self.assertIn("value=0x2000000", cell041["services_diagnostics"]["discriminators"][0])
+            self.assertTrue(any("0x22000000" in item for item in cell041["limitations"]))
+            self.assertFalse(any("0x22000000" in item for item in cell040["limitations"]))
 
 if __name__ == "__main__":
     unittest.main()
