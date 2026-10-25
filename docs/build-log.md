@@ -4131,3 +4131,21 @@ Cell034 changes (ADR-0067):
   keeps it. Incoming message attributes are accepted.
 
 Not proven: no runtime run, and the registrar has not reached RUNNING.
+
+## 2026-10-25: cell034 descriptor and connect attribute, cell035
+
+Cell034 was the first run where the app stayed alive. It waited on an event
+and showed no window. Two blockers (ADR-0068):
+
+- svchost read the 264-byte descriptor, then returned 0xc0000079. The bytes
+  are valid. Wine 11.20 `RtlValidRelativeSecurityDescriptor` rejects every
+  descriptor (it compares a BOOLEAN with STATUS_SUCCESS). sechost now does
+  its own structural check, tested on the exact .reg bytes.
+- The connect failed with `reason=send_attributes value=0x80000000`.
+  Cell035 admits a security attribute with no flags, QoS or context
+  handle. It uses the connection's captured security context.
+
+The 20/60 s state snapshots were already active in cell034. Window facts
+were empty because no window existed.
+
+Not proven: no runtime run.

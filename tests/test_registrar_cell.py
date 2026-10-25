@@ -100,7 +100,7 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 self.handoff(root, 28)
             with self.assertRaises(ValueError):
-                self.handoff(root, 35)
+                self.handoff(root, 36)
 
     def test_cell029_setup_is_headless_and_session_steps_are_not(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -193,6 +193,19 @@ class RegistrarCellTest(unittest.TestCase):
             self.assertTrue(any("registrar_transient_readback_argv" in item for item in cell034["preconditions"]))
             with self.assertRaisesRegex(ValueError, "sechost"):
                 self.handoff(self._mk(Path(directory) / "c"), 34, sechost=False)
+
+    def test_cell035_records_structural_descriptor_and_connect_security(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, cell034 = self.handoff(self._mk(Path(directory) / "a"), 34)
+            _, cell035 = self.handoff(self._mk(Path(directory) / "b"), 35)
+            self.assertEqual(set(cell035), set(cell034))
+            self.assertEqual(Path(cell035["registrar_registration"]).read_bytes(),
+                             Path(cell034["registrar_registration"]).read_bytes())
+            self.assertEqual(cell035["services_diagnostics"]["discriminators"][1:],
+                             cell034["services_diagnostics"]["discriminators"])
+            self.assertTrue(any("semi-stub" in item for item in cell035["limitations"]))
+            self.assertTrue(any("Flags 0, no QoS and no context handle" in item for item in cell035["limitations"]))
+            self.assertFalse(any("semi-stub" in item for item in cell034["limitations"]))
 
 
 if __name__ == "__main__":

@@ -54,9 +54,10 @@ typedef struct { DWORD dwServiceType, dwCurrentState, rest[7]; } SERVICE_STATUS_
 static int fixmes, heap_live, opens, closes, queries, sleeps, polls;
 static char last_fixme[128], opened[512];
 static NTSTATUS open_status;
-static BYTE value[264];
-static ULONG value_type = REG_BINARY, value_len = sizeof(value);
-static BOOLEAN valid_sd = 1;
+#include "transient_sd_payload.h"
+static const BYTE payload[] = TRANSIENT_SD_BYTES;
+static BYTE value[512];
+static ULONG value_type = REG_BINARY, value_len = sizeof(payload);
 static DWORD tick, last_error, states[8], state_count, cancel_after = ~0u;
 static int query_fails_at = -1;
 
@@ -92,10 +93,6 @@ static NTSTATUS NtQueryValueKey(HANDLE key, UNICODE_STRING *name, int cls, void 
     memcpy(info->Data, value, value_len);
     return 0;
 }
-static BOOLEAN RtlValidRelativeSecurityDescriptor(PSECURITY_DESCRIPTOR sd, ULONG len, SECURITY_INFORMATION si)
-{
-    (void)sd; (void)si; return valid_sd && len == value_len;
-}
 static BOOL QueryServiceStatusEx(SC_HANDLE s, int level, BYTE *buf, DWORD size, DWORD *ret)
 {
     SERVICE_STATUS_PROCESS *status = (SERVICE_STATUS_PROCESS *)buf;
@@ -123,7 +120,9 @@ static int failures;
 static void reset(void)
 {
     fixmes = opens = closes = queries = sleeps = polls = 0;
-    open_status = 0; value_type = REG_BINARY; value_len = sizeof(value); valid_sd = 1;
+    open_status = 0; value_type = REG_BINARY; value_len = sizeof(payload);
+    memset(value, 0, sizeof(value));
+    memcpy(value, payload, sizeof(payload));
     tick = 1000; last_error = 0; state_count = 0; cancel_after = ~0u; query_fails_at = -1;
 }
 
@@ -132,14 +131,13 @@ int main(void)
     PSECURITY_DESCRIPTOR sd;
     unsigned i;
 
-    for (i = 0; i < sizeof(value); i++) value[i] = (BYTE)i;
-
+    /* The exact frozen .reg payload passes the structural check. */
     reset();
     sd = (void *)1;
     CHECK(QueryTransientObjectSecurityDescriptor(8, L"WM_RegistrarServer", &sd) == 0);
     CHECK(!strcmp(opened, "\\Registry\\Machine\\Software\\Microsoft\\SecurityManager\\TransientObjects\\"
                           "%5C%5C.%5CAlpcPort%5CWM_RegistrarServer"));
-    CHECK(sd && !memcmp(sd, value, sizeof(value)));
+    CHECK(sd && !memcmp(sd, payload, sizeof(payload)));
     CHECK(queries == 2 && closes == 1 && heap_live == 1);
     CHECK(FreeTransientObjectSecurityDescriptor(sd) == TRUE && heap_live == 0);
 
@@ -166,12 +164,36 @@ int main(void)
     value_type = 1;
     CHECK(QueryTransientObjectSecurityDescriptor(8, L"WM_RegistrarServer", &sd) == STATUS_INVALID_SECURITY_DESCR);
     CHECK(sd == NULL && heap_live == 0 && closes == 1);
+    {
+        /* Each corruption of the real payload is rejected: revision, self-relative bit, truncation,
+         * DACL offset, ACL revision, ACL size, ACE count, ACE size alignment, SID sub-authority count,
+         * and an owner offset inside the header. */
+        unsigned dacl = payload[16] | payload[17] << 8, first_sid = dacl + 8 + 8;
+        int corruption;
+        for (corruption = 0; corruption < 10; corruption++)
+        {
+            reset();
+            switch (corruption)
+            {
+            case 0: value[0] = 2; break;
+            case 1: value[3] &= 0x7f; break;
+            case 2: value_len = sizeof(payload) - 1; break;
+            case 3: value[16] = (BYTE)(sizeof(payload) - 4); value[17] = 0; break;
+            case 4: value[dacl] = 1; break;
+            case 5: value[dacl + 2]++; break;
+            case 6: value[dacl + 4]++; break;
+            case 7: value[dacl + 8 + 2]++; break;
+            case 8: value[first_sid + 1] = 16; break;
+            case 9: value[4] = 4; break;
+            }
+            CHECK(QueryTransientObjectSecurityDescriptor(8, L"WM_RegistrarServer", &sd) == STATUS_INVALID_SECURITY_DESCR);
+            CHECK(sd == NULL && heap_live == 0);
+        }
+    }
     reset();
-    valid_sd = 0;
-    CHECK(QueryTransientObjectSecurityDescriptor(8, L"WM_RegistrarServer", &sd) == STATUS_INVALID_SECURITY_DESCR);
-    CHECK(sd == NULL && heap_live == 0);
-    reset();
-    value_len = 16;
+    /* A minimal self-relative descriptor with no owner, group or ACLs fits the first buffer. */
+    memset(value, 0, sizeof(value));
+    value[0] = 1; value[3] = 0x80; value_len = 20;
     CHECK(QueryTransientObjectSecurityDescriptor(8, L"WM_RegistrarServer", &sd) == 0 && queries == 1);
     CHECK(FreeTransientObjectSecurityDescriptor(sd) && heap_live == 0);
 

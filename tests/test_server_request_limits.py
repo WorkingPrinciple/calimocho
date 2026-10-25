@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 import shutil
 import tempfile
@@ -55,7 +56,8 @@ class ConnectAttrsTests(unittest.TestCase):
                              ex[:ex.index("NTSTATUS WINAPI NtAlpcAcceptConnectPort(")])
             self.assertNotIn("pa->SecurityQos.EffectiveOnly)) return STATUS_NOT_IMPLEMENTED;", client)
             for reason in ("client_attr_root", "client_attr_name", "client_attr_attributes", "client_attr_qos",
-                           "send_attributes", "connect_flags", "max_message_length", "connect_qos"):
+                           "send_attributes", "send_security_flags", "send_security_qos",
+                           "send_security_context", "connect_flags", "max_message_length", "connect_qos"):
                 self.assertIn('FIXME( "reason=%s' % reason, client)
             self.assertNotIn("connection message attributes are not implemented", client)
             self.assertIn("if (!status && in_attrs) in_attrs->ValidAttributes = 0;", ex)
@@ -70,6 +72,71 @@ class ConnectAttrsTests(unittest.TestCase):
             self.assertIn("if (!privilege->enabled) disabled[count++].luid", token)
             with self.assertRaisesRegex(ValueError, "without connect attributes"):
                 connect_attrs(source)
+
+
+SEND_ATTR_HARNESS = r"""
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+typedef unsigned int ULONG;
+typedef void *HANDLE;
+typedef struct { ULONG Length; } SECURITY_QUALITY_OF_SERVICE;
+typedef struct { ULONG AllocatedAttributes; ULONG ValidAttributes; } ALPC_MESSAGE_ATTRIBUTES;
+typedef struct { ULONG Flags; SECURITY_QUALITY_OF_SERVICE *QoS; HANDLE ContextHandle; } ALPC_SECURITY_ATTR;
+#define ALPC_MESSAGE_SECURITY_ATTRIBUTE 0x80000000u
+#define ALPC_MESSAGE_ATTRIBUTE_ALL 0xfe000000u
+#define STATUS_INVALID_PARAMETER 0xc000000du
+#define STATUS_NOT_IMPLEMENTED 0xc0000002u
+static char reason[64];
+#define FIXME(...) snprintf( reason, sizeof(reason), __VA_ARGS__ )
+#define TRACE(...) do {} while (0)
+static unsigned int check( ALPC_MESSAGE_ATTRIBUTES *out_attrs )
+{
+    void *client_packed = malloc( 1 );
+    reason[0] = 0;
+SNIPPET
+    free( client_packed );
+    return 0;
+}
+int main( void )
+{
+    struct { ALPC_MESSAGE_ATTRIBUTES h; ALPC_SECURITY_ATTR s; } a;
+    SECURITY_QUALITY_OF_SERVICE qos;
+#define EXPECT(cond) do { if (!(cond)) { printf( "fail line %d reason %s\n", __LINE__, reason ); return 1; } } while (0)
+    memset( &a, 0, sizeof(a) );
+    EXPECT( check( NULL ) == 0 );
+    EXPECT( check( &a.h ) == 0 );
+    a.h.AllocatedAttributes = 0xe2000000u; a.h.ValidAttributes = 0x80000000u;
+    EXPECT( check( &a.h ) == 0 && !reason[0] );
+    a.s.Flags = 0x10000;
+    EXPECT( check( &a.h ) == STATUS_NOT_IMPLEMENTED && !strcmp( reason, "reason=send_security_flags value=0x10000\n" ) );
+    a.s.Flags = 0; a.s.QoS = &qos;
+    EXPECT( check( &a.h ) == STATUS_NOT_IMPLEMENTED && !strcmp( reason, "reason=send_security_qos\n" ) );
+    a.s.QoS = NULL; a.s.ContextHandle = (HANDLE)4;
+    EXPECT( check( &a.h ) == STATUS_NOT_IMPLEMENTED && !strcmp( reason, "reason=send_security_context\n" ) );
+    a.s.ContextHandle = NULL; a.h.ValidAttributes = 0xa0000000u;
+    EXPECT( check( &a.h ) == STATUS_NOT_IMPLEMENTED && !strcmp( reason, "reason=send_attributes value=0xa0000000\n" ) );
+    a.h.AllocatedAttributes = 0x80000000u; a.h.ValidAttributes = 0xa0000000u;
+    EXPECT( check( &a.h ) == STATUS_INVALID_PARAMETER );
+    a.h.AllocatedAttributes = 0x80000001u; a.h.ValidAttributes = 0;
+    EXPECT( check( &a.h ) == STATUS_INVALID_PARAMETER );
+    printf( "ok\n" );
+    return 0;
+}
+"""
+
+
+class SendAttributeCheckTests(unittest.TestCase):
+    def test_compiled_connect_send_attribute_check(self):
+        from tools.port_alpc_connect_attrs import CLIENT_ATTR_CHECK
+        snippet = CLIENT_ATTR_CHECK[CLIENT_ATTR_CHECK.index("    if (out_attrs && ((out_attrs->ValidAttributes"):]
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "send_attrs.c"
+            source.write_text(SEND_ATTR_HARNESS.replace("SNIPPET", snippet))
+            binary = Path(directory) / "send_attrs"
+            subprocess.run(["clang", "-std=c99", "-Wall", "-Werror", "-fsanitize=address,undefined",
+                            "-o", str(binary), str(source)], check=True)
+            self.assertEqual(subprocess.run([str(binary)], capture_output=True, text=True, check=True).stdout, "ok\n")
 
 
 @unittest.skipUnless((CELL032 / "install/lib/wine/x86_64-windows/ntdll.dll").is_file(), "cell032 install absent")

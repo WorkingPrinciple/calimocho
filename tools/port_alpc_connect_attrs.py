@@ -3,9 +3,10 @@
 The client port object attributes are accepted only as an unnamed, unrooted
 object whose optional security descriptor is applied at creation. Any other
 client attribute field still returns STATUS_NOT_IMPLEMENTED with a FIXME.
-Connection message attributes are not transported: a send buffer with valid
-attributes is refused, and a receive buffer comes back with no valid
-attributes. Every NOT_IMPLEMENTED path in the connect logs a fixed
+A send buffer may carry only a default security attribute (no flags, no
+QoS, no context handle), which selects the connection's own captured
+security context. Any other send attribute is refused, and a receive buffer
+comes back with no valid attributes. Every NOT_IMPLEMENTED path in the connect logs a fixed
 "reason=<token>" FIXME with at most one numeric value, so a redacted
 collector can still name the rejected check.
 Static EffectiveOnly captures a client token without disabled privileges and
@@ -91,13 +92,45 @@ CLIENT_ATTR_CHECK = """    if (client_attr)
     if (out_attrs) TRACE( "send attributes allocated %#x valid %#x\\n",
                           (unsigned)out_attrs->AllocatedAttributes, (unsigned)out_attrs->ValidAttributes );
     if (in_attrs) TRACE( "receive attributes allocated %#x\\n", (unsigned)in_attrs->AllocatedAttributes );
-    /* No connection message attribute is transported yet: sending one is refused, and a receive
+    if (out_attrs && ((out_attrs->ValidAttributes & ~out_attrs->AllocatedAttributes) ||
+                      (out_attrs->AllocatedAttributes & ~ALPC_MESSAGE_ATTRIBUTE_ALL)))
+    {
+        free( client_packed );
+        return STATUS_INVALID_PARAMETER;
+    }
+    /* Only a default security attribute is admitted on the connection message: no flags, no QoS
+     * and no security context handle select the connection's own security context, which the
+     * server already captures at connect. Every other send attribute is refused, and a receive
      * buffer is returned with no valid attributes, which is what an attribute-free reply carries. */
-    if (out_attrs && out_attrs->ValidAttributes)
+    if (out_attrs && (out_attrs->ValidAttributes & ~ALPC_MESSAGE_SECURITY_ATTRIBUTE))
     {
         FIXME( "reason=send_attributes value=%#x\\n", (unsigned)out_attrs->ValidAttributes );
         free( client_packed );
         return STATUS_NOT_IMPLEMENTED;
+    }
+    if (out_attrs && (out_attrs->ValidAttributes & ALPC_MESSAGE_SECURITY_ATTRIBUTE))
+    {
+        /* the security attribute has the highest bit, so it is always first after the header */
+        const ALPC_SECURITY_ATTR *security = (const ALPC_SECURITY_ATTR *)(out_attrs + 1);
+        if (security->Flags)
+        {
+            FIXME( "reason=send_security_flags value=%#x\\n", (unsigned)security->Flags );
+            free( client_packed );
+            return STATUS_NOT_IMPLEMENTED;
+        }
+        if (security->QoS)
+        {
+            FIXME( "reason=send_security_qos\\n" );
+            free( client_packed );
+            return STATUS_NOT_IMPLEMENTED;
+        }
+        if (security->ContextHandle)
+        {
+            FIXME( "reason=send_security_context\\n" );
+            free( client_packed );
+            return STATUS_NOT_IMPLEMENTED;
+        }
+        TRACE( "default security attribute: connection security context\\n" );
     }
 """
 
@@ -244,7 +277,7 @@ def port(source):
         (source / path).write_text(text)
     return {"files": {p: sha256(source / p) for p in PATHS},
             "client_attr": "unnamed unrooted client port; optional SD without SACL; other fields NOT_IMPLEMENTED",
-            "message_attributes": "send attributes with ValidAttributes NOT_IMPLEMENTED; receive buffer returns ValidAttributes 0",
+            "message_attributes": "send: default security attribute only (flags 0, no QoS, no context handle), others NOT_IMPLEMENTED; receive buffer returns ValidAttributes 0",
             "fixme_reasons": "each NOT_IMPLEMENTED path logs reason=<token> and at most one numeric value",
             "effective_only": "static capture drops disabled privileges and disabled optional groups",
             "identification_impersonation": "still STATUS_BAD_IMPERSONATION_LEVEL"}

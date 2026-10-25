@@ -1,4 +1,4 @@
-"""Cell027-034 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
+"""Cell027-035 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
 import importlib
 import json
 from pathlib import Path
@@ -40,7 +40,8 @@ DOCS = tuple("docs/ADR/%s.md" % name for name in (
     "0064-authenticate-delivered-alpc-connection-impersonation",
     "0065-construct-a-scoped-registrar-service-token",
     "0066-host-coremessaging-thread-dispatch",
-    "0067-read-transient-alpc-port-security-descriptor"))
+    "0067-read-transient-alpc-port-security-descriptor",
+    "0068-validate-transient-descriptor-and-admit-default-connect-security"))
 TESTS = ("tests/test_alpc_transport.py", "tests/alpc_transport_host.c", "tests/test_restricted_token.py",
          "tests/restricted_token_host.c", "tests/test_alpc_identity.py", "tests/test_token_identity.py",
          "tests/token_identity_host.c", "tests/test_token_security.py", "tests/token_security_host.c",
@@ -110,8 +111,8 @@ def registration_text(transient=False):
 
 
 def add_registrar_handoff(root, receipt, cell=27):
-    if cell not in (27, 28, 29, 30, 31, 32, 33, 34):
-        raise ValueError("Registrar handoff supports cells027-034")
+    if cell not in (27, 28, 29, 30, 31, 32, 33, 34, 35):
+        raise ValueError("Registrar handoff supports cells027-035")
     label = "%03d" % cell
     root = Path(root)
     registration = root / ("registrar-CELL%s-FROZEN.reg" % label)
@@ -224,6 +225,17 @@ def add_registrar_handoff(root, receipt, cell=27):
             "The WM_RegistrarServer descriptor value is re-authored from an earlier lane's provisioned prefix; its native origin and parity with Windows 26300 are unmeasured",
             "WaitServiceState follows the documented contract with 50 ms QueryServiceStatusEx polling, not service status notifications",
             "NtAlpcConnectPortEx now accepts a receive message attribute buffer (returned with no valid attributes) and refuses send attributes; every remaining NOT_IMPLEMENTED connect path logs a fixed reason token that the collector keeps",
+        ]
+    if cell >= 35:
+        receipt["services_diagnostics"]["discriminators"] = [
+            "'transient sd status 0 size 264' (svchost, +service): the structural descriptor check accepted the registered value; 0xc0000079 now means the bytes themselves are malformed",
+        ] + receipt["services_diagnostics"]["discriminators"]
+        receipt["limitations"] += [
+            "Cell034 diagnosis: the 264-byte descriptor is well formed; Wine 11.20 RtlValidRelativeSecurityDescriptor is a semi-stub that compares the BOOLEAN from RtlValidSecurityDescriptor with STATUS_SUCCESS and rejects every valid descriptor, so svchost got 0xc0000079",
+            "Cell035 sechost validates the self-relative descriptor structurally (revision, SE_SELF_RELATIVE, owner/group SIDs, SACL/DACL revision, size, ACE count, ACE size alignment and ACE SIDs); the exact frozen .reg bytes and ten corruptions run through that code in a host test",
+            "Cell034 app diagnosis: NtAlpcConnectPortEx reason=send_attributes value=0x80000000, the security attribute only",
+            "Cell035 admits a connect send security attribute only with Flags 0, no QoS and no context handle, which selects the connection security context already captured at connect; other flags, a QoS, a context handle or any other valid send attribute still fail with reason=send_security_flags|send_security_qos|send_security_context|send_attributes",
+            "Valid send attributes outside the allocated set, or allocated bits outside ALPC_MESSAGE_ATTRIBUTE_ALL, return STATUS_INVALID_PARAMETER",
         ]
 
 

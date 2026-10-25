@@ -5,6 +5,7 @@ import tempfile
 import unittest
 
 from tools.build_launcher_overlay import REPO
+from tools.freeze_registrar_cell import TRANSIENT_SD, registration_text
 from tools.port_sechost_services import PATHS, port
 
 BASELINE = REPO / "build/winehq-11.20/package-cell033-01/source"
@@ -32,6 +33,13 @@ class SechostServicesTests(unittest.TestCase):
             self.assertIn('#include "ntstatus.h"\n#define WIN32_NO_STATUS\n#include "windef.h"', service)
             self.assertTrue(service.endswith('#include "transient_wait.c"\n'))
             shutil.copy2(source / PATHS[2], root / "transient_wait_under_test.c")
+            # The harness validates the exact bytes that the frozen registrar .reg writes.
+            line = next(item for item in registration_text(transient=True).splitlines()
+                        if item.startswith('"SecurityDescriptor"=hex:'))
+            payload = bytes(int(v, 16) for v in line.split(":", 1)[1].split(","))
+            self.assertEqual(payload, TRANSIENT_SD)
+            (root / "transient_sd_payload.h").write_text(
+                "#define TRANSIENT_SD_BYTES { %s }\n" % ", ".join("0x%02x" % b for b in payload))
             executable = root / "sechost-test"
             compiled = subprocess.run([
                 "/usr/bin/clang", "-std=c11", "-fshort-wchar", "-Wall", "-Wextra", "-Werror",

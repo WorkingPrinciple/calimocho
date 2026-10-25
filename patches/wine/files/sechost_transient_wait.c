@@ -20,6 +20,57 @@
 static const WCHAR transient_prefix[] =
     L"\\Registry\\Machine\\Software\\Microsoft\\SecurityManager\\TransientObjects\\%5C%5C.%5C";
 
+/* Structural check of a self-relative descriptor read from the registry. Wine 11.20's
+ * RtlValidRelativeSecurityDescriptor is a semi-stub that compares the BOOLEAN result of
+ * RtlValidSecurityDescriptor with STATUS_SUCCESS, so it rejects every valid descriptor. */
+static BOOL transient_sid_valid( const BYTE *sd, ULONG offset, ULONG limit )
+{
+    if (offset < 20 || offset > limit || limit - offset < 8) return FALSE;
+    if (sd[offset] != 1 || sd[offset + 1] > 15) return FALSE;
+    return limit - offset >= 8 + 4 * (ULONG)sd[offset + 1];
+}
+
+static BOOL transient_acl_valid( const BYTE *sd, ULONG len, ULONG offset )
+{
+    ULONG size, count, pos = 8, i;
+
+    if (offset < 20 || offset > len || len - offset < 8) return FALSE;
+    if (sd[offset] < 2 || sd[offset] > 4) return FALSE; /* ACL_REVISION to ACL_REVISION4 */
+    size = sd[offset + 2] | (ULONG)sd[offset + 3] << 8;
+    count = sd[offset + 4] | (ULONG)sd[offset + 5] << 8;
+    if (size < 8 || size > len - offset) return FALSE;
+    for (i = 0; i < count; i++)
+    {
+        ULONG ace = offset + pos, type, ace_size;
+        if (size - pos < 4) return FALSE;
+        type = sd[ace];
+        ace_size = sd[ace + 2] | (ULONG)sd[ace + 3] << 8;
+        if (ace_size < 4 || ace_size > size - pos || (ace_size & 3)) return FALSE;
+        /* access allowed, access denied, system audit and system alarm ACEs carry a SID at +8 */
+        if (type <= 3 && !transient_sid_valid( sd, ace + 8, ace + ace_size )) return FALSE;
+        pos += ace_size;
+    }
+    return TRUE;
+}
+
+static BOOL transient_sd_valid( const BYTE *sd, ULONG len )
+{
+    ULONG control, owner, group, sacl, dacl;
+
+    if (len < 20 || sd[0] != 1) return FALSE;
+    control = sd[2] | (ULONG)sd[3] << 8;
+    if (!(control & 0x8000)) return FALSE; /* SE_SELF_RELATIVE */
+    owner = sd[4] | sd[5] << 8 | sd[6] << 16 | (ULONG)sd[7] << 24;
+    group = sd[8] | sd[9] << 8 | sd[10] << 16 | (ULONG)sd[11] << 24;
+    sacl = sd[12] | sd[13] << 8 | sd[14] << 16 | (ULONG)sd[15] << 24;
+    dacl = sd[16] | sd[17] << 8 | sd[18] << 16 | (ULONG)sd[19] << 24;
+    if (owner && !transient_sid_valid( sd, owner, len )) return FALSE;
+    if (group && !transient_sid_valid( sd, group, len )) return FALSE;
+    if ((control & 0x10) && sacl && !transient_acl_valid( sd, len, sacl )) return FALSE; /* SE_SACL_PRESENT */
+    if ((control & 0x4) && dacl && !transient_acl_valid( sd, len, dacl )) return FALSE;  /* SE_DACL_PRESENT */
+    return TRUE;
+}
+
 /* Returns the key path length in characters, or 0 when the type or name is not admitted. */
 static SIZE_T transient_key_path( DWORD type, const WCHAR *name, WCHAR *buffer, SIZE_T count )
 {
@@ -91,7 +142,7 @@ NTSTATUS WINAPI QueryTransientObjectSecurityDescriptor( DWORD type, const WCHAR 
     }
     NtClose( key );
     if (!status && (info->Type != REG_BINARY ||
-                    !RtlValidRelativeSecurityDescriptor( info->Data, info->DataLength, 0 )))
+                    !transient_sd_valid( info->Data, info->DataLength )))
         status = STATUS_INVALID_SECURITY_DESCR;
     if (!status)
     {
