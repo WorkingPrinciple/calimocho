@@ -36,6 +36,8 @@ def freeze(root, producer, *, cell=12, predecessor=PREVIOUS,
         raise ValueError("Require an unfrozen owned012 sibling")
     build_path = root / "build-receipt.json"
     build = json.loads(build_path.read_text())
+    if build.get("runtime_admission_blocked") or "appcontainer_object_path" in build:
+        raise ValueError("XB-58 research has no admitted current-native AppContainer contract")
     if "alpc_transport" in build and (cell not in (27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43) or any(key not in build for key in REGISTRAR_STACK)):
         raise ValueError("Transport-only ALPC builds are not registrar-qualified or runtime-admissible")
     producer = subprocess.check_output(

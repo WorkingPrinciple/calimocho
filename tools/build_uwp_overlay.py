@@ -14,7 +14,7 @@ from tools.probe_wine_source import run_step, sha256
 BASE = REPO / "build/winehq-11.20/package-launcher-01"
 
 
-def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False, handle_provenance=False, exception_diagnostics=False, failfast_diagnostics=False, status_diagnostics=False, claims_site_b=False, claims_thread_token=False, claims_packaged_thread=False, onecore_transform=False, coremessaging_prerequisites=False, alpc_transport=False, restricted_token=False, alpc_identity=False, token_identity=False, token_security=False, alpc_impersonation=False, registrar_service=False, coremsg_dispatch=False):
+def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False, handle_provenance=False, exception_diagnostics=False, failfast_diagnostics=False, status_diagnostics=False, claims_site_b=False, claims_thread_token=False, claims_packaged_thread=False, onecore_transform=False, coremessaging_prerequisites=False, alpc_transport=False, restricted_token=False, alpc_identity=False, token_identity=False, token_security=False, alpc_impersonation=False, registrar_service=False, coremsg_dispatch=False, appcontainer_object_path=False):
     root = Path(root).resolve()
     if not root.is_relative_to(REPO / "build") or root == BASE:
         raise ValueError("Require a new owned009 sibling")
@@ -56,6 +56,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         raise ValueError("Registrar service requires the fresh ALPC impersonation candidate")
     if coremsg_dispatch and not (registrar_service and onecore_transform):
         raise ValueError("CoreMessaging dispatch requires the fresh registrar and OneCore candidate")
+    if appcontainer_object_path and (not coremsg_dispatch or resume):
+        raise ValueError("Named-object-path research requires a fresh CoreMessaging dispatch sibling")
     frozen = BASE / "cell008-receipt.json"
     if sha256(frozen) != "ac5b627263c409b804e3f812160c6dd0ba8d39cec52910255725939de12915bc":
         raise ValueError("Frozen008 receipt changed")
@@ -207,6 +209,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         dispatch_port = dispatch_source(root / "source")
         from tools.port_theme_color_preference import port as theme_source
         theme_port = theme_source(root / "source")
+    object_path_port = None
+    if appcontainer_object_path:
+        from tools.port_appcontainer_object_path import port as object_path_source
+        object_path_port = object_path_source(root / "source")
     from tools.port_server_request_limits import port as request_limits_source
     request_limits_port = request_limits_source(root / "source")
     telemetry_port = None
@@ -303,6 +309,11 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if dispatch_port is not None:
         receipt["coremsg_dispatch"] = dispatch_port
         receipt["theme_color_preference"] = theme_port
+    if object_path_port is not None:
+        receipt["appcontainer_object_path"] = object_path_port
+        receipt["runtime_admission_blocked"] = (
+            "XB-58: current-native non-AppContainer absolute-path output remains unresolved; "
+            "this research build is not a frozen runtime candidate")
     receipt["server_request_limits"] = request_limits_port
     if telemetry_port is not None:
         receipt["alpc_telemetry"] = telemetry_port
@@ -499,6 +510,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         from tools.port_theme_color_preference import SOURCES as THEME_SOURCES
         for relative in SOURCES + THEME_SOURCES:
             receipt["source_inputs"][relative] = sha256(REPO / relative)
+    if appcontainer_object_path:
+        from tools.port_appcontainer_object_path import SOURCES
+        for relative in SOURCES:
+            receipt["source_inputs"][relative] = sha256(REPO / relative)
     from tools.port_server_request_limits import SOURCES
     for relative in SOURCES:
         receipt["source_inputs"][relative] = sha256(REPO / relative)
@@ -569,5 +584,7 @@ if __name__ == "__main__":
     parser.add_argument("--alpc-impersonation", action="store_true")
     parser.add_argument("--registrar-service", action="store_true")
     parser.add_argument("--coremsg-dispatch", action="store_true")
+    parser.add_argument("--appcontainer-object-path", action="store_true",
+                        help="XB-58 research only; native non-AppContainer contract remains unresolved")
     args = parser.parse_args()
-    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics, args.handle_provenance, args.exception_diagnostics, args.failfast_diagnostics, args.status_diagnostics, args.claims_site_b, args.claims_thread_token, args.claims_packaged_thread, args.onecore_transform, args.coremessaging_prerequisites, args.alpc_transport, args.restricted_token, args.alpc_identity, args.token_identity, args.token_security, args.alpc_impersonation, args.registrar_service, args.coremsg_dispatch))
+    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics, args.handle_provenance, args.exception_diagnostics, args.failfast_diagnostics, args.status_diagnostics, args.claims_site_b, args.claims_thread_token, args.claims_packaged_thread, args.onecore_transform, args.coremessaging_prerequisites, args.alpc_transport, args.restricted_token, args.alpc_identity, args.token_identity, args.token_security, args.alpc_impersonation, args.registrar_service, args.coremsg_dispatch, args.appcontainer_object_path))

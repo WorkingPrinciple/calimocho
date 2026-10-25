@@ -4234,3 +4234,40 @@ The build/stager explicitly replaces uxtheme and the frozen handoff
 binds its source, specification, installed PE and direct named exports.
 Host tests cover the ABI, roles, flags, refresh and failures. Native
 output/failure parity, cell043 activation and visible UI are not proven.
+
+## 2026-10-25: cell043 AppContainer path gap, XB-58 source research
+
+The coordinator's revised, sealed cell043 analysis identifies the actual
+RtlGetAppContainerNamedObjectPath STATUS_NOT_IMPLEMENTED return at
+CoreMessaging+0x6f632, followed by fail-fast at +0x6f6a4 carrying
+0xD0000002. This supersedes the initial unattributed-exit interpretation.
+The collector's module-load allowlist excludes uxtheme, so the missing
+theme-load event is not evidence of another loader failure.
+
+XB-58 adds a narrow, opt-in source implementation (ADR-0077). It selects
+the effective token, uses an actual AppContainer SID when available,
+constructs supported parent-SID session paths and owns its returned
+UNICODE_STRING allocation. No package identity is converted into a
+fabricated lowbox SID. Unsupported child/private namespaces and query
+failures remain explicit.
+
+The observed non-AppContainer call remains STATUS_NOT_SUPPORTED because
+its current native output contract is unresolved. A legacy kernel
+listing is not current AMD64 ntdll proof. The Microsoft and PHNT
+references establish token selection and ownership, not that branch.
+Wine also cannot currently answer the private-namespace query needed
+for a supported absolute AppContainer path.
+
+The isolated `build/winehq-11.20/package-xb58-source-01` research sibling
+built and staged without executing Wine. Syscall/export closure passed.
+The full host suite passed 306 tests, including the sanitizer harness
+for the observed ABI, supplied/token SID paths, lifetime, allocation
+failures, denied queries and unsupported cases. Successful token/path
+fixtures are not Wine server lowbox support or native differential
+measurements. The build receipt records the runtime-admission blocker,
+and freezing refuses this research mode even without that label.
+
+XB-58 remains partial and blocked on authoritative current-native
+non-AppContainer behavior. No cell044 receipt or runtime run is produced.
+Cell043, existing prefixes and the separately pinned FH6 lane are
+unchanged.
