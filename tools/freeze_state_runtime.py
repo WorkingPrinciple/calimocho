@@ -484,7 +484,7 @@ def prepare(root, producer, cell=13):
         ]
     if requested_cell in (26, 27):
         receipt.update(cell026)
-        receipt["runtime_execution_hold"] = "Execution owner must independently reconcile retained owner decision for once-only026; source lane does not grant runtime authority"
+        receipt["runtime_execution_hold"] = "Execution owner must independently reconcile retained owner decision for once-only%03d; source lane does not grant runtime authority" % requested_cell
         receipt["preconditions"][0] = receipt["runtime_execution_hold"]
         receipt["limitations"] += [
             "Combase86-88 are explicit unsupported ordinal exports, not inferred native names or dispatcher implementations",
