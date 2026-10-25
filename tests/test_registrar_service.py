@@ -35,6 +35,15 @@ class RegistrarServiceTests(unittest.TestCase):
             self.assertEqual(executed.returncode, 0, executed.stdout + executed.stderr)
             services = (source / "programs/services/services.c").read_text()
             self.assertIn("CreateProcessAsUserW( registrar_token", services)
+            # Cell028 diagnostics: entry and exit traces must bracket the registrar process creation call.
+            entry = services.index('WINE_TRACE("registrar process create %s')
+            call = services.index("CreateProcessAsUserW( registrar_token")
+            exit_trace = services.index('WINE_TRACE("registrar process create returned')
+            self.assertLess(entry, call)
+            self.assertLess(call, exit_trace)
+            for line in ('WINE_TRACE("registrar process create %s\\n", debugstr_w(path));',
+                         'WINE_TRACE("registrar process create returned %d, pid %04lx, error %lu\\n", '):
+                self.assertIn(line, services)
             self.assertIn("create_registrar_token( service_entry", services)
             with self.assertRaisesRegex(ValueError, "fresh"):
                 port(source)

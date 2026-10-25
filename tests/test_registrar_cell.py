@@ -4,7 +4,8 @@ import unittest
 from pathlib import Path
 
 from tools.build_uwp_overlay import REPO
-from tools.freeze_registrar_cell import IMAGE_PATH, registrar_sources, registrar_stack_build, registration_text
+from tools.freeze_registrar_cell import (IMAGE_PATH, SERVICES_WINEDEBUG, add_registrar_handoff, registrar_sources,
+                                         registrar_stack_build, registration_text)
 from tools.freeze_static_lifetime_runtime import REGISTRAR_STACK
 
 
@@ -48,6 +49,46 @@ class RegistrarCellTest(unittest.TestCase):
                 "status": "passed", "rebuilt_modules": ["server", "services"]}}))
             with self.assertRaisesRegex(ValueError, "server request numbering"):
                 registrar_stack_build(root, build)
+
+    def handoff(self, root, cell):
+        wine = ["/usr/bin/arch", "-x86_64", "/x/install/bin/wine"]
+        receipt = {"launcher_registration_argv": wine + ["regedit"], "generated_source_sha256": {},
+                   "changed_modules": [], "preconditions": [], "limitations": [],
+                   "launcher_argv": wine + ["start"]}
+        receipt.update({key: {"files": {}} for key in REGISTRAR_STACK})
+        add_registrar_handoff(root, receipt, cell)
+        return wine, receipt
+
+    def test_cell027_handoff_is_unchanged(self):
+        with tempfile.TemporaryDirectory() as directory:
+            wine, receipt = self.handoff(Path(directory), 27)
+            self.assertEqual(receipt["services_start_argv"], wine + ["wineboot", "--kill"])
+            self.assertNotIn("services_diagnostics", receipt)
+            self.assertTrue((Path(directory) / "registrar-CELL027-FROZEN.reg").is_file())
+
+    def test_cell028_scopes_winedebug_to_services_start(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            wine, receipt = self.handoff(root, 28)
+            self.assertEqual(receipt["services_start_argv"], wine[:2] + ["-e", "WINEDEBUG=" + SERVICES_WINEDEBUG]
+                             + wine[2:] + ["wineboot", "--kill"])
+            # Every later step keeps the run environment: no WINEDEBUG override.
+            for key in ("registrar_registration_argv", "registrar_start_argv", "registrar_query_argv", "launcher_argv"):
+                self.assertNotIn("-e", receipt[key][:3], key)
+            channels = SERVICES_WINEDEBUG.split(",")
+            self.assertEqual(channels[0], "-all")
+            self.assertIn("+pid", channels)
+            self.assertIn("services.exe:+service", channels)
+            self.assertIn("svchost.exe:+svchost", channels)
+            self.assertTrue(all(":" in item for item in channels[3:]), "process-scoped channels only")
+            self.assertTrue(any("regular evidence file" in item for item in receipt["preconditions"]))
+            self.assertTrue(any("fresh028 prefix" in item for item in receipt["preconditions"]))
+            self.assertTrue(receipt["scope"].startswith("cell028 "))
+            self.assertTrue((root / "registrar-CELL028-FROZEN.reg").is_file())
+            with self.assertRaises(FileExistsError):
+                self.handoff(root, 28)
+            with self.assertRaises(ValueError):
+                self.handoff(root, 29)
 
 
 if __name__ == "__main__":

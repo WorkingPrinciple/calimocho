@@ -51,9 +51,12 @@ def port(source):
         "    r = CreateProcessW(NULL, path, NULL, NULL, FALSE, CREATE_UNICODE_ENVIRONMENT | DETACHED_PROCESS, environment, NULL, &si, &pi);",
         """    if (registrar_token)
     {
+        /* Entry/exit traces separate a hang inside process creation from a later startup hang. */
+        WINE_TRACE("registrar process create %s\\n", debugstr_w(path));
         r = CreateProcessAsUserW( registrar_token, NULL, path, NULL, NULL, FALSE,
                                   CREATE_UNICODE_ENVIRONMENT | DETACHED_PROCESS, environment, NULL, &si, &pi );
         err = r ? ERROR_SUCCESS : GetLastError();
+        WINE_TRACE("registrar process create returned %d, pid %04lx, error %lu\\n", r, r ? pi.dwProcessId : 0, err);
         CloseHandle( registrar_token );
         SetLastError( err );
     }

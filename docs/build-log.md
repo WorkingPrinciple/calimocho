@@ -3945,3 +3945,42 @@ eight unidentified S-1-5-32 groups are not reproduced, the measured token
 came from build 26300 with CoreMessaging e770ec95 rather than 88c7b4d6,
 svchost `-p` is ignored, and dispatch op2 and wait-all are unsupported.
 Nothing was launched. This is a source and build candidate only.
+
+## 2026-10-25: cell027 registrar start hang, cell028 diagnostics
+
+The coordinator ran cell027 once. The registration import and readback
+matched. `wineboot --kill` exited 0, but its log ends with
+`wine client error:60: read: Bad file descriptor`. `sc start
+CoreMessagingRegistrar` did not return within 45 seconds and was stopped.
+Activation did not run. The run used `WINEDEBUG=-all`, so services.exe
+and svchost.exe printed nothing.
+
+Static reading of the Wine 11.20 source narrows the cause:
+
+- Wine's SCM only stores `DependOnService`; it never starts a dependency.
+  RpcSs is not the wait.
+- The SCM's own waits are bounded (10 second pipe timeout, 3 second
+  start lock), so services.exe alone cannot wait more than 45 seconds.
+- `CreateProcessAsUserW` ends in `NtCreateUserProcess`, which waits with
+  no timeout until the child finishes initialising. If svchost.exe
+  stalls early under the restricted token, the SCM RPC thread blocks and
+  `sc start` never returns. This is the leading hypothesis.
+- If a services.exe RPC thread hit the `Bad file descriptor` server read
+  error, only that thread dies and `sc start` also waits forever. That
+  message is often a harmless exit race on macOS, and the process that
+  printed it is unknown.
+
+Cell028 changes diagnostics only. The token and start path are unchanged.
+The services start step sets a WINEDEBUG scoped by process name to
+services.exe and svchost.exe (`+service`, `+svchost`, `+loaddll`, `+seh`,
+`+alpc`, `+process`, errors and fixmes, with `+pid` and `+timestamp`).
+Both processes inherit it through exec and write into that step's log.
+Every later step keeps the run's WINEDEBUG. Two new services traces
+bracket the registrar `CreateProcessAsUserW` call, so the log shows
+whether the wait is inside process creation or later in svchost.
+
+The handoff now requires that log to be a regular file kept after a start
+timeout, because services.exe outlives wineboot.
+
+Separate observation, not fixed here: the FreeType load warnings suggest
+SIP-protected `/usr/bin/arch` strips `DYLD_FALLBACK_LIBRARY_PATH`.
