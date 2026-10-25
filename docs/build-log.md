@@ -3061,3 +3061,39 @@ identities, per-prefix registry file,180-second cap and sealed016 predecessor.
 All214 deterministic host tests pass. The frozen017 receipt and exact
 registry import/readback requirement were sent to0ab, copying the coordinator.
 Actual017 remains unobserved at this source handoff.
+
+### Actual017: native XAML read access violation and real target exit
+
+The once-only runtime observation retained actual unhandled-filter entry
+for AppL256/TID260: code `0xc0000005`, flags0, at original
+`Windows.UI.Xaml.dll+57765e`. Parameter0 was scalar0 (read). Parameter1
+was address unknown-redacted/offset0, which is not proof of a null address.
+No C++ exception or WinRT error-origin HRESULT was observed.
+
+The exact-image/token process handle then observed exit3221225477
+(`0xc0000005`). Collection ended after4.221seconds, not a180-second timeout.
+The2-second post-target-exit drain cutoff is explicitly truncated with
+collector exit2. Fifteen admitted relay calls were retained at the
+exception. The last calls include native XAML's factory request and
+free-threaded marshaler call, then twinapi's CoTaskMemAlloc.
+StaticCollection.GetIids still returned0; GetCollection entry was absent.
+This does not establish the faulty instruction's operand or an ABI fix.
+
+Fresh017 AeDebug import/readback returned0 and Auto REG_SZ0 was verified.
+The actual no-GPFault-dialog policy marker was retained for AppL256.
+No covered Run-scoped process creation or pending wait remained. This is
+not a global process census. Target exit preceded20/60 samples, so no
+sampler attached. Empty window facts are not a zero-window enumeration.
+Screenshot status remains unknown; no image or desktop capture occurred.
+
+Redacted output SHA-256:
+`8e3f351ddd1b4ba7fa0c67d3a3dfb3b92a4933d4208c42dbd97c2c2fadbcb547`.
+Unchanged runtime receipt SHA-256:
+`aab13ba9ad32aeeb3d887c0bf404a0dfe6c31a16315652e1e3695798b44a71d7`.
+Separate cleanup analysis SHA-256:
+`c2524843f5b1a386b223c5f387c9fe2a9922b425441bcd4c9edb964a58513a02`.
+All hashes and exception/exit/policy/truncation assertions were checked
+read-only. The separate analysis establishes exact-prefix stop/wait0,
+all13 recorded host PIDs absent and open-file check clear. The runtime
+receipt itself is not rewritten to claim later quiescence. Original
+native/module hashes and012-016 results remained unchanged. No replay.
