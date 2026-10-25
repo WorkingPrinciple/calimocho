@@ -3,6 +3,23 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: observation-backed claims Site B sibling021
+
+ADR-0053 records the producer's unchanged Whiny r6 replacement, SHA-256
+`2924dd6c183b944d3a177fd2f2bf96571dde92b175b123eee64a938faf4b14d6`.
+It adds the observed signed GamingApp token-4 claim-plus-attributes cell,
+not a general packaged-success rule. The actual genuine context predicate
+is unchanged. Frozen020 and the historical generated table remain untouched.
+
+The fresh `package-uwp-claims-site-b-01` build and stage complete with all020
+diagnostic modes retained. The target-only state observer compiles without
+execution. Host checks compile the actual package context helper with the
+exact generated artifact and verify signed Site B outputs5/3/3, intact
+canaries, unpackaged C0000225 with untouched claim/zero attributes, and
+unknown or unverified context C0000002 without output changes.
+Actual021 remains unexecuted by this lane; receipt handoff and independent
+asset verification precede the exclusive runtime owner's once-only run.
+
 ## 2026-10-25: observed native factory matrix and supported-only011 recipe
 
 Xbox0ab executed the owned810-class headless matrix against the retained
