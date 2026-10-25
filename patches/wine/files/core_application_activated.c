@@ -199,6 +199,16 @@ struct core
 };
 static struct core core;
 static SRWLOCK handler_lock = SRWLOCK_INIT;
+static LONG progress_count;
+
+static void progress(const char *method, const char *phase, HRESULT result)
+{
+    LONG count = InterlockedIncrement(&progress_count);
+    if (count <= 256)
+        TRACE("progress method=%s phase=%s result=%08lx\n", method, phase, result);
+    else if (count == 257)
+        TRACE("progress limited=1\n");
+}
 
 static HRESULT WINAPI core_query(IActivationFactory *iface, REFIID iid, void **out)
 {
@@ -265,9 +275,18 @@ static BOOL CALLBACK lifetime_initialize(INIT_ONCE *once, void *parameter, void 
     IInspectable *instance = NULL;
     HSTRING name = NULL;
     lifetime_error = WindowsCreateString(L"Windows.Foundation.Collections.PropertySet", 42, &name);
-    if (SUCCEEDED(lifetime_error)) lifetime_error = RoActivateInstance(name, &instance);
     if (SUCCEEDED(lifetime_error))
+    {
+        progress("StaticLifetime.PropertySet", "enter", S_OK);
+        lifetime_error = RoActivateInstance(name, &instance);
+        progress("StaticLifetime.PropertySet", "exit", lifetime_error);
+    }
+    if (SUCCEEDED(lifetime_error))
+    {
+        progress("StaticLifetime.MapQuery", "enter", S_OK);
         lifetime_error = IInspectable_QueryInterface(instance, &IID_IMap_HSTRING_IInspectable, (void **)&lifetime_map);
+        progress("StaticLifetime.MapQuery", "exit", lifetime_error);
+    }
     if (instance) IInspectable_Release(instance);
     WindowsDeleteString(name);
     return TRUE; /* Retain the actual initialization HRESULT, never silently retry. */
@@ -308,9 +327,13 @@ static HRESULT WINAPI collection_trust(IMap_HSTRING_IInspectable *iface, TrustLe
 { if (!out) return E_POINTER; *out = BaseTrust; return S_OK; }
 static HRESULT WINAPI collection_lookup(IMap_HSTRING_IInspectable *iface, HSTRING key, IInspectable **out)
 {
-    if (!out) return E_POINTER;
+    HRESULT hr;
+    progress("StaticLifetime.Lookup", "enter", S_OK);
+    if (!out) { progress("StaticLifetime.Lookup", "exit", E_POINTER); return E_POINTER; }
     *out = NULL;
-    return IMap_HSTRING_IInspectable_Lookup(lifetime_map, key, out);
+    hr = IMap_HSTRING_IInspectable_Lookup(lifetime_map, key, out);
+    progress("StaticLifetime.Lookup", "exit", hr);
+    return hr;
 }
 static HRESULT WINAPI collection_size(IMap_HSTRING_IInspectable *iface, UINT32 *out)
 { if (!out) return E_POINTER; return IMap_HSTRING_IInspectable_get_Size(lifetime_map, out); }
@@ -321,8 +344,12 @@ static HRESULT WINAPI collection_view(IMap_HSTRING_IInspectable *iface, IMapView
 static HRESULT WINAPI collection_insert(IMap_HSTRING_IInspectable *iface, HSTRING key,
                                        IInspectable *value, boolean *replaced)
 {
-    if (!replaced) return E_POINTER;
-    return IMap_HSTRING_IInspectable_Insert(lifetime_map, key, value, replaced);
+    HRESULT hr;
+    progress("StaticLifetime.Insert", "enter", S_OK);
+    if (!replaced) { progress("StaticLifetime.Insert", "exit", E_POINTER); return E_POINTER; }
+    hr = IMap_HSTRING_IInspectable_Insert(lifetime_map, key, value, replaced);
+    progress("StaticLifetime.Insert", "exit", hr);
+    return hr;
 }
 static HRESULT WINAPI collection_remove(IMap_HSTRING_IInspectable *iface, HSTRING key)
 { return IMap_HSTRING_IInspectable_Remove(lifetime_map, key); }
@@ -340,18 +367,26 @@ static HRESULT WINAPI lifetime_reserved(IStaticLifetime *iface)
 }
 static HRESULT WINAPI lifetime_collection_get(IStaticLifetime *iface, IInspectable **out)
 {
-    if (!out) return E_POINTER;
+    HRESULT hr;
+    progress("StaticLifetime.GetCollection", "enter", S_OK);
+    if (!out) { progress("StaticLifetime.GetCollection", "exit", E_POINTER); return E_POINTER; }
     *out = NULL;
     if (!InitOnceExecuteOnce(&lifetime_once, lifetime_initialize, NULL, NULL))
-        return HRESULT_FROM_WIN32(GetLastError());
+    {
+        hr = HRESULT_FROM_WIN32(GetLastError());
+        progress("StaticLifetime.GetCollection", "exit", hr);
+        return hr;
+    }
     if (FAILED(lifetime_error))
     {
         TRACE("static-lifetime collection-result=%08lx\n", lifetime_error);
+        progress("StaticLifetime.GetCollection", "exit", lifetime_error);
         return lifetime_error;
     }
     *out = (IInspectable *)&lifetime_collection;
     IInspectable_AddRef(*out);
     TRACE("static-lifetime collection-result=00000000\n");
+    progress("StaticLifetime.GetCollection", "exit", S_OK);
     return S_OK;
 }
 static const IStaticLifetimeVtbl lifetime_vtable = {
@@ -498,6 +533,7 @@ static HRESULT fire_activated(IActivatedEventArgs *args)
     activated_handler *handlers[32];
     unsigned int i, count = 0;
     HRESULT hr = S_OK;
+    progress("Activated", "enter", S_OK);
     AcquireSRWLockShared(&handler_lock);
     for (i = 0; i < ARRAY_SIZE(core.handlers); ++i)
         if (core.handlers[i].handler)
@@ -515,6 +551,7 @@ static HRESULT fire_activated(IActivatedEventArgs *args)
     }
     TRACE("activated kind=%u handlers=%u result=%08lx\n",
           CONTAINING_RECORD(args, struct activation_args, IActivatedEventArgs_iface)->kind, count, hr);
+    progress("Activated", "exit", hr);
     return hr;
 }
 
@@ -573,15 +610,24 @@ static HRESULT WINAPI application_run(ICoreApplication *iface, IFrameworkViewSou
     HRESULT hr, uninitialized;
     BOOL initialized = FALSE;
     unsigned int i;
-    if (!source) return E_INVALIDARG;
-    if (InterlockedCompareExchange(&core.running, 1, 0)) return E_ILLEGAL_METHOD_CALL;
+    progress("CoreApplication.Run", "enter", S_OK);
+    if (!source) { progress("CoreApplication.Run", "exit", E_INVALIDARG); return E_INVALIDARG; }
+    if (InterlockedCompareExchange(&core.running, 1, 0))
+    { progress("CoreApplication.Run", "exit", E_ILLEGAL_METHOD_CALL); return E_ILLEGAL_METHOD_CALL; }
     core.thread = GetCurrentThreadId();
     hr = create_args(&record, &args);
-    if (SUCCEEDED(hr)) hr = IFrameworkViewSource_CreateView(source, &view);
+    if (SUCCEEDED(hr))
+    {
+        progress("FrameworkView.CreateView", "enter", S_OK);
+        hr = IFrameworkViewSource_CreateView(source, &view);
+        progress("FrameworkView.CreateView", "exit", hr);
+    }
     if (SUCCEEDED(hr) && !view) hr = E_UNEXPECTED;
     if (SUCCEEDED(hr))
     {
+        progress("FrameworkView.Initialize", "enter", S_OK);
         hr = IFrameworkView_Initialize(view, &core.ICoreApplicationView_iface);
+        progress("FrameworkView.Initialize", "exit", hr);
         initialized = SUCCEEDED(hr);
     }
     if (SUCCEEDED(hr))
@@ -592,11 +638,26 @@ static HRESULT WINAPI application_run(ICoreApplication *iface, IFrameworkViewSou
             hr = unsupported("CreateCoreWindow");
         else hr = create_window(&window);
     }
-    if (SUCCEEDED(hr)) hr = IFrameworkView_SetWindow(view, window);
+    if (SUCCEEDED(hr))
+    {
+        progress("FrameworkView.SetWindow", "enter", S_OK);
+        hr = IFrameworkView_SetWindow(view, window);
+        progress("FrameworkView.SetWindow", "exit", hr);
+    }
     if (SUCCEEDED(hr)) hr = WindowsCreateString(record.entrypoint, lstrlenW(record.entrypoint), &entrypoint);
-    if (SUCCEEDED(hr)) hr = IFrameworkView_Load(view, entrypoint);
+    if (SUCCEEDED(hr))
+    {
+        progress("FrameworkView.Load", "enter", S_OK);
+        hr = IFrameworkView_Load(view, entrypoint);
+        progress("FrameworkView.Load", "exit", hr);
+    }
     if (SUCCEEDED(hr)) hr = queue_activation(window, args, &activation_action);
-    if (SUCCEEDED(hr)) hr = IFrameworkView_Run(view);
+    if (SUCCEEDED(hr))
+    {
+        progress("FrameworkView.Run", "enter", S_OK);
+        hr = IFrameworkView_Run(view);
+        progress("FrameworkView.Run", "exit", hr);
+    }
     if (SUCCEEDED(hr)) hr = IAsyncAction_GetResults(activation_action);
     if (initialized)
     {
@@ -623,6 +684,7 @@ static HRESULT WINAPI application_run(ICoreApplication *iface, IFrameworkViewSou
     core.thread = 0;
     InterlockedExchange(&core.running, 0);
     TRACE("run result=%08lx\n", hr);
+    progress("CoreApplication.Run", "exit", hr);
     return hr;
 }
 static HRESULT WINAPI application_factories(ICoreApplication *iface, IGetActivationFactory *factory)

@@ -2761,3 +2761,33 @@ independently read and hash-checked. The actual run spans
 The next distinct diagnostic would need PID-bound method-entry/completion
 and inner PropertySet selection evidence, not an unchanged replay, longer
 cap, guessed interface or assumed deadlock fix.
+
+### Cell013 bounded target-state diagnostic source
+
+The coordinator relayed owner approval for a changed diagnostic at about
+20 and60 seconds, retaining the180-second cap and no-input private-prefix
+rules. The new source sibling adds bounded fixed method entry/completion
+traces and compiles a separate exact-image/token-gated state helper.
+It counts threads before debugger attachment, enumerates only target-owned
+windows and walks target-thread stacks through Wine's debugger and local
+module unwind bytes. Only module-relative frames and fixed metadata may
+leave the helper. Debug kill-on-exit must be disabled before attachment;
+attach/continue/detach outcomes and errors remain explicit.
+
+The first helper compilation rejected packed structures in Wine's
+minidump header, incomplete local structure initializers, an unavailable
+symbol option and a signedness comparison. The retained failure log
+predates the corrected compile. A narrowly scoped diagnostic pragma
+covers only the existing packed external header; local source warnings
+remain errors. Corrected structure initialization, empty explicit symbol
+search path and a typed exception comparison compile cleanly. Recompiles
+and restaging preserve prior unqualified artifacts.
+
+The185 existing and added host checks passed before the final trace
+error-path rebuild; the focused28-check subset passed after that rebuild.
+Tests cover exact emitted progress grammar, target-PID filtering, raw-data
+rejection, both snapshot offsets, helper-only timeout handling, compile
+identities and sealed predecessor integrity. Native013, target thread
+frames, HWND facts and any conditional exact-window screenshot remain
+unobserved at this source stage. See
+[ADR-0045](ADR/0045-observe-bounded-target-state-without-input.md).

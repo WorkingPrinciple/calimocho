@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import selectors
 import subprocess
+import tempfile
 import time
 
 
@@ -44,6 +45,7 @@ class ActivationTrace:
         self.protocol_results = []
         self.window_facts = []
         self.activation_delivery = []
+        self.progress = []
         self.module_paths = {self.module_path_key(key): value
                              for key, value in (module_paths or {}).items()}
 
@@ -69,7 +71,7 @@ class ActivationTrace:
         if match:
             pid, path, kind = match.groups()
             module = path.replace("/", "\\").rsplit("\\", 1)[-1].lower()
-            if module in ("windows.ui.xaml.dll", "microsoft.ui.xaml.dll", "xboxpcappce.exe", "xboxpcapp.exe"):
+            if module in ("windows.ui.xaml.dll", "microsoft.ui.xaml.dll", "xboxpcappce.exe", "xboxpcapp.exe", "wintypes.dll"):
                 event = {"pid": int(pid, 16), "module": module, "kind": kind}
                 if module in ("windows.ui.xaml.dll", "microsoft.ui.xaml.dll"):
                     known = self.module_paths.get(self.module_path_key(path))
@@ -88,6 +90,22 @@ class ActivationTrace:
         fact = {"pid": int(pid, 16), "tid": int(tid, 16),
                 "channel": channel, "function": function}
         if channel in ("pkgcore", "pkgwindow"):
+            if channel == "pkgcore" and function == "progress":
+                progress = re.fullmatch(
+                    r'progress method=(StaticLifetime\.(?:GetCollection|PropertySet|MapQuery|Lookup|Insert)'
+                    r'|CoreApplication\.Run|FrameworkView\.(?:CreateView|Initialize|SetWindow|Load|Run)|Activated)'
+                    r' phase=(enter|exit) result=([0-9a-f]{8})', message)
+                if progress:
+                    fact.update(method=progress[1], phase=progress[2])
+                    if progress[2] == "exit":
+                        fact["hresult"] = "0x" + progress[3]
+                    if len(self.progress) < 256:
+                        self.progress.append(fact)
+                    else:
+                        self.truncated = True
+                elif message == "progress limited=1":
+                    self.truncated = True
+                return
             missing_iid = re.fullmatch(
                 r'missing-iid=(\{[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\}) result=80004002',
                 message, re.IGNORECASE)
@@ -259,6 +277,7 @@ class ActivationTrace:
             "protocol_target_activation_results": [fact for fact in self.activation_results if fact["pid"] in target_pids],
             "activation_delivery": [fact for fact in self.activation_delivery if fact["pid"] == pid or fact["pid"] in target_pids],
             "window_facts": [fact for fact in self.window_facts if fact["pid"] == pid or fact["pid"] in target_pids],
+            "method_progress": [fact for fact in self.progress if fact["pid"] == pid or fact["pid"] in target_pids],
             "protocol_results": routes,
             "protocol_target_loads": target_loads,
             "protocol_target_exit_calls": target_exits,
@@ -269,8 +288,94 @@ class ActivationTrace:
         }
 
 
+STATE_ROW = re.compile(
+    r"state (?:pid=[0-9]{1,10} verified=1"
+    r"|hwnd=[0-9a-f]{1,16} class=(?:CalimochoCoreWindow|other-redacted) visible=[01] width=[0-9]{1,8} height=[0-9]{1,8}"
+    r"|tid=[0-9]{1,10} frame=[0-9]{1,2} module=[A-Za-z0-9_.-]{1,127} offset=[0-9a-f]{1,16}"
+    r"|tid=[0-9]{1,10} (?:frames=[0-9]{1,2}|(?:context-error|unwind-end)=[0-9]{1,10})"
+    r"|threads=[0-9]{1,10} captured=[0-9]{1,2}"
+    r"|threads-before-attach=[0-9]{1,10}"
+    r"|module-load-errors=[0-9]{1,3}"
+    r"|kill-on-exit=0|attached=1"
+    r"|debug-events=[0-9]{1,10} continued=[0-9]{1,10}"
+    r"|windows=[0-9]{1,2}"
+    r"|(?:modules|threads|windows)-truncated=1"
+    r"|(?:window|enum|modules|symbols|threads|open|debug-policy|debug-connect|attach|continue|detach)-error=[0-9]{1,10}"
+    r"|(?:identity-mismatch|target-not-active)=1"
+    r"|detached=1 stacks=[01] target-exited=[01])")
+
+
+def state_rows(output):
+    """Retain only fixed helper grammar, never raw debugger text or absolute addresses."""
+    if len(output) > 256 * 1024:
+        return {"rows": [], "format_error": True, "truncated": True}
+    rows = []
+    invalid = False
+    for row in output.decode("ascii", errors="replace").splitlines():
+        if STATE_ROW.fullmatch(row):
+            rows.append(row)
+        else:
+            invalid = True
+    return {"rows": rows, "format_error": invalid, "truncated": False,
+            "debugger_detached": any(row.startswith("state detached=1 ") for row in rows)}
+
+
+class StateSnapshots:
+    def __init__(self, configuration, environment, cwd):
+        self.configuration, self.environment, self.cwd = configuration, environment, cwd
+        self.started = None
+        self.next = 0
+        self.process = self.output = None
+        self.results = []
+
+    def finish(self, reason=None):
+        if self.process is None:
+            return
+        if self.process.poll() is None:
+            self.process.kill()  # Only this helper; debugger kill-on-exit is explicitly disabled.
+        else:
+            reason = None
+        self.process.wait(timeout=5)
+        self.output.seek(0)
+        result = state_rows(self.output.read(256 * 1024 + 1))
+        result.update(self.active, helper_exit=self.process.returncode,
+                      bounded=reason is not None, reason=reason)
+        self.results.append(result)
+        self.output.close()
+        self.process = self.output = None
+
+    def tick(self, now, pid, target_exited=False):
+        if self.configuration is None or pid is None:
+            return
+        if self.started is None:
+            self.started = now
+        if self.process is not None:
+            if self.process.poll() is not None:
+                self.finish()
+            elif now - self.launched >= 10:
+                self.finish("snapshot-bound")
+        if self.process is not None or target_exited or self.next >= 2:
+            return
+        offset = (20, 60)[self.next]
+        if now - self.started < offset:
+            return
+        self.next += 1
+        self.output = tempfile.TemporaryFile()
+        self.active = {"pid": pid, "scheduled_seconds": offset, "elapsed_seconds": now - self.started}
+        self.launched = now
+        try:
+            self.process = subprocess.Popen(
+                self.configuration["argv"] + [str(pid), self.configuration["image"], self.configuration["app_id"]],
+                env=self.environment, cwd=self.cwd, stdin=subprocess.DEVNULL,
+                stdout=self.output, stderr=subprocess.DEVNULL)
+        except OSError:
+            self.output.close()
+            self.output = None
+            raise
+
+
 def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2,
-            module_paths=None, target_observer=None):
+            module_paths=None, target_observer=None, state_observer=None):
     """Drain both streams; retain only allowlisted metadata and module-load facts."""
     trace = ActivationTrace(module_paths)
     started = time.monotonic()
@@ -285,6 +390,7 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2,
     target_pid = None
     target_result = {"state": "not-started"}
     target_exit_at = None
+    snapshots = StateSnapshots(state_observer, environment, cwd)
     with subprocess.Popen(argv, env=environment, cwd=cwd, stdin=subprocess.DEVNULL,
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE) as process:
         with selectors.DefaultSelector() as selector:
@@ -326,6 +432,7 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2,
                                 target_result["reason"] = failure[2].decode("ascii")
                                 if failure[3]:
                                     target_result["error"] = int(failure[3])
+                    snapshots.tick(now, target_pid, target_result["state"] == "exited")
                     if exit_seen_at is None:
                         if process.poll() is not None:
                             exit_seen_at, exit_basis = now, "helper-process-exit"
@@ -379,6 +486,7 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2,
                             discarding[stream] = True
                             trace.truncated = True
             finally:
+                snapshots.finish("collector-ended")
                 if observer is not None:
                     if observer.poll() is None:
                         observer.kill()  # Only this invocation's observer, never the target.
@@ -391,6 +499,9 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2,
                     process.kill()  # This collector's helper only, never a name-based kill.
                 process.wait(timeout=5)
         result = trace.verdict()
+        if state_observer:
+            result["state_snapshots"] = snapshots.results
+            result["state_snapshots_expected"] = [20, 60]
         if target_observer:
             result["protocol_target_observation"] = target_result
             if target_result["state"] == "exited":
@@ -425,6 +536,12 @@ def main():
         observer = receipt["target_observer"]
         if hashlib.sha256(Path(observer["path"]).read_bytes()).hexdigest() != observer["sha256"]:
             raise ValueError("Receipt hash mismatch: target observer")
+    if "state_observer" in receipt:
+        observer = receipt["state_observer"]
+        if hashlib.sha256(Path(observer["path"]).read_bytes()).hexdigest() != observer["sha256"]:
+            raise ValueError("Receipt hash mismatch: state observer")
+        if observer["image"] != receipt["target_observer"]["image"] or observer["app_id"] != receipt["target_observer"]["app_id"]:
+            raise ValueError("State observer must bind the same exact admitted AppL target")
     install = Path(receipt["install"])
     for relative, digest in (
         ("bin/wine", "wine_sha256"), ("bin/wineserver", "wineserver_sha256"),
@@ -443,7 +560,8 @@ def main():
         raise ValueError("Collector observation bound must be an integer from1 to180 seconds")
     result = collect(receipt["activation_argv"], environment, receipt["cwd"], seconds=seconds,
                      module_paths=receipt.get("xaml_module_paths"),
-                     target_observer=receipt.get("target_observer"))
+                     target_observer=receipt.get("target_observer"),
+                     state_observer=receipt.get("state_observer"))
     with args.output.open("x") as output:
         json.dump(result, output, indent=2)
         output.write("\n")

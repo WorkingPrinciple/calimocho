@@ -23,22 +23,25 @@ SOURCES = ("tools/freeze_static_lifetime_runtime.py", "tools/build_uwp_overlay.p
            "tests/package_activation_probe.c")
 
 
-def freeze(root, producer):
+def freeze(root, producer, *, cell=12, predecessor=PREVIOUS,
+           predecessor_sha256="7c61c26de2fcbaf1814e09b1e2b91afd925f49c5f1827ae73b33fe44ac78a83c",
+           extra_sources=()):
     root = Path(root).resolve(strict=True)
     if not root.is_relative_to(REPO / "build") or any(root.glob("*FROZEN*")):
         raise ValueError("Require an unfrozen owned012 sibling")
     producer = subprocess.check_output(
         ["git", "rev-parse", "--verify", producer + "^{commit}"], cwd=REPO, text=True).strip()
     sources = {}
-    for relative in SOURCES:
+    for relative in SOURCES + tuple(extra_sources):
         blob = subprocess.check_output(["git", "show", producer + ":" + relative], cwd=REPO)
         if blob != (REPO / relative).read_bytes():
             raise ValueError("Producer source changed: " + relative)
         sources[relative] = hashlib.sha256(blob).hexdigest()
-    if sha256(PREVIOUS) != "7c61c26de2fcbaf1814e09b1e2b91afd925f49c5f1827ae73b33fe44ac78a83c":
-        raise ValueError("Sealed011 recipe changed")
-    previous = json.loads(PREVIOUS.read_text())
-    run = Path("/Users/dragoshont/xodus-runs/xbox-calimocho-packaged-20261025-012")
+    if cell not in (12, 13) or sha256(predecessor) != predecessor_sha256:
+        raise ValueError("Sealed predecessor recipe changed or unsupported cell")
+    previous = json.loads(predecessor.read_text())
+    label = "%03d" % cell
+    run = Path("/Users/dragoshont/xodus-runs/xbox-calimocho-packaged-20261025-" + label)
     if run.exists():
         raise FileExistsError("Refuse existing012 run")
     for key in ("native_xaml_registration", "native_mapping", "factory_observation", "factory_results",
@@ -77,18 +80,18 @@ def freeze(root, producer):
         raise ValueError("Candidate registry changed")
     entry = registry["engines"][0]
     checked_assets(entry)
-    manifest = root / "inventory-CELL012-FROZEN.json"
-    registry_path = root / "static-lifetime.registry.local.CELL012-FROZEN.json"
-    collector = root / "diagnose_package_activation-cell012.py"
-    registration = root / "launcher-CELL012-FROZEN.reg"
-    receipt_path = root / "cell012-receipt.json"
+    manifest = root / ("inventory-CELL" + label + "-FROZEN.json")
+    registry_path = root / ("static-lifetime.registry.local.CELL" + label + "-FROZEN.json")
+    collector = root / ("diagnose_package_activation-cell" + label + ".py")
+    registration = root / ("launcher-CELL" + label + "-FROZEN.reg")
+    receipt_path = root / ("cell" + label + "-receipt.json")
     for path in (manifest, registry_path, collector, registration, receipt_path):
         if path.exists():
             raise FileExistsError("Refuse existing012 handoff artifact")
     manifest.write_text(json.dumps({"files": stage["files"], "basis": "source/build integrity, not native acceptance"},
                                    indent=2) + "\n")
     entry["environment"]["WINEDLLOVERRIDES"] = previous["environment"]["WINEDLLOVERRIDES"]
-    entry["name"] = "calimocho-wine11.20-static-lifetime-diagnostic"
+    entry["name"] = "calimocho-wine11.20-static-lifetime-diagnostic" + ("-state" if cell == 13 else "")
     entry["version"] += " + genuine IStaticLifetime map (UNQUALIFIED)"
     entry["integrity"] = {"status": "unchanged", "manifest_path": str(manifest),
                           "manifest_sha256": sha256(manifest)}
@@ -107,10 +110,10 @@ def freeze(root, producer):
     wine = ["/usr/bin/arch", "-x86_64", entry["wine"]]
     receipt = copy.deepcopy(previous)
     receipt.update(
-        scope="cell012 genuine CoreApplication IStaticLifetime and static factory collection",
-        status="source-built012; native012 unexecuted", runtime_executed=False,
+        scope="cell" + label + " genuine CoreApplication IStaticLifetime and static factory collection",
+        status="source-built" + label + "; native unexecuted", runtime_executed=False,
         producer_commit=producer, source_inputs=sources,
-        predecessor_receipt=str(PREVIOUS), predecessor_receipt_sha256=sha256(PREVIOUS),
+        predecessor_receipt=str(predecessor), predecessor_receipt_sha256=sha256(predecessor),
         engine=entry["name"], install=str(install), registry=str(registry_path),
         registry_sha256=sha256(registry_path), inventory=str(manifest), inventory_sha256=sha256(manifest),
         wine_sha256=entry["sha256"], wineserver_sha256=entry["wineserver_sha256"],
@@ -140,7 +143,7 @@ def freeze(root, producer):
             relative: sha256(root / "source" / relative)
             for relative in previous["generated_source_sha256"]},
         preconditions=[
-            "Fresh private/no-input012 prefix; preserve sealed008/009/010/011",
+            "Fresh private/no-input" + label + " prefix; preserve all sealed predecessors",
             "Use retained original native XAML input and558 supported011 mappings, no native DLL rewrite",
             "Import framework_registration_argv, launcher_registration_argv, native_xaml_registration_argv",
             "Stop/wait setup server, then start server_start using explicit host-only table",

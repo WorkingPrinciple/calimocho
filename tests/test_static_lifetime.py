@@ -70,7 +70,9 @@ class StaticLifetimeTests(unittest.TestCase):
             self.assertEqual(step["exit_code"], 0)
             self.assertFalse(step["timed_out"])
         for relative, digest in build["source_inputs"].items():
-            self.assertEqual(sha256(REPO / relative), digest)
+            frozen = json.loads((root / "cell012-receipt.json").read_text())
+            blob = subprocess.check_output(["git", "show", frozen["producer_commit"] + ":" + relative], cwd=REPO)
+            self.assertEqual(hashlib.sha256(blob).hexdigest(), digest)
         for key in ("helper", "probe"):
             self.assertEqual(sha256(Path(stage[key])), stage[key + "_sha256"])
         source = (root / "source/dlls/twinapi.appcore/core_application.c").read_text()
