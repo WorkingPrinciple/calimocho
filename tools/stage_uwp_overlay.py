@@ -49,6 +49,8 @@ def stage(root, resume=False):
     }
     if "activation_wait_diagnostics" in build:
         modules["lib/wine/x86_64-windows/combase.dll"] = "build/dlls/combase/x86_64-windows/combase.dll"
+    if "handle_provenance" in build:
+        modules["lib/wine/x86_64-windows/rpcrt4.dll"] = "build/dlls/rpcrt4/x86_64-windows/rpcrt4.dll"
     for relative in ("build/server/wineserver", "build/dlls/ntdll/ntdll.so"):
         result = subprocess.run(["/usr/bin/otool", "-L", str(root / relative)],
                                 capture_output=True, text=True, check=True)
@@ -75,6 +77,8 @@ def stage(root, resume=False):
         command.append("-DCALIMOCHO_CALL_DIAGNOSTICS")
     if "activation_wait_diagnostics" in build:
         command.append("-DCALIMOCHO_ACTIVATION_WAIT_DIAGNOSTICS")
+    if "handle_provenance" in build:
+        command.append("-DCALIMOCHO_HANDLE_PROVENANCE")
     command += [str(root / "build/dlls" / module / "x86_64-windows" / ("lib" + module + ".a"))
                 for module in ("ntdll", "kernelbase", "combase")]
     # kernelbase was unchanged, so use the frozen framework build's import library.

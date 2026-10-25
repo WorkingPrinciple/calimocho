@@ -63,11 +63,11 @@ def prepare(root, producer, cell=13):
         raise ValueError("Require compiled unexecuted state observer")
     if sha256(Path(record["output"])) != record["output_sha256"] or sha256(Path(record["source"])) != record["source_sha256"]:
         raise ValueError("State observer source or binary changed")
-    if cell not in (13, 14, 15):
+    if cell not in (13, 14, 15, 16):
         raise ValueError("Unsupported diagnostic cell")
     extra = SOURCES
     previous, digest = PREVIOUS, "d28d3873654eaf4c563db8cf64ef4b2368176729befb6c72eec847b128a9c39f"
-    if cell in (14, 15):
+    if cell in (14, 15, 16):
         previous = REPO / "build/winehq-11.20/package-uwp-state-01/cell013-receipt.json"
         digest = "a0cf124b6c1040de0cbe180a70c9969612314e95511281cc769d58ee752e0285"
         extra += ("tools/port_call_diagnostics.py", "patches/wine/files/package_call_diagnostics.h",
@@ -81,7 +81,7 @@ def prepare(root, producer, cell=13):
         for header, value in build["call_diagnostics"]["headers"].items():
             if sha256(Path(header)) != value:
                 raise ValueError("Diagnostic ABI header changed")
-    if cell == 15:
+    if cell in (15, 16):
         previous = REPO / "build/winehq-11.20/package-uwp-calltrace-01/cell014-receipt.json"
         digest = "30b6d6514d58ec6ee188768345673abea86d11d5a0254fce38db9f7484646b48"
         from tools.port_activation_wait_diagnostics import SOURCES as ACTIVATION_SOURCES
@@ -91,6 +91,20 @@ def prepare(root, producer, cell=13):
         for relative, value in build["activation_wait_diagnostics"]["files"].items():
             if sha256(root / "source" / relative) != value:
                 raise ValueError("Generated activation/wait source changed")
+    if cell == 16:
+        previous = REPO / "build/winehq-11.20/package-uwp-activation-waits-01/cell015-receipt.json"
+        digest = "58eccd9ec5d9aba954eb80251efadb8d8117b2f49aba6088604e981b5b50a122"
+        from tools.port_handle_provenance import SOURCES as HANDLE_SOURCES
+        extra += HANDLE_SOURCES
+        if "handle_provenance" not in build:
+            raise ValueError("Cell016 requires actual handle/IPC provenance port")
+        from tools.port_handle_provenance import PREVIOUS as HANDLE_BASELINE
+        for relative, value in build["handle_provenance"]["baseline_files"].items():
+            if sha256(HANDLE_BASELINE / "source" / relative) != value:
+                raise ValueError("Sealed handle/IPC baseline source changed")
+        for relative, value in build["handle_provenance"]["files"].items():
+            if sha256(root / "source" / relative) != value:
+                raise ValueError("Generated handle/IPC source changed")
     path = freeze(root, producer, cell=cell, predecessor=previous,
                   predecessor_sha256=digest, extra_sources=extra)
     receipt = json.loads(path.read_text())
@@ -118,7 +132,7 @@ def prepare(root, producer, cell=13):
         "Stack frames use basename plus module-relative offsets; unknown mappings are redacted",
         "Snapshot failures/truncation and debugger perturbation remain explicit; no inferred deadlock or UI acceptance",
     ]
-    if cell in (14, 15):
+    if cell in (14, 15, 16):
         receipt["call_diagnostics"] = build["call_diagnostics"]
         receipt["scope"] = "cell014 diagnostic-only complete owned COM vtables, sanitized native-XAML relay and actual wait pairs"
         receipt["preconditions"] += [
@@ -134,7 +148,7 @@ def prepare(root, producer, cell=13):
             "Wait object type and event state are read-only observations before actual wait, not a proven cause",
             "Collector retains fixed diagnostic grammar past ordinary8MiB cutoff; no argument strings, object names or absolute addresses",
         ]
-    if cell == 15:
+    if cell in (15, 16):
         receipt["scope"] = "cell015 public activation entry/result/provider, actual wait object state and thread creation/liveness"
         receipt["activation_wait_diagnostics"] = build["activation_wait_diagnostics"]
         receipt["limitations"] += [
@@ -147,6 +161,21 @@ def prepare(root, producer, cell=13):
             "Creator return-slot metadata is not a recovered full stack or proven semantic call chain; remote-process thread creation is outside this in-process scope",
             "Snapshot alive means observed thread exit status; pending wait entries are correlated separately, not guessed OS thread-state enums",
         ]
+    if cell == 16:
+        receipt["scope"] = "cell016 process-handle identity, event/process creation provenance and IPC attempts"
+        receipt["handle_provenance"] = build["handle_provenance"]
+        receipt["limitations"] += [
+            "Wait type is actual WaitAll/WaitAny; prior count/alertability metadata did not establish OR semantics",
+            "Process basic/image queries retain PID, parent, exit status and validated basename; failed queries remain unknown",
+            "Handle tail4096 from CoreApplication.Run, chronological per-wait candidates32 per slot; pre-Run creation/inheritance unavailable",
+            "NtClose events distinguish observed reuse; candidates are not automatically a proven complete lineage",
+            "Only exact known-public DBWIN event basenames retained; other names are unnamed or named-redacted",
+            "NtCreateUserProcess/OpenProcess/duplicate/event and LPC/ALPC entry/exit forward original ABI and results unchanged",
+            "Saved syscall and user-return-slot sites are not a full creator stack or semantic module attribution",
+            "Sanitized relay covers only actual thunks from native XAML/combase/twinapi to selected exports; norelay/internal calls unavailable",
+            "RPC OpenClientConnection is the actual transport attempt,1024 retained entry/exit events; endpoints and binding strings excluded",
+            "No process/broker, event, RPC service or success behavior is synthesized; absent covered calls do not prove absence of all IPC",
+        ]
     path.write_text(json.dumps(receipt, indent=2) + "\n")
     return path
 
@@ -157,7 +186,7 @@ if __name__ == "__main__":
     parser.add_argument("--producer-commit")
     parser.add_argument("--compile-only", action="store_true")
     parser.add_argument("--resume", action="store_true")
-    parser.add_argument("--cell", type=int, choices=(13, 14, 15), default=13)
+    parser.add_argument("--cell", type=int, choices=(13, 14, 15, 16), default=13)
     args = parser.parse_args()
     if args.compile_only:
         print(json.dumps(compile_observer(args.root, args.resume), indent=2))

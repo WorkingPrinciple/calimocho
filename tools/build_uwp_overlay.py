@@ -14,7 +14,7 @@ from tools.probe_wine_source import run_step, sha256
 BASE = REPO / "build/winehq-11.20/package-launcher-01"
 
 
-def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False):
+def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostics=False, handle_provenance=False):
     root = Path(root).resolve()
     if not root.is_relative_to(REPO / "build") or root == BASE:
         raise ValueError("Require a new owned009 sibling")
@@ -22,6 +22,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         raise ValueError("Refuse to rebuild a frozen009 sibling")
     if activation_wait_diagnostics and not call_diagnostics:
         raise ValueError("Activation/wait diagnostics require call diagnostics")
+    if handle_provenance and not activation_wait_diagnostics:
+        raise ValueError("Handle provenance requires activation/wait diagnostics")
     frozen = BASE / "cell008-receipt.json"
     if sha256(frozen) != "ac5b627263c409b804e3f812160c6dd0ba8d39cec52910255725939de12915bc":
         raise ValueError("Frozen008 receipt changed")
@@ -33,6 +35,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
             raise ValueError("Resume must preserve the diagnostic build mode")
         if "steps" in previous and bool(previous.get("activation_wait_diagnostics")) != activation_wait_diagnostics:
             raise ValueError("Resume must preserve the activation/wait diagnostic mode")
+        if "steps" in previous and bool(previous.get("handle_provenance")) != handle_provenance:
+            raise ValueError("Resume must preserve the handle-provenance mode")
     else:
         root.mkdir(exist_ok=False)
         shutil.copytree(BASE / "source", root / "source", symlinks=True)
@@ -70,6 +74,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
     if activation_wait_diagnostics:
         from tools.port_activation_wait_diagnostics import port as activation_port_source
         activation_port = activation_port_source(root / "source")
+    handle_port = None
+    if handle_provenance:
+        from tools.port_handle_provenance import port as handle_port_source
+        handle_port = handle_port_source(root / "source")
     attempt = 1
     while (root / ("attempt-%02d" % attempt)).exists():
         attempt += 1
@@ -96,6 +104,11 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         # The activation port adds includes to sync.c after the call port.
         for relative in receipt["call_diagnostics"]["files"]:
             receipt["call_diagnostics"]["files"][relative] = sha256(root / "source" / relative)
+    if handle_port is not None:
+        receipt["handle_provenance"] = handle_port
+        for group in ("call_diagnostics", "activation_wait_diagnostics"):
+            for relative in receipt[group]["files"]:
+                receipt[group]["files"][relative] = sha256(root / "source" / relative)
 
     def run(name, command, budget=300, cwd=directory):
         step = run_step(command, cwd, env, logs / (name + ".log"), budget)
@@ -114,6 +127,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
                        "dlls/windows.ui/x86_64-windows/windows.ui.dll"]
     if activation_wait_diagnostics:
         targets.append("dlls/combase/x86_64-windows/combase.dll")
+    if handle_provenance:
+        targets.append("dlls/rpcrt4/x86_64-windows/rpcrt4.dll")
     run("server-ntdll", targets, budget=600)
     compiler = shutil.which("x86_64-w64-mingw32-gcc")
     if not compiler:
@@ -164,6 +179,10 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         from tools.port_activation_wait_diagnostics import SOURCES
         for relative in SOURCES:
             receipt["source_inputs"][relative] = sha256(REPO / relative)
+    if handle_provenance:
+        from tools.port_handle_provenance import SOURCES
+        for relative in SOURCES:
+            receipt["source_inputs"][relative] = sha256(REPO / relative)
     receipt["built_files"] = {str(path.relative_to(root)): sha256(path) for path in (
         directory / "server/wineserver", directory / "dlls/ntdll/ntdll.so",
         directory / "dlls/ntdll/x86_64-windows/ntdll.dll",
@@ -172,6 +191,9 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         root / "windows.system.launcher.dll")}
     if activation_wait_diagnostics:
         relative = "build/dlls/combase/x86_64-windows/combase.dll"
+        receipt["built_files"][relative] = sha256(root / relative)
+    if handle_provenance:
+        relative = "build/dlls/rpcrt4/x86_64-windows/rpcrt4.dll"
         receipt["built_files"][relative] = sha256(root / relative)
     record.write_text(json.dumps(receipt, indent=2) + "\n")
     return record
@@ -183,5 +205,6 @@ if __name__ == "__main__":
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--call-diagnostics", action="store_true")
     parser.add_argument("--activation-wait-diagnostics", action="store_true")
+    parser.add_argument("--handle-provenance", action="store_true")
     args = parser.parse_args()
-    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics))
+    print(build(args.root, args.resume, args.call_diagnostics, args.activation_wait_diagnostics, args.handle_provenance))

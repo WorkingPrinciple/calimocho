@@ -48,9 +48,13 @@ class CallDiagnostics:
         self.thread_events = deque(maxlen=1024)
         self.activation_count = self.thread_count = 0
         self.registration_abi_unavailable = set()
+        self.running = set()
+        self.handles = deque(maxlen=4096)
+        self.rpc = deque(maxlen=1024)
+        self.handle_count = self.rpc_count = 0
 
     def observe(self, pid, tid, channel, function, message):
-        if channel not in ("pkgiface", "pkgrelay", "pkgwait", "pkgro", "pkgthread"):
+        if channel not in ("pkgiface", "pkgrelay", "pkgwait", "pkgro", "pkgthread", "pkghandle", "pkgrpc"):
             return
         if pid not in self.counts:
             if len(self.counts) >= 8:
@@ -60,7 +64,36 @@ class CallDiagnostics:
             self.relays[pid] = deque(maxlen=300)
         self.sequence += 1
         fact = {"pid": pid, "tid": tid, "sequence": self.sequence}
-        if channel == "pkgro" and function == "diagnostic_ro":
+        if channel == "pkghandle" and function == "diagnostic_handle" and pid in self.running:
+            match = re.fullmatch(
+                r"handle operation=(NtCreateEvent|NtOpenEvent|NtOpenProcess|NtDuplicateObject|NtClose|NtCreateUserProcess|NtConnectPort|NtSecureConnectPort|NtAlpcConnectPort) "
+                r"phase=(enter|exit) result=([0-9a-f]{8}) handle=([0-9a-f]{1,8}) source=([0-9a-f]{1,8}) "
+                r"owner=([0-9]{1,10}) peer=([0-9]{1,10}) name=(unnamed|named-redacted|DBWIN_BUFFER_READY|DBWIN_DATA_READY) "
+                r"query=([0-9a-f]{8}) module=([A-Za-z0-9_.-]{1,127}) offset=([0-9a-f]{1,16}) "
+                r"syscall=([A-Za-z0-9_.-]{1,127}) site=([0-9a-f]{1,16})", message)
+            if match:
+                fact.update(operation=match[1], phase=match[2], handle="0x" + match[4],
+                            source_handle="0x" + match[5], owner_pid=int(match[6]), peer_pid=int(match[7]),
+                            name=match[8], caller_query_status="0x" + match[9],
+                            caller_module=match[10], caller_offset=match[11],
+                            syscall_return_module=match[12], syscall_return_offset=match[13],
+                            caller_basis="user-stack-return-slot-not-a-full-stack")
+                if match[2] == "exit":
+                    fact["result"] = "0x" + match[3]
+                self.handles.append(fact)
+                self.handle_count += 1
+        elif channel == "pkgrpc" and function == "diagnostic_rpc" and pid in self.running:
+            match = re.fullmatch(
+                r"rpc operation=OpenClientConnection phase=(enter|exit) result=([0-9a-f]{8}) "
+                r"module=([A-Za-z0-9_.-]{1,127}) offset=([0-9a-f]{1,16}) endpoint=redacted", message)
+            if match:
+                fact.update(operation="OpenClientConnection", phase=match[1], caller_module=match[3],
+                            caller_offset=match[4], endpoint="redacted")
+                if match[1] == "exit":
+                    fact["result"] = "0x" + match[2]
+                self.rpc.append(fact)
+                self.rpc_count += 1
+        elif channel == "pkgro" and function == "diagnostic_ro":
             match = re.fullmatch(
                 r"activation operation=(RoGetActivationFactory|RoActivateInstance) phase=(enter|dispatch|exit) "
                 r"class=([A-Za-z_][A-Za-z0-9_.]{0,511}|invalid-redacted) iid=(" + self.IID +
@@ -106,6 +139,11 @@ class CallDiagnostics:
             if (match[5] == "ULONG") != (match[2] in ("AddRef", "Release")):
                 return
             fact.update(object=match[1], method=match[2], phase=match[3], iid=match[4])
+            if (match[1], match[2]) == ("CoreApplication", "Run"):
+                if match[3] == "enter":
+                    self.running.add(pid)
+                else:
+                    self.running.discard(pid)
             if match[3] == "exit":
                 fact["hresult" if match[5] == "HRESULT" else "refcount"] = "0x" + match[6]
                 if match[5] == "HRESULT" and int(match[6], 16) & 0x80000000:
@@ -129,23 +167,23 @@ class CallDiagnostics:
                     self.active.discard(pid)
                 self.phases.append(fact)
                 return
-            if pid not in self.active:
+            if pid not in self.active and pid not in self.running:
                 return
             if function == "diagnostic_relay" and message == "relay limited=1":
                 self.source_limited.add(pid)
                 return
             match = re.fullmatch(
-                r"relay module=(combase|twinapi\.appcore|windows\.ui|coremessaging|ntdll) "
-                r"export=([A-Za-z_][A-Za-z0-9_]{0,127}) caller=Windows\.UI\.Xaml\.dll offset=([0-9a-f]{1,8})",
+                r"relay module=(combase|twinapi\.appcore|windows\.ui|coremessaging|ntdll|kernelbase|kernel32|rpcrt4) "
+                r"export=([A-Za-z_][A-Za-z0-9_]{0,127}) caller=(Windows\.UI\.Xaml\.dll|combase\.dll|twinapi\.appcore\.dll) offset=([0-9a-f]{1,8})",
                 message, re.IGNORECASE)
             if function == "diagnostic_relay" and match:
-                fact.update(module=match[1].lower(), export=match[2], caller_module="Windows.UI.Xaml.dll",
-                            caller_offset=match[3])
+                fact.update(module=match[1].lower(), export=match[2], caller_module=match[3],
+                            caller_offset=match[4])
                 self.relays[pid].append(fact)
                 self.counts[pid]["relays"] += 1
         elif channel == "pkgwait" and pid in self.active:
             entry = re.fullmatch(r"wait method=(" + self.WAIT + r") phase=enter id=([0-9]{1,10}) "
-                                 r"count=([0-9]{1,10}) alertable=([01]) infinite=([01])", message)
+                                 r"count=([0-9]{1,10}) alertable=([01]) infinite=([01])(?: waittype=([0-9]{1,10}))?", message)
             exited = re.fullmatch(r"wait method=(" + self.WAIT + r") phase=exit id=([0-9]{1,10}) result=([0-9a-f]{8})", message)
             obj = re.fullmatch(r"object id=([0-9]{1,10}) slot=([0-9]{1,2}) handle=([0-9a-f]{1,8}) "
                               r"type=(unknown|event|mutant|thread|process|semaphore|timer|alpc|port) query=([0-9a-f]{8})", message)
@@ -155,6 +193,9 @@ class CallDiagnostics:
                 r"thread id=([0-9]{1,10}) slot=([0-9]{1,2}) query=([0-9a-f]{8}) pid=([0-9]{1,10}) "
                 r"tid=([0-9]{1,10}) exit=([0-9a-f]{8}) start-query=([0-9a-f]{8}) "
                 r"module=([A-Za-z0-9_.-]{1,127}) offset=([0-9a-f]{1,16})", message)
+            process = re.fullmatch(
+                r"process id=([0-9]{1,10}) slot=([0-9]{1,2}) query=([0-9a-f]{8}) pid=([0-9]{1,10}) "
+                r"parent=([0-9]{1,10}) exit=([0-9a-f]{8}) image-query=([0-9a-f]{8}) image=([A-Za-z0-9_.-]{1,127})", message)
             if entry and function == entry[1]:
                 key = (pid, tid, entry[2])
                 if len(self.pending) >= 64:
@@ -162,7 +203,8 @@ class CallDiagnostics:
                     return
                 fact.update(method=entry[1], id=int(entry[2]), count=int(entry[3]),
                             alertable=entry[4] == "1", infinite=entry[5] == "1",
-                            objects=[], events=[], semaphores=[], threads=[],
+                            objects=[], events=[], semaphores=[], threads=[], processes=[],
+                            wait_type={"0": "all", "1": "any"}.get(entry[6], "unknown"),
                             expected_signaler="unknown-not-an-intrinsic-event-or-semaphore-owner",
                             relay_tail=[dict(row) for row in self.relays[pid]],
                             relay_source_limited=pid in self.source_limited)
@@ -177,6 +219,14 @@ class CallDiagnostics:
                 if row and len(row["objects"]) < 64:
                     row["objects"].append({"slot": int(obj[2]), "handle": "0x" + obj[3],
                                            "type": obj[4], "query_status": "0x" + obj[5]})
+                    candidates = [dict(event) for event in self.handles if event["pid"] == pid
+                                  and event["owner_pid"] == pid and int(event["handle"], 16) == int(obj[3], 16)
+                                  and event["sequence"] < row["sequence"]]
+                    row.setdefault("handle_provenance_candidates", []).append({
+                        "slot": int(obj[2]), "events": candidates[-32:],
+                        "tail_limited": len(candidates) > 32 or self.handle_count > self.handles.maxlen,
+                        "basis": "numeric-handle chronological candidates; pre-Run creation and inheritance unavailable",
+                    })
             elif event and function == "diagnostic_wait":
                 row = self.pending.get((pid, tid, event[1]))
                 if row and len(row["events"]) < 64:
@@ -195,6 +245,18 @@ class CallDiagnostics:
                                           "pid": int(thread[4]), "tid": int(thread[5]), "exit_status": "0x" + thread[6],
                                           "start_query_status": "0x" + thread[7], "start_module": thread[8],
                                           "start_offset": thread[9], "signal_condition": "this-thread-terminates"})
+            elif process and function == "diagnostic_wait":
+                row = self.pending.get((pid, tid, process[1]))
+                if row and len(row["processes"]) < 64:
+                    ok = process[3] == "00000000"
+                    row["processes"].append({
+                        "slot": int(process[2]), "query_status": "0x" + process[3],
+                        "pid": int(process[4]) if ok else None, "parent_pid": int(process[5]) if ok else None,
+                        "exit_status": "0x" + process[6] if ok else None,
+                        "alive_at_entry": process[6] == "00000103" if ok else None,
+                        "image_query_status": "0x" + process[7], "image": process[8],
+                        "signal_condition": "this-process-terminates",
+                    })
 
     def result(self, target_pids):
         select = lambda rows: [row for row in rows if row["pid"] in target_pids]
@@ -216,6 +278,10 @@ class CallDiagnostics:
             "thread_creation": select(self.thread_events),
             "thread_tail_overwritten": max(0, self.thread_count - self.thread_events.maxlen),
             "registration_abi_unavailable": sorted(target_pids & self.registration_abi_unavailable),
+            "handle_provenance": select(self.handles),
+            "handle_tail_overwritten": max(0, self.handle_count - self.handles.maxlen),
+            "rpc_connection_attempts": select(self.rpc),
+            "rpc_tail_overwritten": max(0, self.rpc_count - self.rpc.maxlen),
             "basis": "instrumented calls, not a deadlock or unsignalled-event cause determination",
         }
 
@@ -702,7 +768,7 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2,
                                 continue
                             line = part.decode("utf-8", errors="replace").rstrip("\r")
                             if seen > 8 * 1024 * 1024 and stream == "stderr" and not re.match(
-                                    r"^[0-9a-f]+:[0-9a-f]+:trace:(?:pkgiface|pkgrelay|pkgwait|pkgcore|pkgwindow|pkglaunch|pkgro|pkgthread):",
+                                    r"^[0-9a-f]+:[0-9a-f]+:trace:(?:pkgiface|pkgrelay|pkgwait|pkgcore|pkgwindow|pkglaunch|pkgro|pkgthread|pkghandle|pkgrpc):",
                                     line, re.IGNORECASE):
                                 continue
                             getattr(trace, stream)(line)

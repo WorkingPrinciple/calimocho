@@ -2960,3 +2960,44 @@ identities and command paths, original native input/mappings,180-second
 cap and sealed014 predecessor. All202 host tests pass.
 The receipt was sent to the runtime observer owner, copying the coordinator.
 Actual015 remains unobserved here at handoff.
+
+### Actual015: event/process wait, process identity still unknown
+
+The runtime owner executed015 once. The redacted result SHA-256 is
+`cb478373e0e1018834719c6f459022a8c1204a29ee207fbd7ffb12a0ab5713d3`;
+the unchanged runtime receipt is
+`5f5974ccabb1503d2d801b4b1fab81a8767ce052035c2ba0373c9cb1ba1a4c7b`.
+All eight completed AppL activation calls returned0. The last successful
+factory was CoreApplication/IStaticLifetime, served by twinapi.appcore.
+StaticCollection.GetIids returned0; GetCollection entry was still absent.
+
+The pending infinite/nonalertable multiple wait had event88, unsignaled
+at entry, and process94. Process PID/state and WaitAll/WaitAny were not
+retained. No signaler, missing component or deadlock is established.
+Both20/60 snapshots again counted2 threads before attachment and0 windows,
+with explicit detach and all48 events continued. The two creation records
+correlated with extra threads during sampling, not proven semantic roles.
+The180.197-second cap leaves target exit unknown; no screenshot was taken.
+
+Separate post-receipt cleanup analysis SHA-256 is
+`bf7810de96492b2c5651c59357d3ebfc44a60c16ea78ace9e3631e32685742ec`.
+The owner records exact-prefix stop0/8.221s, wait0/1.743s,11 recorded host
+PIDs absent and open-file check clear. Runtime and separate analysis hashes
+were checked read-only. Native/module identities and012-014 stayed unchanged.
+No replay occurred.
+
+### Cell016 process/handle/IPC diagnostic source
+
+The owner approved a changed discriminator, not a behavior fix.
+See [ADR-0048](ADR/0048-identify-waited-process-and-handle-provenance.md).
+The new isolated sibling is
+`build/winehq-11.20/package-uwp-handle-provenance-01`.
+It adds real process basic/image queries, actual wait type, bounded
+event/process creation/duplication/close records and LPC/ALPC entry/results.
+Source-built rpcrt4 adds actual client transport attempt/result metadata.
+Expanded sanitized relays cover admitted module callsites, not raw arguments.
+
+The source build, eight-module stage and bounded observer compilation
+completed without executing Wine. The fresh build retained existing
+process/token enum-case warnings and resource-parser conflicts; no new
+diagnostic-source warning was emitted. Native016 is not yet observed.

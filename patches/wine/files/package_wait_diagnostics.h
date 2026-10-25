@@ -65,4 +65,41 @@ static void diagnostic_wait(HANDLE handle, unsigned int sequence, unsigned int s
                         status ? 0 : HandleToULong(thread.ClientId.UniqueThread),
                         status ? 0 : (unsigned int)thread.ExitStatus, (unsigned int)address_status, module, offset);
     }
+    else if (!status && !strcmp(type, "process"))
+    {
+        PROCESS_BASIC_INFORMATION process = {0};
+        char storage[4096], image[128] = "unknown-redacted";
+        UNICODE_STRING *name = (void *)storage;
+        NTSTATUS image_status;
+        SIZE_T i, length, start = 0;
+        status = NtQueryInformationProcess(handle, ProcessBasicInformation, &process, sizeof(process), NULL);
+        image_status = NtQueryInformationProcess(handle, ProcessImageFileName, storage, sizeof(storage), NULL);
+        if (!image_status)
+        {
+            length = name->Length / sizeof(WCHAR);
+            if ((char *)name->Buffer >= storage && (char *)(name->Buffer + length) <= storage + sizeof(storage))
+            {
+                for (i = 0; i < length; ++i)
+                    if (name->Buffer[i] == '\\' || name->Buffer[i] == '/') start = i + 1;
+                if (length > start && length - start < sizeof(image))
+                {
+                    for (i = start; i < length; ++i)
+                    {
+                        WCHAR c = name->Buffer[i];
+                        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+                              || (c >= '0' && c <= '9') || c == '_' || c == '.' || c == '-')) break;
+                    }
+                    if (i == length)
+                    {
+                        for (i = start; i < length; ++i) image[i - start] = name->Buffer[i];
+                        image[length - start] = 0;
+                    }
+                }
+            }
+        }
+        TRACE_(pkgwait)("process id=%u slot=%u query=%08x pid=%lu parent=%lu exit=%08x image-query=%08x image=%s\n",
+                        sequence, slot, (unsigned int)status, status ? 0 : process.UniqueProcessId,
+                        status ? 0 : process.InheritedFromUniqueProcessId,
+                        status ? 0 : (unsigned int)process.ExitStatus, (unsigned int)image_status, image);
+    }
 }

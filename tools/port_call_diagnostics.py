@@ -149,15 +149,15 @@ def port(source):
     shutil.copy2(FILES / "package_address_diagnostics.h", source / "dlls/ntdll/unix/package_address_diagnostics.h")
     sync = source / "dlls/ntdll/unix/sync.c"
     text = sync.read_text()
-    for name, args, call, count, handles in (
+    for name, args, call, count, handles, wait_type in (
         ("NtWaitForSingleObject", "HANDLE handle, BOOLEAN alertable, const LARGE_INTEGER *timeout",
-         "handle, alertable, timeout", "1", "&handle"),
+         "handle, alertable, timeout", "1", "&handle", "1"),
         ("NtWaitForMultipleObjects",
          "DWORD count, const HANDLE *handles, WAIT_TYPE type, BOOLEAN alertable, const LARGE_INTEGER *timeout",
-         "count, handles, type, alertable, timeout", "count", "handles"),
+         "count, handles, type, alertable, timeout", "count", "handles", "(unsigned int)type"),
         ("NtSignalAndWaitForSingleObject",
          "HANDLE signal, HANDLE wait, BOOLEAN alertable, const LARGE_INTEGER *timeout",
-         "signal, wait, alertable, timeout", "1", "&wait"),
+         "signal, wait, alertable, timeout", "1", "&wait", "1"),
     ):
         original = "NTSTATUS WINAPI " + name + "("
         if text.count(original) != 1:
@@ -169,8 +169,8 @@ def port(source):
             "    const HANDLE *objects = " + handles + ";\n"
             "    if (!TRACE_ON(pkgwait)) return diagnostic_original_" + name + "(" + call + ");\n"
             "    sequence = InterlockedIncrement(&diagnostic_wait_sequence);\n"
-            '    TRACE_(pkgwait)("wait method=' + name + ' phase=enter id=%u count=%u alertable=%u infinite=%u\\n",\n'
-            "                    sequence, (unsigned int)" + count + ", alertable, !timeout);\n"
+            '    TRACE_(pkgwait)("wait method=' + name + ' phase=enter id=%u count=%u alertable=%u infinite=%u waittype=%u\\n",\n'
+            "                    sequence, (unsigned int)" + count + ", alertable, !timeout, " + wait_type + ");\n"
             "    if (" + count + " <= MAXIMUM_WAIT_OBJECTS)\n"
             "        for (i = 0; i < " + count + "; ++i) diagnostic_wait(objects[i], sequence, i);\n"
             "    result = diagnostic_original_" + name + "(" + call + ");\n"
