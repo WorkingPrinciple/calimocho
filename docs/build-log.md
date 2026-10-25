@@ -3,6 +3,28 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: real restricting-SID state and second access-check pass
+
+ADR-0060 replaces NtFilterToken's ignored restricting-SID input with
+server-owned restriction state. Token duplication retains it, filtering
+intersects it, queries return it and destruction releases it. The access
+checker now performs a second DACL pass, with the measured write-only mask
+for WRITE_RESTRICTED. Unsupported filter flags fail rather than appear
+to have taken effect.
+
+The host harness compiles the actual modified access checker, filter and
+group-query handlers with sanitizers. All sixty retained native write-overlap
+rows match, including twelve expected generic-mask API failures. Additional
+assertions cover full restrictions, owner grants, empty intersections,
+allocation failure, malformed requests, query sizing and SID attributes.
+These are source-level checks, not an installed service-token comparison.
+
+The isolated `package-restricted-token-01` build completes. Its first compile
+reported an unused old SID-count helper after exact request validation replaced
+it; the source port removes that now-unused helper. Registrar construction and
+ALPC authentication remain separate unfinished work. No cell027 receipt or
+runtime execution is produced by this source-only step.
+
 ## 2026-10-25: source-only ALPC transport, no cell027 admission
 
 ADR-0059 adds an opt-in ALPC transport source port from the pinned
