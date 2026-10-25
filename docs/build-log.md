@@ -31,6 +31,44 @@ modules,133 typed slots, exact producer blobs, compiled helpers, collector
 commands, unchanged genuine-context helper and sealed021 predecessor.
 All238 host tests pass. No022 runtime or fixture execution occurred here.
 
+Actual022 subsequently ran once through the exclusive runtime owner.
+Its redacted evidence was independently read and SHA-256 checked as
+`ddcfb1f40b362353c028b523567233566f8902be91af182a5a0076fbed03efde`.
+The new claims-context row2242 observes target256/TID260, handle category
+thread-effective-token, pointer-presence96 (0x60, claim and attributes only),
+sampled unpackaged=false and packaged_gamingapp_signed=true, and actual
+return C0000002. Claims source cap is false and tail overwrite0.
+These are samples before the unchanged generated call, not selected-branch
+tracing or proof of native packaged-token-6 behavior.
+
+Matching relay2243 still records RtlQueryPackageClaims low32 C0000002,
+original XAML+704cfd. Fail-fast2247 records actual argument D0000002 with
+hook caller ntdll+10e03; separate direct relay2246 records XAML+33f121.
+Exact image/token process handle observes target256 exit C0000602.
+Initialize enters without exit; no later lifecycle or UI acceptance appears.
+Two QuirkIsEnabled FIXME fingerprints remain, with no retained loss.
+Collection takes5.086 seconds, ending at the explicit post-target-exit drain
+cutoff, truncated, not180-second timeout. No fixture or20/60 sampler runs.
+
+The runtime owner verifies the installed r8 and prefix hashes and reports
+exact022 cleanup with predecessors012-021 unchanged. The remaining native
+reference gap is packaged token-6, not the now-observed local handle category
+or sampled context. No forced unpackaged context, token alias, guessed success
+or unchanged replay is permitted.
+
+Separate final analysis SHA-256
+`f3f6326e816d1874897639d0646e45e525bb5b573bb194ce23285284b439e294`
+was independently checked with all bound redacted/runtime/preflight/status
+and r8 snapshot hashes. Runtime SHA-256 is
+`fd923945a8b5170d1b4d5f16532e7a35045a48911862f6d4ed4c68b99f98b5d2`.
+The ordered claims sample, matching return, direct relay and fail-fast,
+exact target exit and loss0 assertions match the redacted evidence.
+Exact022 stop/wait exit0, all13 recorded host PIDs absent and lsof exit1
+with zero prefix rows establish recorded post-receipt cleanup.
+Auto0 import/readback/no-GPFault marker and preserved012-021 result hashes
+are confirmed. This completes the022 discriminator experiment with the
+packaged-token-6 native-reference gap still open.
+
 ## 2026-10-25: observation-backed claims Site B sibling021
 
 ADR-0053 records the producer's unchanged Whiny r6 replacement, SHA-256
