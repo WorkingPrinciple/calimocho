@@ -3,7 +3,7 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
-## 2026-10-25: truthful no-device GameInput sibling (native check pending)
+## 2026-10-25: truthful no-device GameInput sibling
 
 ADR-0039 records the owner's Witcher input/haptics evidence and the exact
 GameInput API gap. The new source implements separate typed v0/v1/v2
@@ -18,11 +18,23 @@ The expanded headless probe and all three source vtables compile with
 warnings treated as errors. Host checks inspect the actual four PE exports,
 native preference and single-file deployed difference.
 
-The native baseline/candidate fixture has not run. Its scheduler slot is
-queued behind Ode game testing. No prefix or game was started for this
-GameInput work, and no runtime or Witcher acceptance is claimed. A later
-Witcher recipe must embed its own `gameinput=b` override while retaining the
-owner's native AGS shim. Frozen 11d and the Xbox cell007 snapshot are unchanged.
+The scheduler then granted a bounded windowless slot. Actual baseline
+Create returned E_NOTIMPL, Initialize was absent and the probe exited1.
+Actual candidate Create returned S_OK, Initialize was present and every
+probe assertion passed, with zero callbacks and exit0. Baseline8.87 seconds
+and candidate12.94 seconds stayed inside the slot. Only fresh owned prefixes
+were initialized; no game or foreign Wine family was touched.
+
+The first harness falsely required server-stop0 after natural process exit.
+It retained the baseline observation and stopped before candidate execution.
+The corrected harness ran only the candidate, without replaying baseline.
+Both prefixes had stop1, wait0 and lsof1/empty. The slot was released directly
+after cleanup. This is GameInput contract evidence, not Witcher acceptance.
+
+The Witcher recipe embeds `gameinput=b;amd_ags_x64=n` after generic defaults,
+retaining the owner's native AGS shim without installing or modifying it.
+The full deployed audit and committed producer evidence are frozen separately
+from the old unqualified registry. Frozen 11d and Xbox cell007 remain unchanged.
 
 ## 2026-10-25: opt-in Wine-built AGS5.4 sibling
 

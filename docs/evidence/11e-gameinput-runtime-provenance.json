@@ -1,0 +1,51 @@
+{
+  "producerRepository": "https://github.com/dragoshont/calimocho",
+  "upstreamWineCommit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+  "implementationCommit": "46a0a85f4b44ff19ef8b50130289df67f13de728",
+  "immutableInputs": [
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11e-gameinput-04/receipt.json",
+      "sha256": "1889855084c58b2283562f528e680a59da16875dbb137a2e8cb6e37fcadacdb7"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11e-gameinput-04/gameinput.registry.local.UNQUALIFIED.json",
+      "sha256": "5dfa7555f450d4080a362e1f8e2279d0f3a1a5bd37d95b568e7fe559d5573d41"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11e-gameinput-04/gameinput.dll",
+      "sha256": "e814ac3d88ffb9156855bc05bac36b442f30559f3ff9c11aa3cfd963037e83e4"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11e-gameinput-04/gameinput-probe.exe",
+      "sha256": "777d066f909584369962f7f3fa682407c18dfd96ccc0193849645bbd3d98fae7"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11e-gameinput-04/headless-01/receipt.json",
+      "sha256": "d3c3bc78d12c8fce8071b12d3ea2e17c686c87fc376fa118e7ecaba5ff931ee3"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11e-gameinput-04/headless-02/receipt.json",
+      "sha256": "bac29c94313111f4158eb46e9298831715cf1d8803459f9df54c681177d36f25"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11e-gameinput-04/run_headless.py",
+      "sha256": "f0062693bcac66c012914c9aeea3b4569bd42ef6e5e038e2fa3ae18a183e8ea8"
+    }
+  ],
+  "deployedInventoryAudit": {
+    "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11e-gameinput-04/integrity-audit-FROZEN.json",
+    "sha256": "23dbaad4f5918ed066746305e36e69e5f7d6276338349ff6450edcce65fa8dce",
+    "status": "unchanged"
+  },
+  "wineSha256": "f6d0546fad2d0dafaa09a9fe6cabe75bb070567df6b0933ecd3622dcb6349194",
+  "wineserverSha256": "e3ec4e7e76cee273f17d5fa3459902642f73d6921e94c576aa74e8cdbdcd7da1",
+  "variantEngineName": "calimocho-wine11.20-gptk4b3-gameinput-empty-witcher",
+  "variantOverride": "mscoree,mshtml=;gameinput=b;amd_ags_x64=n",
+  "headless": "Actual old stub/export failure; candidate zero callbacks, zero assertion failures",
+  "cleanup": "Both -k returned1, -w0, lsof1/empty after natural process exit",
+  "retainedHarnessFailure": "First harness required -k0; baseline retained, not replayed",
+  "graphics": "Not rerun on 11e; only GameInput differs from qualified 11d",
+  "gameAcceptance": "Pending execution-owner admission and Witcher title-screen observation",
+  "nativeAgs": "Recipe requires existing owner-managed native amd_ags_x64; not installed or modified here",
+  "limitations": "x64 only; no devices, keyboard/mouse capture, haptics, OEM or AGS6 implementation"
+}

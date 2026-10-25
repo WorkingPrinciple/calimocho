@@ -71,3 +71,26 @@ renderer or user32 dependency.
 Compilation and source checks do not establish installed behavior or
 Witcher title-screen acceptance. Native fixtures wait for the scheduler's
 explicit between-game slot. The execution owner owns the later game run.
+
+The scheduler subsequently granted the windowless fixture slot. Actual
+baseline Create returned `80004001`, with Initialize absent and exit1.
+The new builtin returned S_OK, exported Initialize and passed the probe:
+zero callbacks, zero assertion failures and exit0. The probe was copied to
+a directory without a neighbouring DLL, required system32 module resolution
+and selected the audited builtin explicitly.
+
+The baseline took8.87 seconds and the candidate12.94 seconds. The first
+harness rejected the naturally exited baseline because it required
+`wineserver -k` to return0. That failed harness receipt remains intact; the
+baseline was not replayed. Both prefixes actually returned `-k`1, `-w`0
+and lsof1 with empty output. The corrected harness permits the no-live-server
+result only with the wait/open-file checks. No foreign Wine family was stopped.
+
+Freeze a distinct Witcher recipe with `gameinput=b;amd_ags_x64=n`, after
+the generic `mscoree,mshtml=` defaults. The native AGS file remains the
+execution owner's existing prefix asset, not a new AGS6 implementation or
+copied payload. A full deployed inventory audit and committed producer
+evidence bind the recipe for downstream admission. Do not inherit graphics
+or game acceptance: only GameInput differs from qualified 11d, but graphics
+was not rerun on this sibling. Witcher title-screen validation remains with
+the execution owner.
