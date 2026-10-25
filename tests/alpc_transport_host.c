@@ -345,6 +345,35 @@ int main(void) {
     close_handle(server);close_handle(duplicate);close_handle(client);
     client=connect_client(0);
     close_handle(conn);close_handle(client);
+    {
+        /* Registrar shape: waitable connection port (0x70000), a wait packet on its
+           sync object, and a synchronous 0x18-byte connect from the client. */
+        reply=call(alpc_create_port,(struct request){.flags=0x70000});
+        unsigned waitable=reply.handle;assert(!error&&waitable);
+        struct alpc_port *port=(struct alpc_port *)handles[waitable];
+        struct object *sync=port->obj.ops->get_sync(&port->obj);
+        assert(sync==port->sync);release_object(sync);
+        call(alpc_receive_message,(struct request){.handle=waitable});
+        assert(error==STATUS_UNSUCCESSFUL&&!port->sync->signals);
+        unsigned char connect_msg[0x18];
+        for(unsigned i=0;i<sizeof(connect_msg);++i)connect_msg[i]=(unsigned char)(0xa0+i);
+        unsigned wakes=port->obj.wakes;
+        request_data=connect_msg;request_size=sizeof(connect_msg);
+        client=connect_client(ALPC_SYNC_CONNECTION);
+        request_size=0;
+        assert(port->sync->signals&&port->obj.wakes>wakes);
+        assert(port->obj.ops->signaled(&port->obj,NULL));
+        reply=call(alpc_receive_message,(struct request){.handle=waitable});
+        assert(!error&&reply.type==LPC_CONNECTION_REQUEST);
+        assert(reply_size==sizeof(connect_msg)&&!memcmp(reply_data,connect_msg,sizeof(connect_msg)));
+        id=reply.msg_id;
+        assert(!port->sync->signals);
+        reply=call(alpc_accept_connect_port,(struct request){.handle=waitable,.msg_id=id,.accept=1});
+        server=reply.handle;assert(!error&&server);
+        reply=call(alpc_connect_result,(struct request){.handle=client});
+        assert(!error&&reply.state==ALPC_CONNECTED);
+        close_handle(server);close_handle(client);close_handle(waitable);
+    }
     assert(!objects&&!named);
     return 0;
 }
