@@ -1,4 +1,4 @@
-"""Cell027-041 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
+"""Cell027-042 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
 import importlib
 import json
 from pathlib import Path
@@ -47,7 +47,8 @@ DOCS = tuple("docs/ADR/%s.md" % name for name in (
     "0071-check-ownerless-alpc-server-requirements",
     "0072-impersonate-alpc-clients-at-their-requested-level",
     "0073-use-native-alpc-message-flags-and-sync-requests",
-    "0074-accept-alpc-work-on-behalf-send-attribute"))
+    "0074-accept-alpc-work-on-behalf-send-attribute",
+    "0075-route-alpc-release-responses-by-delivered-message-identity"))
 TESTS = ("tests/test_alpc_transport.py", "tests/alpc_transport_host.c", "tests/test_restricted_token.py",
          "tests/restricted_token_host.c", "tests/test_alpc_identity.py", "tests/test_token_identity.py",
          "tests/token_identity_host.c", "tests/test_token_security.py", "tests/token_security_host.c",
@@ -56,12 +57,14 @@ TESTS = ("tests/test_alpc_transport.py", "tests/alpc_transport_host.c", "tests/t
          "tests/test_registrar_cell.py", "tests/test_sechost_services.py", "tests/sechost_services_host.c",
          "tests/test_server_request_limits.py", "tests/test_alpc_telemetry.py",
          "tests/test_wait_completion_packet.py", "tests/wait_completion_packet_host.c",
-         "tests/test_alpc_sync_request.py", "tests/test_alpc_work_on_behalf.py")
+         "tests/test_alpc_sync_request.py", "tests/test_alpc_work_on_behalf.py",
+         "tests/test_alpc_release_reply.py")
 
 
 def registrar_sources():
     sources = ["tools/freeze_registrar_cell.py", "tools/server_protocol_gate.py"]
-    for key in REGISTRAR_STACK + ("sechost_services", "alpc_connect_attrs", "alpc_sync_request", "alpc_work_on_behalf"):
+    for key in REGISTRAR_STACK + ("sechost_services", "alpc_connect_attrs", "alpc_sync_request",
+                                 "alpc_work_on_behalf", "alpc_release_reply"):
         for relative in importlib.import_module("tools.port_" + key).SOURCES:
             if relative not in sources:
                 sources.append(relative)
@@ -119,8 +122,8 @@ def registration_text(transient=False):
 
 
 def add_registrar_handoff(root, receipt, cell=27):
-    if cell not in (27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41):
-        raise ValueError("Registrar handoff supports cells027-041")
+    if cell not in (27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42):
+        raise ValueError("Registrar handoff supports cells027-042")
     label = "%03d" % cell
     root = Path(root)
     registration = root / ("registrar-CELL%s-FROZEN.reg" % label)
@@ -308,6 +311,16 @@ def add_registrar_handoff(root, receipt, cell=27):
             "Cell040 diagnosis: the app's first NtAlpcSendWaitReceivePort (CoreMessaging +21b6) returned STATUS_NOT_IMPLEMENTED with 'reason=send_attrs value=0x2000000'; CoreMessaging allocates 0xe2000000 attributes and marks CONTEXT and WORK_ON_BEHALF (0x22000000) valid on the buffer it sends and receives with; the app then failed fast with 0xd0000002",
             "Cell041 accepts the WORK_ON_BEHALF send attribute without reading or carrying its 8-byte ticket, and a receive never marks it valid; Wine has no thread work-on-behalf tickets (both Rtl ticket functions are NOT_IMPLEMENTED stubs), and CoreMessaging's receive path handles a message without the attribute normally (read for understanding only)",
             "Native propagates the sender's work-on-behalf ticket to the receiver for priority and accounting; that propagation is not reproduced",
+        ]
+    if cell >= 42:
+        receipt["services_diagnostics"]["discriminators"] = [
+            "registrar SENDHEADER on listener 0x74 with flags 0x10000, Type=1 and original MessageId/ClientId: its NtAlpcSendWaitReceivePort must route the response rather than return STATUS_INVALID_PORT_HANDLE",
+            "wineserver queue type=2 with the request id, followed by the app's matching receive: a correlated RELEASE response reached the client; c000021f is a missing, undelivered, reused or mismatched pending identity",
+        ] + receipt["services_diagnostics"]["discriminators"]
+        receipt["limitations"] += [
+            "Cell041 ran once but the collector timed out with a truncated trace; target state is unknown. The recovered request id257 was delivered to the registrar, whose RELEASE_MESSAGE response reused the received Type=1 header on listener 0x74 and returned STATUS_INVALID_PORT_HANDLE",
+            "Cell042 supersedes cell040's RELEASE no-op and nonzero-MessageId limitations for RELEASE plus nonzero MessageId: a response must match a delivered pending request by original ClientId, callback and endpoint, and consumes that pending record exactly once",
+            "This release-response contract is inferred from CoreMessaging's response construction (read for understanding only) and tested against our real server handlers, not measured on native Windows; other ALPC retained-message, callback and release-only forms are not implemented",
         ]
 
 

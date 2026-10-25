@@ -11,7 +11,7 @@ kernelbase: RaiseFailFastException reports the record (code, flags, count,
 address as module+offset, parameters as 32-bit scalars or module+offset) on
 pkgexception before any termination path; behavior is unchanged.
 
-wineserver: connect, connect-result, accept, receive and wait-packet
+wineserver: connect, connect-result, accept, send, receive and wait-packet
 association report their final status on stderr, and queue_msg reports
 whether a waiter (thread or wait packet) is registered on the port sync.
 """
@@ -97,6 +97,7 @@ SERVER_HANDLERS = {
     "alpc_connect_port": ('handle=%d', "reply->handle != 0"),
     "alpc_connect_result": ('state=%d msg_id=%u', "(int)reply->state, reply->msg_id"),
     "alpc_accept_connect_port": ('accept=%d msg_id=%u handle=%d', "(int)req->accept, req->msg_id, reply->handle != 0"),
+    "alpc_send_message": ('flags=%x input_id=%u msg_id=%u', "req->flags, req->msg_id, reply->msg_id"),
     "alpc_receive_message": ('match=%u type=%u msg_id=%u', "req->match_id, reply->type, reply->msg_id"),
 }
 

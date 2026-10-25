@@ -193,6 +193,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         sync_request_port = sync_request_source(root / "source")
         from tools.port_alpc_work_on_behalf import port as work_on_behalf_source
         work_on_behalf_port = work_on_behalf_source(root / "source")
+        from tools.port_alpc_release_reply import port as release_reply_source
+        release_reply_port = release_reply_source(root / "source")
     registrar_port = None
     if registrar_service:
         from tools.port_registrar_service import port as registrar_source
@@ -292,6 +294,7 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         receipt["alpc_connect_attrs"] = connect_attrs_port
         receipt["alpc_sync_request"] = sync_request_port
         receipt["alpc_work_on_behalf"] = work_on_behalf_port
+        receipt["alpc_release_reply"] = release_reply_port
     if registrar_port is not None:
         receipt["registrar_service"] = registrar_port
         receipt["sechost_services"] = sechost_port
@@ -479,7 +482,8 @@ def build(root, resume=False, call_diagnostics=False, activation_wait_diagnostic
         from tools.port_alpc_connect_attrs import SOURCES as CONNECT_SOURCES
         from tools.port_alpc_sync_request import SOURCES as SYNC_SOURCES
         from tools.port_alpc_work_on_behalf import SOURCES as WORK_SOURCES
-        for relative in SOURCES + CONNECT_SOURCES + SYNC_SOURCES + WORK_SOURCES:
+        from tools.port_alpc_release_reply import SOURCES as RELEASE_SOURCES
+        for relative in SOURCES + CONNECT_SOURCES + SYNC_SOURCES + WORK_SOURCES + RELEASE_SOURCES:
             receipt["source_inputs"][relative] = sha256(REPO / relative)
     if registrar_service:
         from tools.port_registrar_service import SOURCES

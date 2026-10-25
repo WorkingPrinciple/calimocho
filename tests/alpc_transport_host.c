@@ -492,6 +492,70 @@ int main(void) {
         assert(!error&&reply.type==LPC_DATAGRAM&&reply_size==5);
         request_size=0;
 #endif
+#ifdef ALPC_RELEASE_REPLY_TEST
+        /* Cell041: the registrar reuses the delivered Type=1 header on the listener,
+           flags RELEASE_MESSAGE (0x10000), same ClientId/MessageId, and a 96-byte response. */
+        request_data="request";request_size=7;
+        reply=call(alpc_send_message,(struct request){.handle=client,.request=1,.callback_id=9});
+        unsigned response_id=reply.msg_id;assert(!error&&response_id);
+        reply=call(alpc_receive_message,(struct request){.handle=waitable});
+        assert(!error&&reply.type==LPC_REQUEST&&reply.msg_id==response_id);
+        struct request response={.handle=waitable,.flags=0x10000,.request=1,
+            .msg_id=response_id,.pid=reply.pid,.tid=reply.tid,.callback_id=reply.callback_id};
+        unsigned char payload[96];
+        for(unsigned i=0;i<sizeof(payload);++i)payload[i]=(unsigned char)(i^0x5a);
+        request_data=payload;request_size=sizeof(payload);
+        call(alpc_send_message,response);
+        assert(!error);
+        reply=call(alpc_receive_message,(struct request){.handle=client,.match_id=response_id});
+        assert(!error&&reply.type==LPC_REPLY&&reply.msg_id==response_id&&reply.callback_id==9);
+        assert(reply_size==sizeof(payload)&&!memcmp(reply_data,payload,sizeof(payload)));
+        call(alpc_send_message,response);
+        assert(error==STATUS_REPLY_MESSAGE_MISMATCH); /* consumed exactly once */
+
+        request_size=0;
+        reply=call(alpc_send_message,(struct request){.handle=client,.request=1,.callback_id=9});
+        response_id=reply.msg_id;assert(!error);
+        response.msg_id=response_id;
+        call(alpc_send_message,response);
+        assert(error==STATUS_REPLY_MESSAGE_MISMATCH); /* not yet delivered */
+        reply=call(alpc_receive_message,(struct request){.handle=waitable});
+        assert(!error&&reply.msg_id==response_id);
+        ++response.pid;call(alpc_send_message,response);
+        assert(error==STATUS_REPLY_MESSAGE_MISMATCH);--response.pid;
+        ++response.tid;call(alpc_send_message,response);
+        assert(error==STATUS_REPLY_MESSAGE_MISMATCH);--response.tid;
+        ++response.callback_id;call(alpc_send_message,response);
+        assert(error==STATUS_REPLY_MESSAGE_MISMATCH);--response.callback_id;
+        response.msg_id+=1000;call(alpc_send_message,response);
+        assert(error==STATUS_REPLY_MESSAGE_MISMATCH);response.msg_id=response_id;
+        call(alpc_receive_message,(struct request){.handle=client,.match_id=response_id});
+        assert(error==STATUS_PENDING); /* failed responses did not enqueue anything */
+
+        unsigned other_client=connect_client(ALPC_SYNC_CONNECTION);
+        unsigned other_id=receive_id(waitable);
+        reply=call(alpc_accept_connect_port,(struct request){.handle=waitable,.msg_id=other_id,.accept=1});
+        unsigned other_server=reply.handle;assert(!error);
+        reply=call(alpc_connect_result,(struct request){.handle=other_client});
+        assert(!error&&reply.state==ALPC_CONNECTED);
+        response.handle=other_server;
+        call(alpc_send_message,response);
+        assert(error==STATUS_REPLY_MESSAGE_MISMATCH); /* valid identity, wrong connection */
+        response.handle=server;
+        call(alpc_send_message,response);
+        assert(!error); /* the correct communication port works as well as the listener */
+        reply=call(alpc_receive_message,(struct request){.handle=client,.match_id=response_id});
+        assert(!error&&reply.type==LPC_REPLY&&reply.msg_id==response_id);
+        call(alpc_receive_message,(struct request){.handle=other_client});
+        assert(error==STATUS_PENDING);
+        close_handle(other_server);close_handle(other_client);
+
+        /* RELEASE on a fresh send (zero MessageId) is still a new datagram, not a response. */
+        call(alpc_send_message,(struct request){.handle=server,.flags=0x10000});
+        assert(!error);
+        reply=call(alpc_receive_message,(struct request){.handle=client});
+        assert(!error&&reply.type==LPC_DATAGRAM);
+#endif
         close_handle(server);close_handle(client);close_handle(waitable);
     }
     assert(!objects&&!named);

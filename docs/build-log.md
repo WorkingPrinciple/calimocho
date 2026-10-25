@@ -4203,3 +4203,16 @@ was then rejected by the send attribute check with
 `reason=send_attrs value=0x2000000` (WORK_ON_BEHALF). Cell041 accepts that
 attribute without carrying a ticket, because Wine has no thread
 work-on-behalf tickets (ADR-0074). Not proven: no runtime run.
+
+## 2026-10-25: cell041 listener response, cell042
+
+Cell041 ran once, but the collector timed out and the trace is truncated.
+Target state is unknown. Recovered evidence shows the app request reached
+the registrar. Its response reused the received header on listener 0x74
+with RELEASE_MESSAGE and returned STATUS_INVALID_PORT_HANDLE. ntdll had
+discarded RELEASE, so wineserver classified the response as a new listener
+request. Cell042 correlates a release response against a delivered pending
+request's ClientId, MessageId, callback and endpoint (ADR-0075).
+The host regression reproduces the old failure and checks the corrected
+96-byte response and identity refusal cases. Native Windows differential
+testing and a cell042 app run are not proven.

@@ -87,7 +87,7 @@ class AlpcTelemetryPortTests(unittest.TestCase):
         self.assertLess(hook, debug.index("TerminateProcess", hook))
         server = (self.source / "server/alpc.c").read_text()
         for handler in ("alpc_connect_port", "alpc_connect_result", "alpc_accept_connect_port",
-                        "alpc_receive_message"):
+                        "alpc_send_message", "alpc_receive_message"):
             self.assertEqual(server.count("DECL_HANDLER(%s)" % handler), 1)
             self.assertIn("alpc_impl_%s( req, reply );" % handler, server)
         self.assertIn("wineserver: alpc queue kind=", server)
