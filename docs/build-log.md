@@ -3,6 +3,37 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: COR-148 FH6 diagnostic capture
+
+REQ-108 remains unresolved. ADR-0030's source-built, logging-only ntdll
+overlay was admitted for diagnosis, not as a compatibility fix. Frozen
+registry SHA256:
+`b21f9b4d3f55ace3ff583738d7d53f99281cffd25d3a849fdb5086cdca0ef89d`.
+The two source-transform tests passed and the isolated ntdll build exited
+0. No installed runtime was replaced.
+
+Single serialized run `b0a15e33-3d90-456d-b218-6f3017b95ea2` ended
+naturally with Wine/CLI exit 84. Fault-time bytes at `0x1453076bc`
+were `1f94e978d648897c241055488bec4883`, exactly matching the retained
+executable. The game handler returned continue-search.
+
+The 130 direct `NtAllocateVirtualMemory` calls returned 128 address
+conflicts and two successes, including success at the end of the retry
+sequence. This is consistent with address probing, not proof of a failed
+allocation. The earlier host write fault was inside
+`NtUserEnumDisplayMonitors`; a later enumeration succeeded. Neither
+observation proves failed unpacking or a protection blocker.
+
+The next discriminator is identifying the paths of three failed
+`NtCreateFile` calls immediately before the illegal instruction. Existing
+Wine `+file` logging exposes those paths without a binary change, but a
+new capture requires separate admission and launch authorization. Optional
+file probes must not be mistaken for required missing files.
+
+Exact artifact hashes and trace line references are preserved in
+`docs/evidence/cor148-fh6-opcode-result.json`. The exclusive slot was
+released after natural exit and a fresh no-game process check.
+
 ## 2026-05-31 — Session 1: discovery + planning
 
 ### What we learned

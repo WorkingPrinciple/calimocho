@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "requirement": "REQ-108",
+  "authorization": "COR-148",
+  "classification": "diagnostic-capture-complete; startup-failure-unresolved",
+  "runId": "b0a15e33-3d90-456d-b218-6f3017b95ea2",
+  "startedAt": "2026-10-25T10:23:31.698217Z",
+  "finishedAt": "2026-10-25T10:26:06.317285Z",
+  "wineExitCode": 84,
+  "registrySha256": "b21f9b4d3f55ace3ff583738d7d53f99281cffd25d3a849fdb5086cdca0ef89d",
+  "producerCommit": "40dc3c37b5f5ed0944c8f58a5f572a7c55a4c060",
+  "admissionCommit": "68db8b6471ffc73936e1be9906948de8e8d7b862",
+  "cliSha256": "1d5afa81fb89d3b6473587635a88f08d97a0538acd7a617a7ee932c2bc0fc61d",
+  "stderrSha256": "0550a66135b729bfe6a242a01a1c733d81d4854616c8a1d277fabaf51691e10e",
+  "resultSha256": "c7b18582a34a04f87d40b2695f961950c10597aa952e2fd1addd908bef450153",
+  "stagedExecutableSha256": "b8996f98bb37ed5fa219a427ecd079f183cf1c37e0b9b264eb0861678d722470",
+  "fault": {
+    "line": 26180,
+    "address": "0x1453076bc",
+    "bytesRead": 16,
+    "bytesHex": "1f94e978d648897c241055488bec4883",
+    "matchesStagedDiskBytes": true,
+    "diskOffset": "0x5306cbc",
+    "vectoredHandler": "0x145364498",
+    "vectoredDisposition": 0,
+    "sehHandler": "0x145e38030",
+    "sehDisposition": 1
+  },
+  "directAllocations": {
+    "signalRip": "0x1454a6b4e",
+    "service": "NtAllocateVirtualMemory",
+    "count": 130,
+    "statusSuccessCount": 2,
+    "statusConflictingAddressesCount": 128,
+    "firstCallLine": 25676,
+    "lastCallLine": 26159,
+    "lastReturnLine": 26161,
+    "lastReturnStatus": "0x00000000",
+    "interpretation": "Conflicts followed by success are consistent with address probing, not evidence that allocation ultimately failed. The syscall channel logs pointer arguments, not the pointed-to requested base and size."
+  },
+  "priorHostFault": {
+    "line": 25368,
+    "service": "NtUserEnumDisplayMonitors",
+    "returnLine": 25376,
+    "status": "0xc0000005",
+    "subsequentEnumerationReturnLine": 25386,
+    "subsequentEnumerationReturnValue": 1,
+    "interpretation": "Direct syscall tracing confirms monitor enumeration, not an identified unpacking allocation. Its causal relation to the illegal opcode remains unknown."
+  },
+  "remainingObservations": {
+    "lastThreeDirectFileOpens": "NtCreateFile returns 0xc0000034 (STATUS_OBJECT_NAME_NOT_FOUND) before the fault; paths are not exposed by the syscall channel.",
+    "nextDiscriminator": "A separately authorized, admitted registry-only +file capture can identify these paths, followed by read-only comparison with the verified package and expected Wine path mapping. Missing optional probes must not be treated as causal failures.",
+    "allocationFollowup": "If allocation remains the lead, existing +virtual traces log dereferenced requested base and size; compare against mapping conflicts before proposing changes.",
+    "notEstablished": ["Failed decryption", "DRM blocker", "AVX cause", "Graphics cause", "Supported runtime fix"]
+  },
+  "boundaries": {
+    "inputAttachOrManualStop": false,
+    "installedRuntimeReplaced": false,
+    "gameCodeModified": false,
+    "exclusiveSlotReleasedAfterExit": true,
+    "gameQualification": false
+  }
+}
