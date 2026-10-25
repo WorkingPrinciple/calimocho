@@ -1,0 +1,5 @@
+0001-winemac.drv-ntdll-Port-the-D3DMetal-integration-to-W.patch
+0002-xaudio2-Return-the-FAudio-failure-from-CreateMasteri.patch
+0003-concrt140-Implement-_Concurrent_queue_iterator_base_.patch
+0004-winebus.sys-Keep-hidraw-gamepads-when-SDL-is-unavail.patch
+0005-ntdll-Resolve-.-GLOBALROOT-DOS-path-prefixes.patch

@@ -17,7 +17,9 @@ Everything below serves that north star. If something doesn't, drop it.
 ## Hard rules (never break)
 
 ### 1. We compile from source. We never ship someone else's binary.
-- ✅ Build Wine 11 from CodeWeavers' published LGPL source tarball
+- ✅ Build Wine 11 from WineHQ's or CodeWeavers' published LGPL source
+  tarball (the 11.20 engine release uses WineHQ's tarball plus patches
+  derived from CodeWeavers' LGPL source)
 - ✅ Build vkd3d / DXVK / MoltenVK from source if we ship them
 - ❌ Do NOT copy CrossOver's pre-built binaries from
   `/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/lib/wine/`
@@ -200,15 +202,23 @@ that unblocks the FOSS path, subject to the guardrails in
   use ImageMagick NCC ≥ 0.85 against committed baselines — the
   canary for the Steam black-window class of bug.
 
-### 8. We use ad-hoc signing only.
-- No Apple Developer ID ($99/yr) — not in budget
-- All Mach-O binaries `codesign --force --deep --sign - --options runtime`
-- DMG is not notarized
-- README documents the right-click → Open Gatekeeper bypass clearly
-- Sigstore signatures via GH OIDC for provenance (separate from Gatekeeper)
-- Sparkle auto-update uses EdDSA-signed appcast (Sparkle's own
-  signature, independent of Apple's chain) — sufficient for safe
-  auto-update of ad-hoc-signed app bundles
+### 8. We sign releases with the maintainer's Developer ID.
+- Changed by the owner on 2026-10-25 (REQ-115): the old "ad-hoc only"
+  rule existed because a Developer ID was not in budget. The maintainer
+  now has one. See
+  [ADR-0078](docs/ADR/0078-developer-id-signed-engine-release.md).
+- Release Mach-O files are signed with exactly
+  "Developer ID Application: Dragos Hont (M62Z4M5EUY)", inside-out, one
+  file at a time:
+  `codesign --force --sign <identity> --options runtime --timestamp`.
+  Never `--deep`. Executables add `scripts/wine-entitlements.plist`.
+- Apple's D3DMetal components keep Apple's own signature. We never
+  re-sign or modify them (GPTK licence section 2D).
+- Notarization and public release uploads are separate owner decisions.
+  Until then, the signed archive stays a local artifact.
+- Never access, export or log signing key material.
+- Ad-hoc signing (`--sign -`) is still fine for local development
+  builds that never leave the machine.
 
 ---
 
@@ -361,17 +371,17 @@ mentally before every `gh pr create` or `git push` that opens a PR.
   `install_name_tool -change /usr/local/... @loader_path/<base>`.
   Verify with a post-rewrite `otool -L | grep /usr/local` that fails
   the script if any leak remains.
-- `install_name_tool` invalidates ad-hoc signatures. Sequence is
+- `install_name_tool` invalidates signatures. Sequence is
   always: build → bundle/overlay → install_name_tool → sign. Never
   the other way around.
 - Don't rely on `DYLD_FALLBACK_LIBRARY_PATH` basename-fallback as the
   *only* resolution strategy. Apple has narrowed dyld policy several
   times. Bundle should resolve via `@loader_path` for inter-bundle
   refs; env-var fallback is only for Wine's own `dlopen`-by-SONAME.
-- macOS code-sign needs `--force --deep --sign - --options runtime`
-  for ad-hoc signing, plus the Wine entitlements (JIT, dyld env,
-  lib-validation disabled). Re-running `sign-engine.sh` is idempotent
-  and required after any post-build mutation.
+- Release signing is `tools/release_engine.py sign` (rule 8): Developer
+  ID, hardened runtime, secure timestamp, inside-out, no `--deep`, plus
+  the Wine entitlements (JIT, dyld env, lib-validation disabled) on
+  executables. Re-run it after any post-build mutation.
 
 **Spec-traceability** (every test we write):
 

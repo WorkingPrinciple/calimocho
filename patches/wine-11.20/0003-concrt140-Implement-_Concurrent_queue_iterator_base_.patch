@@ -1,0 +1,188 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dragos Hont <dragos79@gmail.com>
+Date: Sun, 25 Oct 2026 23:12:34 +0200
+Subject: [PATCH 3/5] concrt140: Implement _Concurrent_queue_iterator_base_v4
+
+Add the constructor, destructor, _Assign and _Advance of
+Concurrency::details::_Concurrent_queue_iterator_base_v4 so programs that
+iterate a concurrent_queue no longer hit a missing export. Observed as a
+fatal error on a game loading screen (Forza Horizon 6 research).
+---
+ dlls/concrt140/concrt140.spec |  24 +++----
+ dlls/concrt140/details.c      | 114 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 126 insertions(+), 12 deletions(-)
+
+diff --git a/dlls/concrt140/concrt140.spec b/dlls/concrt140/concrt140.spec
+index 4d6f9b3..10107a6 100644
+--- a/dlls/concrt140/concrt140.spec
++++ b/dlls/concrt140/concrt140.spec
+@@ -18,9 +18,9 @@
+ @ cdecl -arch=arm ??0_Concurrent_queue_base_v4@details@Concurrency@@IAA@I@Z(ptr long) _Concurrent_queue_base_v4_ctor
+ @ thiscall -arch=i386 ??0_Concurrent_queue_base_v4@details@Concurrency@@IAE@I@Z(ptr long) _Concurrent_queue_base_v4_ctor
+ @ cdecl -arch=win64 ??0_Concurrent_queue_base_v4@details@Concurrency@@IEAA@_K@Z(ptr long) _Concurrent_queue_base_v4_ctor
+-@ stub -arch=arm ??0_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAA@ABV_Concurrent_queue_base_v4@12@@Z
+-@ stub -arch=i386 ??0_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAE@ABV_Concurrent_queue_base_v4@12@@Z
+-@ stub -arch=win64 ??0_Concurrent_queue_iterator_base_v4@details@Concurrency@@IEAA@AEBV_Concurrent_queue_base_v4@12@@Z
++@ cdecl -arch=arm ??0_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAA@ABV_Concurrent_queue_base_v4@12@@Z(ptr ptr) _Concurrent_queue_iterator_base_v4_ctor
++@ thiscall -arch=i386 ??0_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAE@ABV_Concurrent_queue_base_v4@12@@Z(ptr ptr) _Concurrent_queue_iterator_base_v4_ctor
++@ cdecl -arch=win64 ??0_Concurrent_queue_iterator_base_v4@details@Concurrency@@IEAA@AEBV_Concurrent_queue_base_v4@12@@Z(ptr ptr) _Concurrent_queue_iterator_base_v4_ctor
+ @ cdecl -arch=arm ??0_Condition_variable@details@Concurrency@@QAA@XZ(ptr) _Condition_variable_ctor
+ @ thiscall -arch=i386 ??0_Condition_variable@details@Concurrency@@QAE@XZ(ptr) _Condition_variable_ctor
+ @ cdecl -arch=win64 ??0_Condition_variable@details@Concurrency@@QEAA@XZ(ptr) _Condition_variable_ctor
+@@ -243,9 +243,9 @@
+ @ cdecl -arch=arm ??1_Concurrent_queue_base_v4@details@Concurrency@@MAA@XZ(ptr) _Concurrent_queue_base_v4_dtor
+ @ thiscall -arch=i386 ??1_Concurrent_queue_base_v4@details@Concurrency@@MAE@XZ(ptr) _Concurrent_queue_base_v4_dtor
+ @ cdecl -arch=win64 ??1_Concurrent_queue_base_v4@details@Concurrency@@MEAA@XZ(ptr) _Concurrent_queue_base_v4_dtor
+-@ stub -arch=arm ??1_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAA@XZ
+-@ stub -arch=i386 ??1_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAE@XZ
+-@ stub -arch=win64 ??1_Concurrent_queue_iterator_base_v4@details@Concurrency@@IEAA@XZ
++@ cdecl -arch=arm ??1_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAA@XZ(ptr) _Concurrent_queue_iterator_base_v4_dtor
++@ thiscall -arch=i386 ??1_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAE@XZ(ptr) _Concurrent_queue_iterator_base_v4_dtor
++@ cdecl -arch=win64 ??1_Concurrent_queue_iterator_base_v4@details@Concurrency@@IEAA@XZ(ptr) _Concurrent_queue_iterator_base_v4_dtor
+ @ cdecl -arch=arm ??1_Concurrent_vector_base_v4@details@Concurrency@@IAA@XZ(ptr) _Concurrent_vector_base_v4_dtor
+ @ thiscall -arch=i386 ??1_Concurrent_vector_base_v4@details@Concurrency@@IAE@XZ(ptr) _Concurrent_vector_base_v4_dtor
+ @ cdecl -arch=win64 ??1_Concurrent_vector_base_v4@details@Concurrency@@IEAA@XZ(ptr) _Concurrent_vector_base_v4_dtor
+@@ -427,12 +427,12 @@
+ @ stub -arch=arm ?_AcquireWrite@_ReaderWriterLock@details@Concurrency@@QAAXXZ
+ @ stub -arch=i386 ?_AcquireWrite@_ReaderWriterLock@details@Concurrency@@QAEXXZ
+ @ stub -arch=win64 ?_AcquireWrite@_ReaderWriterLock@details@Concurrency@@QEAAXXZ
+-@ stub -arch=arm ?_Advance@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAAXXZ
+-@ stub -arch=i386 ?_Advance@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAEXXZ
+-@ stub -arch=win64 ?_Advance@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IEAAXXZ
+-@ stub -arch=arm ?_Assign@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAAXABV123@@Z
+-@ stub -arch=i386 ?_Assign@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAEXABV123@@Z
+-@ stub -arch=win64 ?_Assign@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IEAAXAEBV123@@Z
++@ cdecl -arch=arm ?_Advance@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAAXXZ(ptr) _Concurrent_queue_iterator_base_v4__Advance
++@ thiscall -arch=i386 ?_Advance@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAEXXZ(ptr) _Concurrent_queue_iterator_base_v4__Advance
++@ cdecl -arch=win64 ?_Advance@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IEAAXXZ(ptr) _Concurrent_queue_iterator_base_v4__Advance
++@ cdecl -arch=arm ?_Assign@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAAXABV123@@Z(ptr ptr) _Concurrent_queue_iterator_base_v4__Assign
++@ thiscall -arch=i386 ?_Assign@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAEXABV123@@Z(ptr ptr) _Concurrent_queue_iterator_base_v4__Assign
++@ cdecl -arch=win64 ?_Assign@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IEAAXAEBV123@@Z(ptr ptr) _Concurrent_queue_iterator_base_v4__Assign
+ @ extern ?_Byte_reverse_table@details@Concurrency@@3QBEB byte_reverse_table
+ @ cdecl -arch=arm ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QAAXXZ(ptr) _StructuredTaskCollection__Cancel
+ @ thiscall -arch=i386 ?_Cancel@_StructuredTaskCollection@details@Concurrency@@QAEXXZ(ptr) _StructuredTaskCollection__Cancel
+diff --git a/dlls/concrt140/details.c b/dlls/concrt140/details.c
+index ceed46a..ee8514b 100644
+--- a/dlls/concrt140/details.c
++++ b/dlls/concrt140/details.c
+@@ -171,6 +171,120 @@ size_t __thiscall _Concurrent_queue_base_v4__Internal_size(
+     return this->data->tail_pos - this->data->head_pos;
+ }
+ 
++/* Iterator state for the (non thread-safe) unsafe_begin()/unsafe_end()
++ * walk. The iterator object itself matches MSVC's layout:
++ * { _Concurrent_queue_iterator_rep *_My_rep; void *_My_item; } */
++typedef struct
++{
++    const _Concurrent_queue_base_v4 *queue;
++    size_t pos;
++    _Page *pages[QUEUES_NO];
++} _Concurrent_queue_iterator_rep;
++
++typedef struct
++{
++    _Concurrent_queue_iterator_rep *rep;
++    void *item;
++} _Concurrent_queue_iterator_base_v4;
++
++static void *queue_iterator_item(_Concurrent_queue_iterator_rep *rep)
++{
++    const _Concurrent_queue_base_v4 *queue = rep->queue;
++    size_t id, idx;
++    _Page *p;
++
++    for(;;)
++    {
++        if(rep->pos >= queue->data->tail_pos)
++            return NULL;
++        id = rep->pos / QUEUES_NO;
++        idx = id & (queue->alloc_count - 1);
++        p = rep->pages[rep->pos % QUEUES_NO];
++        if(!p)
++            return NULL;
++        if(p->_Mask & ((size_t)1 << idx))
++            return (char *)p + offsetof(_Page, data) + idx * queue->item_size;
++        /* skip slots whose construction failed, as the native runtime does */
++        if(idx == queue->alloc_count - 1)
++            rep->pages[rep->pos % QUEUES_NO] = p->_Next;
++        rep->pos++;
++    }
++}
++
++/* ??0_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAE@ABV_Concurrent_queue_base_v4@12@@Z */
++/* ??0_Concurrent_queue_iterator_base_v4@details@Concurrency@@IEAA@AEBV_Concurrent_queue_base_v4@12@@Z */
++DEFINE_THISCALL_WRAPPER(_Concurrent_queue_iterator_base_v4_ctor, 8)
++_Concurrent_queue_iterator_base_v4* __thiscall _Concurrent_queue_iterator_base_v4_ctor(
++        _Concurrent_queue_iterator_base_v4 *this, const _Concurrent_queue_base_v4 *queue)
++{
++    _Concurrent_queue_iterator_rep *rep;
++    int i;
++
++    TRACE("(%p %p)\n", this, queue);
++
++    rep = operator_new(sizeof(*rep));
++    rep->queue = queue;
++    rep->pos = queue->data->head_pos;
++    for(i=0; i<QUEUES_NO; i++)
++        rep->pages[i] = queue->data->queues[i].head;
++    this->rep = rep;
++    this->item = queue_iterator_item(rep);
++    return this;
++}
++
++/* ??1_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAE@XZ */
++/* ??1_Concurrent_queue_iterator_base_v4@details@Concurrency@@IEAA@XZ */
++DEFINE_THISCALL_WRAPPER(_Concurrent_queue_iterator_base_v4_dtor, 4)
++void __thiscall _Concurrent_queue_iterator_base_v4_dtor(_Concurrent_queue_iterator_base_v4 *this)
++{
++    TRACE("(%p)\n", this);
++    operator_delete(this->rep);
++    this->rep = NULL;
++}
++
++/* ?_Assign@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAEXABV123@@Z */
++/* ?_Assign@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IEAAXAEBV123@@Z */
++DEFINE_THISCALL_WRAPPER(_Concurrent_queue_iterator_base_v4__Assign, 8)
++void __thiscall _Concurrent_queue_iterator_base_v4__Assign(
++        _Concurrent_queue_iterator_base_v4 *this, const _Concurrent_queue_iterator_base_v4 *other)
++{
++    TRACE("(%p %p)\n", this, other);
++
++    if(this == other)
++        return;
++    if(other->rep)
++    {
++        if(!this->rep)
++            this->rep = operator_new(sizeof(*this->rep));
++        *this->rep = *other->rep;
++    }
++    else
++    {
++        operator_delete(this->rep);
++        this->rep = NULL;
++    }
++    this->item = other->item;
++}
++
++/* ?_Advance@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IAEXXZ */
++/* ?_Advance@_Concurrent_queue_iterator_base_v4@details@Concurrency@@IEAAXXZ */
++DEFINE_THISCALL_WRAPPER(_Concurrent_queue_iterator_base_v4__Advance, 4)
++void __thiscall _Concurrent_queue_iterator_base_v4__Advance(_Concurrent_queue_iterator_base_v4 *this)
++{
++    _Concurrent_queue_iterator_rep *rep = this->rep;
++    size_t idx;
++
++    TRACE("(%p)\n", this);
++
++    if(!rep || !this->item)
++        return;
++    idx = (rep->pos / QUEUES_NO) & (rep->queue->alloc_count - 1);
++    if(idx == rep->queue->alloc_count - 1)
++        rep->pages[rep->pos % QUEUES_NO] = rep->pages[rep->pos % QUEUES_NO]->_Next;
++    rep->pos++;
++    this->item = queue_iterator_item(rep);
++}
++
+ static void spin_wait(int *counter)
+ {
+     static int spin_limit = -1;

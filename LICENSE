@@ -14,21 +14,29 @@ version 2.1 or later** (LGPL-2.1-or-later) — the same license as Wine itself.
 
 See https://www.gnu.org/licenses/lgpl-2.1.html for the canonical text.
 
-## Bundled dependencies
+## Bundled dependencies (engine release 11.20-4.0b3-01)
 
 | Component | Source | License |
 |---|---|---|
-| **Wine 11.0** | https://www.winehq.org | LGPL-2.1-or-later |
-| **CodeWeavers Wine patches** | https://media.codeweavers.com/pub/crossover/source/ | LGPL-2.1-or-later |
-| **vkd3d** | https://gitlab.winehq.org/wine/vkd3d | LGPL-2.1-or-later |
-| **DXVK** *(v0.6+)* | https://github.com/doitsujin/dxvk | zlib license |
-| **MoltenVK** | https://github.com/KhronosGroup/MoltenVK | Apache 2.0 |
-| **Apple D3DMetal.framework** | Apple Game Porting Toolkit 3 | **Apple GPTK SLA** ⚠️ |
-| **Apple /redist components** | Same | **Apple GPTK SLA** ⚠️ |
+| **Wine 11.20** | https://dl.winehq.org/wine/source/11.x/wine-11.20.tar.xz | LGPL-2.1-or-later |
+| **Libraries vendored in Wine's `libs/`** (vkd3d, FAudio, mpg123, lcms2, libpng, libjpeg, libtiff, libxml2, libxslt, zlib, musl, capstone, ...) | Wine source tree | Their own licences, kept in the Wine source tree; vkd3d is LGPL-2.1-or-later |
+| **D3DMetal integration patch** (derived from CodeWeavers' CrossOver 26.3.0 source) | https://www.codeweavers.com/crossover/source | LGPL-2.1-or-later |
+| **Calimocho Wine patches** (`patches/wine-11.20/`) | this repository | LGPL-2.1-or-later |
+| **FreeType 2.13.3** | https://download.savannah.gnu.org/releases/freetype/ | FTL or GPL-2.0 |
+| **GnuTLS 3.8.13, nettle 4.0, GMP 6.3.0, libtasn1 4.21.0** | https://www.gnutls.org/, https://www.lysator.liu.se/~nisse/nettle/, https://gmplib.org/, https://www.gnu.org/software/libtasn1/ | LGPL (see `licenses/` in the engine) |
+| **MoltenVK 1.4.2** (+ SPIRV-Cross, SPIRV-Tools, Vulkan-Headers, cereal, Volk) | https://github.com/KhronosGroup/MoltenVK | Apache 2.0 (components: their own permissive licences) |
+| **Apple D3DMetal.framework 4.0b3** | Apple Game Porting Toolkit 4.0 beta 3 | **Apple GPTK SLA** ⚠️ not covered by the LGPL |
+| **Apple /redist components** (`libd3dshared.dylib`, Direct3D PE modules) | Same | **Apple GPTK SLA** ⚠️ not covered by the LGPL |
 | **xxHash** *(inside D3DMetal)* | https://github.com/Cyan4973/xxHash | BSD-2-Clause |
 
-Full Apple GPTK License Agreement is reproduced verbatim in
-`THIRDPARTY/Apple-GPTK/LICENSE.rtf` at build time.
+DXVK is **not** included in this engine release (Apple's D3DMetal
+handles Direct3D 10, 11 and 12).
+
+The Apple GPTK License Agreement is reproduced verbatim in
+`THIRDPARTY/Apple-GPTK/License.rtf`. The text shipped with GPTK 4.0 beta 3
+is byte-identical to that file (EA18380, dated 2023-08-17).
+
+See also [NOTICE](NOTICE) and [TRADEMARKS.md](TRADEMARKS.md).
 
 ## ⚠️ The non-commercial restriction (Apple GPTK SLA §2A iii + §2C)
 

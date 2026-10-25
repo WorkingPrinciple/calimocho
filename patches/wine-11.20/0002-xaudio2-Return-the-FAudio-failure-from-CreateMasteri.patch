@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dragos Hont <dragos79@gmail.com>
+Date: Sun, 25 Oct 2026 23:12:34 +0200
+Subject: [PATCH 2/5] xaudio2: Return the FAudio failure from
+ CreateMasteringVoice
+
+CreateMasteringVoice reported S_OK with a NULL voice when FAudio could not
+open the output device, so callers dereferenced NULL. Return the FAudio
+HRESULT and clear the voice and effect chain instead. Observed as an
+intermittent crash in a game intro video (Forza Horizon 6 research,
+calimocho REQ-115).
+---
+ dlls/xaudio2_7/xaudio_dll.c | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/dlls/xaudio2_7/xaudio_dll.c b/dlls/xaudio2_7/xaudio_dll.c
+index 2c42a99..4b28532 100644
+--- a/dlls/xaudio2_7/xaudio_dll.c
++++ b/dlls/xaudio2_7/xaudio_dll.c
+@@ -1748,6 +1748,7 @@ static HRESULT WINAPI IXAudio2Impl_CreateMasteringVoice(IXAudio2 *iface,
+ {
+     IXAudio2Impl *This = impl_from_IXAudio2(iface);
+     FAudioEffectChain *chain;
++    HRESULT hr;
+ 
+     TRACE("(%p)->(%p, %u, %u, 0x%x, %p)\n", This,
+             ppMasteringVoice, inputChannels, inputSampleRate, flags, pEffectChain);
+@@ -1777,16 +1778,27 @@ static HRESULT WINAPI IXAudio2Impl_CreateMasteringVoice(IXAudio2 *iface,
+ #if XAUDIO2_VER >= 8
+     TRACE("device id %s, category %#x\n", debugstr_w(deviceId), streamCategory);
+ 
+-    FAudio_CreateMasteringVoice8(This->faudio, &This->mst.faudio_voice, inputChannels,
++    hr = FAudio_CreateMasteringVoice8(This->faudio, &This->mst.faudio_voice, inputChannels,
+             inputSampleRate, flags, NULL /* TODO: (uint16_t*)deviceId */,
+             This->mst.effect_chain, (FAudioStreamCategory)streamCategory);
+ #else
+     TRACE("device index %u\n", index);
+ 
+-    FAudio_CreateMasteringVoice(This->faudio, &This->mst.faudio_voice, inputChannels,
++    hr = FAudio_CreateMasteringVoice(This->faudio, &This->mst.faudio_voice, inputChannels,
+             inputSampleRate, flags, index, This->mst.effect_chain);
+ #endif
+ 
++    if (FAILED(hr))
++    {
++        WARN("FAudio failed to create the mastering voice, hr %#lx.\n", hr);
++        This->mst.faudio_voice = NULL;
++        free_effect_chain(This->mst.effect_chain);
++        This->mst.effect_chain = NULL;
++        *ppMasteringVoice = NULL;
++        LeaveCriticalSection(&This->mst.lock);
++        return hr;
++    }
++
+     This->mst.in_use = TRUE;
+ 
+     LeaveCriticalSection(&This->mst.lock);

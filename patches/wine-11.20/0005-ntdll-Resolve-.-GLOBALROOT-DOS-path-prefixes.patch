@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dragos Hont <dragos79@gmail.com>
+Date: Sun, 25 Oct 2026 23:12:35 +0200
+Subject: [PATCH 5/5] ntdll: Resolve \\.\GLOBALROOT\??\ DOS path prefixes
+
+Strip a GLOBALROOT component that follows the NT or DosDevices prefix so
+paths such as \\.\GLOBALROOT\??\C:\... resolve to the DOS drive. Native
+device names still go through the object manager.
+---
+ dlls/ntdll/unix/file.c | 27 ++++++++++++++++++++-------
+ 1 file changed, 20 insertions(+), 7 deletions(-)
+
+diff --git a/dlls/ntdll/unix/file.c b/dlls/ntdll/unix/file.c
+index 8b87cc8..2a592d7 100644
+--- a/dlls/ntdll/unix/file.c
++++ b/dlls/ntdll/unix/file.c
+@@ -3053,16 +3053,29 @@ failed:
+ static inline int get_dos_prefix_len( const UNICODE_STRING *name )
+ {
+     static const WCHAR dosdev_prefixW[] = {'\\','D','o','s','D','e','v','i','c','e','s','\\'};
++    static const WCHAR globalrootW[] = {'G','L','O','B','A','L','R','O','O','T','\\'};
++    const WCHAR *buffer = name->Buffer;
++    unsigned int length = name->Length / sizeof(WCHAR), offset = 0, prefix;
+ 
+-    if (name->Length >= sizeof(nt_prefixW) &&
+-        !memcmp( name->Buffer, nt_prefixW, sizeof(nt_prefixW) ))
+-        return ARRAY_SIZE( nt_prefixW );
++    for (;;)
++    {
++        if (length >= ARRAY_SIZE(nt_prefixW) &&
++            !memcmp( buffer, nt_prefixW, sizeof(nt_prefixW) ))
++            prefix = ARRAY_SIZE(nt_prefixW);
++        else if (length >= ARRAY_SIZE(dosdev_prefixW) &&
++                 !wcsnicmp( buffer, dosdev_prefixW, ARRAY_SIZE(dosdev_prefixW) ))
++            prefix = ARRAY_SIZE(dosdev_prefixW);
++        else return 0; /* Native device names still need object-manager lookup. */
+ 
+-    if (name->Length >= sizeof(dosdev_prefixW) &&
+-        !wcsnicmp( name->Buffer, dosdev_prefixW, ARRAY_SIZE( dosdev_prefixW )))
+-        return ARRAY_SIZE( dosdev_prefixW );
++        if (length - prefix < ARRAY_SIZE(globalrootW) ||
++            memcmp( buffer + prefix, globalrootW, sizeof(globalrootW) ))
++            return offset + prefix;
+ 
+-    return 0;
++        prefix += ARRAY_SIZE(globalrootW) - 1; /* Keep the root backslash. */
++        offset += prefix;
++        buffer += prefix;
++        length -= prefix;
++    }
+ }
+ 
+ 

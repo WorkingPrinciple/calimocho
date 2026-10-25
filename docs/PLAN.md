@@ -67,9 +67,14 @@ See [PHASES.md](PHASES.md) for full breakdown. Summary:
 
 ## 4. Signing & provenance
 
-**Locked decision: ad-hoc signing only, forever.** $99/yr Apple
-Developer ID is out of budget; Azure Code Signing doesn't apply to
-macOS. See [ADR-0002](ADR/0002-ad-hoc-signing-only.md).
+**Superseded on 2026-10-25.** Releases are now signed with the
+maintainer's Developer ID, with hardened runtime and a secure timestamp.
+See [ADR-0078](ADR/0078-developer-id-signed-engine-release.md) and
+AGENTS.md rule 8. The original plan below is kept as history.
+
+The original locked decision was ad-hoc signing only, because an Apple
+Developer ID was out of budget and Azure Code Signing does not apply to
+macOS.
 
 - All Mach-O binaries inside the .app/DMG are ad-hoc signed via
   `codesign --force --deep --sign - --options runtime`.

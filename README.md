@@ -200,3 +200,25 @@ trying to do similar work:
 is the postmortem of why building a competing Wine engine was the
 wrong call when Sikarugir + PK already exist. The detailed reasoning
 is in [ADR-0020](docs/ADR/0020-pivot-from-engine-to-recipe-archive.md).
+
+## The engine for Xode (2026-10)
+
+The engine came back for one narrow job: the Xode app needs a Wine
+engine it can find on a beta tester's Mac. If you just want to play
+Windows games on a Mac, buy [CrossOver](https://www.codeweavers.com/crossover)
+or use the recipe above.
+
+- Version scheme: `<Wine>-<Apple D3DMetal>-<our patch counter>`. The
+  first one is `11.20-4.0b3-01`.
+- Built from the official Wine 11.20 tarball plus
+  [`patches/wine-11.20/`](patches/wine-11.20/) by
+  [`tools/release_engine.py`](tools/release_engine.py). All inputs are
+  pinned in [`versions.json`](versions.json) under `release_engine`.
+- Signed with the maintainer's Developer ID and not yet notarized
+  ([ADR-0078](docs/ADR/0078-developer-id-signed-engine-release.md)).
+- The engine archive contains Apple's D3DMetal, which Apple allows to
+  be distributed for non-commercial purposes only. This repository
+  never contains Apple binaries; the build takes them from your own
+  copy of Apple's Game Porting Toolkit.
+- Release notes, contents and licence details:
+  [`docs/release/11.20-4.0b3-01.md`](docs/release/11.20-4.0b3-01.md).

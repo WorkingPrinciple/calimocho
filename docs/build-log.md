@@ -801,3 +801,73 @@ discussion).
 - `docs/build-log.md`: this entry
 - (No code or other doc changes; PK bottles restored to original
   state, no calimocho-side state touched)
+
+## 2026-10-25 — Engine release 11.20-4.0b3-01 (REQ-115)
+
+First Developer ID signed engine for Xode
+([ADR-0078](ADR/0078-developer-id-signed-engine-release.md),
+[release notes](release/11.20-4.0b3-01.md)). Built on the maintainer's
+M1 Max with `tools/release_engine.py build/assemble/sign/package/verify`.
+
+### Inputs
+
+- `wine-11.20.tar.xz` sha256 `eac8ca448f9c0087f963026b4dc276d1e2b7fbb64056edc093e59bbb7e56fe28`.
+  `diff -rq` against `git archive wine-11.20` (commit `7298a818`):
+  no differences.
+- Patch 0001 equals the admitted 170ca source: the metal-port-10-03
+  and metal-port-11 source trees are identical, and the patch is their
+  diff against pristine 11.20.
+- `include/config.h` is identical to the 170ca build except
+  `SONAME_LIBFREETYPE`, now `@rpath/libfreetype.6.dylib`.
+- Toolchain: Apple clang 21.0.0 (clang-2100.3.34.2), macOS SDK 27.0,
+  mingw-w64 GCC 16.2.0, bison 3.8.2, flex 2.6.4.
+- Configure 18 s, compile 612 s at `-j6` under `nice -n 10`.
+
+### Tests
+
+- `tests/wine/test_winebus_controller.py`: 3 tests pass on the patched
+  tree and fail (3 errors) on pristine 11.20.
+- Smoke test on the signed build, run from the dist tree and again from
+  the copy unpacked to
+  `~/Library/Application Support/Xode/Engines/calimocho-11.20-4.0b3-01`
+  (a path with a space), throwaway prefix and `HOME`:
+  - `wineboot --init` exit 0; `cmd /c ver` prints
+    `Microsoft Windows 10.0.19045`.
+  - D3D11 and D3D12 present probes through D3DMetal: 120/120 presents,
+    read-back pixel `51,102,204,255` matched, result 0.
+  - Vulkan present probe through MoltenVK with wide lines required:
+    120/120 presents, read-back matched, result 0.
+  - WinHTTP HTTPS GET with certificate validation: status 200.
+
+### Signing
+
+- 37 libraries and 3 executables signed with "Developer ID Application:
+  Dragos Hont (M62Z4M5EUY)", `flags=0x10000(runtime)`, secure timestamp.
+  `codesign --verify --strict` passes on each. Executables carry
+  `scripts/wine-entitlements.plist`.
+- 7 Apple components (D3DMetal.framework, its 4 Resources dylibs,
+  libd3dshared.dylib) keep Apple's "Software Signing" signature and pass
+  `codesign --verify --strict`.
+- `spctl --assess --type execute` on `bin/wine`, `bin/wineserver`,
+  `lib/wine/x86_64-unix/wine`: `rejected`, `source=Unnotarized
+  Developer ID`, `origin=Developer ID Application: Dragos Hont
+  (M62Z4M5EUY)`. Expected: notarization was not submitted.
+
+### Outputs (local only, not uploaded)
+
+| Artifact | SHA-256 |
+|---|---|
+| `calimocho-11.20-4.0b3-01-macos.zip` (199.9 MB) | `93691522d2e3dea5f79fc3a58085a73c7f5245dd3a1ef1687267acd7ccc3f0ab` |
+| `calimocho-11.20-4.0b3-01-source.tar` (63.5 MB) | `967944c501b1cae811827194368911543f632daf1b297dcff889b350bd77f14c` |
+| `bin/wine` (signed) | `c2eb2810540eb32e1d99df0279a05868bf36c562cbeb71ec37be31d1bb153437` |
+| `bin/wineserver` (signed) | `05a3193d0bce401bdcba653161e54824ea8924951ff0ecb80f6f8ba0a0539639` |
+
+The verify step unpacks the zip into a scratch directory and checks every
+signature and every `MANIFEST.sha256` line: all pass.
+
+### Not done
+
+- No notarization submission and no GitHub Release upload (owner
+  decisions).
+- No game was launched on this engine yet. Games may only claim support
+  after a launch sweep on this build.

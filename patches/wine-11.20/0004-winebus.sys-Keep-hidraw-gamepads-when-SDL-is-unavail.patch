@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dragos Hont <dragos79@gmail.com>
+Date: Sun, 25 Oct 2026 23:12:35 +0200
+Subject: [PATCH 4/5] winebus.sys: Keep hidraw gamepads when SDL is unavailable
+
+Gamepads found on a hidraw bus (IOHID on macOS) were dropped on the
+assumption that SDL would expose them, so a build without SDL had no
+controller at all. Record which backends actually started, free SDL
+mappings unconditionally and classify 045e:0b20 (Xbox One S, Bluetooth LE)
+as an Xbox controller.
+---
+ dlls/winebus.sys/main.c    | 9 +++++++--
+ dlls/winebus.sys/unixlib.h | 1 +
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/dlls/winebus.sys/main.c b/dlls/winebus.sys/main.c
+index 97ca271..0878ca3 100644
+--- a/dlls/winebus.sys/main.c
++++ b/dlls/winebus.sys/main.c
+@@ -1267,7 +1267,7 @@ static void bus_options_cleanup(void)
+ {
+     struct device_options *device, *next;
+ 
+-    if (!options.disable_sdl) sdl_bus_free_mappings(&options);
++    sdl_bus_free_mappings(&options);
+ 
+     LIST_FOR_EACH_ENTRY_SAFE(device, next, &options.devices, struct device_options, entry)
+     {
+@@ -1333,8 +1333,13 @@ static NTSTATUS fdo_pnp_dispatch(DEVICE_OBJECT *device, IRP *irp)
+         mouse_device_create();
+         keyboard_device_create();
+ 
++        /* Gamepads found on a hidraw bus (IOHID, UDEV hidraw) are only kept
++         * when no other backend will expose them, so record which backends
++         * actually started. Without this, a build without SDL on macOS drops
++         * every IOHID gamepad, expecting SDL to provide it. */
+         if (!sdl_driver_init()) options.disable_input = TRUE;
+-        udev_driver_init();
++        else options.disable_sdl = TRUE;
++        if (udev_driver_init()) options.disable_input = TRUE;
+         iohid_driver_init();
+ 
+         irp->IoStatus.Status = STATUS_SUCCESS;
+diff --git a/dlls/winebus.sys/unixlib.h b/dlls/winebus.sys/unixlib.h
+index c99971a..9a2628e 100644
+--- a/dlls/winebus.sys/unixlib.h
++++ b/dlls/winebus.sys/unixlib.h
+@@ -186,6 +186,7 @@ static inline BOOL is_xbox_gamepad(WORD vid, WORD pid)
+     if (pid == 0x0b05) return TRUE; /* Xbox Elite 2 Wireless */
+     if (pid == 0x0b12) return TRUE; /* Xbox Series */
+     if (pid == 0x0b13) return TRUE; /* Xbox Series Wireless */
++    if (pid == 0x0b20) return TRUE; /* Xbox One S Controller (Bluetooth LE) */
+     if (pid == 0x0719) return TRUE; /* Xbox 360 Wireless Adapter */
+     return FALSE;
+ }

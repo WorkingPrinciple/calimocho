@@ -1,0 +1,49 @@
+Calimocho
+=========
+
+Calimocho is a source-built Wine engine for running Windows games on
+Apple Silicon Macs. It is maintained by Dragos Hont (Working Principle)
+and is used by the Xode app.
+
+Calimocho's own scripts, patches and documentation are licensed under
+the GNU Lesser General Public License, version 2.1 or (at your option)
+any later version (LGPL-2.1-or-later), the same licence as Wine. See
+LICENSE for the summary and the non-commercial restriction that applies
+to releases containing Apple's D3DMetal.
+
+Calimocho does not exist without the work of others. Credit goes to:
+
+- The Wine project (https://www.winehq.org/), for 30 years of Windows
+  API work. Wine is LGPL-2.1-or-later. Wine also vendors libraries under
+  libs/ (including vkd3d, LGPL-2.1-or-later, and FAudio, zlib licence)
+  that keep their own licences.
+- CodeWeavers (https://www.codeweavers.com/crossover), who do most of
+  the upstream Wine work that benefits macOS and publish their LGPL
+  source. The D3DMetal integration patch in patches/wine-11.20/0001 is
+  derived from the CrossOver 26.3.0 source drop and keeps CodeWeavers'
+  copyright notices. If you can, buy CrossOver.
+- Apple's Game Porting Toolkit team, for D3DMetal. D3DMetal.framework,
+  libd3dshared.dylib and the Direct3D PE modules from the Game Porting
+  Toolkit are Apple software under Apple's Game Porting Toolkit licence
+  (THIRDPARTY/Apple-GPTK/License.rtf). They are separately licensed,
+  are NOT covered by the LGPL, and may only be distributed for
+  non-commercial purposes.
+- KhronosGroup and the MoltenVK contributors (Apache-2.0), plus the
+  SPIRV-Cross, SPIRV-Tools, Vulkan-Headers, cereal and Volk projects it
+  builds on.
+- The FreeType project (FTL or GPL-2.0), and the GnuTLS, nettle, GMP
+  and libtasn1 projects (LGPL).
+- gcenx (https://github.com/Gcenx), who maintains the macOS Wine
+  packaging ecosystem.
+- Isaac Marovitz and the Whisky community, for showing that a friendly
+  front-end to Wine on macOS is possible.
+- Unknown Worlds Entertainment, for the native Mac builds that made
+  this project's original game worth playing.
+
+DXVK is not included in the 11.20-4.0b3-01 engine release.
+
+Corresponding source for the LGPL components of each engine release is
+described in SOURCE.md inside the engine and in docs/release/.
+
+"Xode" and "Working Principle" are names used by the maintainer. They
+are not licensed by the LGPL or by this notice. See TRADEMARKS.md.
