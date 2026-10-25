@@ -46,7 +46,7 @@ def freeze(root, producer, *, cell=12, predecessor=PREVIOUS,
         if blob != (REPO / relative).read_bytes():
             raise ValueError("Producer source changed: " + relative)
         sources[relative] = hashlib.sha256(blob).hexdigest()
-    if cell not in (12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31) or sha256(predecessor) != predecessor_sha256:
+    if cell not in (12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32) or sha256(predecessor) != predecessor_sha256:
         raise ValueError("Sealed predecessor recipe changed or unsupported cell")
     previous = json.loads(predecessor.read_text())
     label = "%03d" % cell
