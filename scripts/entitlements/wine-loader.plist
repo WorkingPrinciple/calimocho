@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Wine maps Windows PE files (not Mach-O, not code-signed) with execute
+         permission. Under the hardened runtime that is refused ("failed to set
+         60000020 protection on ntdll.dll .text") unless library validation is
+         off. It also lets users swap in their own builds of the LGPL libraries
+         (LGPL-2.1 section 6). See docs/ADR/0080-minimal-engine-entitlements.md. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>

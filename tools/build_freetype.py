@@ -37,7 +37,8 @@ def build(archive, output):
         and not key.startswith(("DYLD_", "PKG_CONFIG", "WINE", "CX_"))
     }
     environment.update(
-        CC="/usr/bin/clang -arch x86_64", CFLAGS="-O2",
+        # Map build paths out of __FILE__ strings and debug info (reproducible, no dev paths).
+        CC="/usr/bin/clang -arch x86_64", CFLAGS=f"-O2 -ffile-prefix-map={output}/=freetype-build/",
         PKG_CONFIG_LIBDIR=str(output / "no-system-pkgconfig"),
         CONFIG_SITE="/dev/null", LC_ALL="C",
     )

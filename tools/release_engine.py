@@ -136,7 +136,10 @@ def build(args):
     tls = Path(args.tls).resolve(strict=True)
     moltenvk = moltenvk_library(Path(args.moltenvk).resolve(strict=True), pin)
     work.mkdir(parents=True, exist_ok=False)
+    commit = output(["git", "-C", str(REPO), "rev-parse", "HEAD"]).strip()
+    clean = not output(["git", "-C", str(REPO), "status", "--porcelain", "--untracked-files=no"]).strip()
     receipt = {"version": pin["version"], "wine": pin["wine"], "patches": [],
+               "source_commit": commit, "source_tree_clean": clean,
                "toolchain": toolchain(), "steps": [], "status": "incomplete"}
 
     def save():
@@ -315,7 +318,8 @@ def build_tsshim(pin, root, work, receipt):
     (directory / "d3d12-calimocho.def").write_text(
         definition.replace("LIBRARY d3d12.dll\n", f"LIBRARY {shim['tsshim_export_name']}\n", 1))
     built = directory / "d3d12.dll"
-    run(["x86_64-w64-mingw32-gcc", "-shared", "-O2", "-Wall", "-static-libgcc", "-o", str(built),
+    run(["x86_64-w64-mingw32-gcc", "-shared", "-O2", "-Wall", "-static-libgcc", "-s",
+         f"-ffile-prefix-map={directory}/=tsshim/", "-o", str(built),
          str(directory / "d3d12.c"), str(directory / "d3d12-calimocho.def")],
         log=directory / "compile.log")
     run([str(work / "build/tools/winebuild/winebuild"), "--builtin", str(built)])
@@ -368,6 +372,9 @@ def assemble(args):
     for document in ("NOTICE", "TRADEMARKS.md", "LICENSE", "COPYING.LIB"):
         shutil.copy2(REPO / document, root / document)
     (root / "SOURCE.md").write_text(source_document(pin))
+    strip_debug_symbols(root)
+    scan_for_build_paths(root, [str(work), str(REPO), str(Path(args.freetype).resolve()),
+                                str(Path(args.tls).resolve())])
     leaks = []
     for path in macho_files(root):
         if (root / "lib/external") in path.parents:
@@ -379,6 +386,32 @@ def assemble(args):
         raise ValueError("Absolute build paths remain in load commands:\n" + "\n".join(leaks))
     write_engine_manifest(pin, root, receipt)
     print(f"Assembled {root}")
+
+
+def strip_debug_symbols(root):
+    """Drop debug symbols (stabs/DWARF) from our Mach-O files; the exported ABI must not change."""
+    apple = root / "lib/external"
+    for path in macho_files(root):
+        if apple in path.parents:
+            continue
+        before = output(["nm", "-gU", str(path)])
+        run(["strip", "-S", str(path)])
+        if output(["nm", "-gU", str(path)]) != before:
+            raise ValueError(f"strip -S changed the exported symbols of {path}")
+
+
+def scan_for_build_paths(root, roots):
+    """Fail if any shipped file outside Apple's untouched files names a build or user path."""
+    markers = [b"/Users/", b"/opt/homebrew/", b"/private/var/folders/", b"/var/folders/"]
+    markers += [r.encode() for r in roots]
+    hits = []
+    for path in sorted(root.rglob("*")):
+        if path.is_symlink() or not path.is_file() or (root / "lib/external") in path.parents:
+            continue
+        data = path.read_bytes()
+        hits += [f"{path.relative_to(root)}: {m.decode()}" for m in markers if m in data]
+    if hits:
+        raise ValueError("Build or user paths found in shipped files:\n" + "\n".join(hits[:40]))
 
 
 def copy_licences(args, pin, root, moltenvk):
@@ -436,7 +469,8 @@ def copy_licences(args, pin, root, moltenvk):
     (licences / "freetype/ELECTED.txt").write_text(
         "Calimocho distributes FreeType under the FreeType License (FTL.TXT), one of the two "
         "licences FreeType offers. Portions of this software are copyright \u00a9 1996-2024 The "
-        "FreeType Project (www.freetype.org). All rights reserved.\n")
+        "FreeType Project (www.freetype.org). All rights reserved.\n".replace(
+            "1996-2024", pin["freetype_credit_years"]))
 
 
 def source_document(pin):
@@ -482,6 +516,8 @@ def write_engine_manifest(pin, root, receipt):
         "schema": "calimocho-engine/1",
         "engine_id": pin["engine_id"],
         "version": pin["version"],
+        "source_commit": receipt.get("source_commit"),
+        "source_tree_clean": receipt.get("source_tree_clean"),
         "provider": {"id": "calimocho", "contract_version": 1},
         "architecture": "x86_64 (Apple Silicon via Rosetta 2)",
         "components": {
@@ -490,6 +526,8 @@ def write_engine_manifest(pin, root, receipt):
             "apple_d3dmetal": {"version": apple["version"], "bundle_id": apple["bundle_id"],
                                "source_version": apple["source_version"],
                                "binary_sha256": apple["files"][apple["binary"]]},
+            "freetype": {"version": next(d["version"] for d in pin["dependency_sources"] if d["name"] == "freetype")},
+            "gnutls": {"version": next(d["version"] for d in pin["dependency_sources"] if d["name"] == "gnutls")},
             "moltenvk": {"tag": pin["moltenvk"]["tag"], "commit": pin["moltenvk"]["commit"],
                          "metal_private_api": pin["moltenvk"]["metal_private_api"]},
         },
@@ -515,7 +553,7 @@ def sign(args):
     pin = pins(args)
     root = Path(args.root).resolve(strict=True)
     identity = pin["signing"]["identity_sha1"]
-    entitlements = REPO / pin["signing"]["entitlements"]
+    entitlements = pin["signing"]["entitlements"]
     apple = root / "lib/external"
     ours = [p for p in macho_files(root) if apple not in p.parents]
     libraries = [p for p in ours if not is_executable_macho(p)]
@@ -525,7 +563,11 @@ def sign(args):
     for start in range(0, len(libraries), 40):
         run(base + [str(p) for p in libraries[start:start + 40]])
     for path in executables:
-        run(base + ["--entitlements", str(entitlements), str(path)])
+        relative = path.relative_to(root).as_posix()
+        if relative.startswith("_") or relative not in entitlements:
+            raise ValueError(f"No entitlement decision recorded for executable {relative}")
+        extra = ["--entitlements", str(REPO / entitlements[relative])] if entitlements[relative] else []
+        run(base + extra + [str(path)])
     report = verify_signatures(root, pin)
     (root.parent / f"{root.name}.signing.json").write_text(json.dumps(report, indent=2) + "\n")
     print(f"Signed {len(libraries)} libraries and {len(executables)} executables")
@@ -553,6 +595,15 @@ def verify_signatures(root, pin):
         ) if not ok]
         if problems:
             raise ValueError(f"{relative}: signature lacks {', '.join(problems)}")
+        if is_executable_macho(path):
+            wanted = pin["signing"]["entitlements"].get(relative)
+            have = subprocess.run(["codesign", "-d", "--entitlements", "-", "--xml", str(path)],
+                                  capture_output=True).stdout
+            keys = sorted(re.findall(rb"<key>([^<]+)</key>", have))
+            expected = sorted(re.findall(rb"<key>([^<]+)</key>", (REPO / wanted).read_bytes())) if wanted else []
+            if keys != expected:
+                raise ValueError(f"{relative}: entitlements {keys} differ from the pinned {expected}")
+            report.setdefault("entitlements", {})[relative] = [k.decode() for k in keys]
         report["ours"].append(relative)
     for framework in (root / "lib/external").glob("*.framework"):
         subprocess.run(["codesign", "--verify", "--strict", str(framework)], check=True)

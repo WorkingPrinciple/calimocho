@@ -64,6 +64,8 @@ without renumbering.
    `scripts/wine-entitlements.plist` (JIT, unsigned executable memory,
    no executable page protection, DYLD environment variables, no library
    validation). Wine needs these to map Windows code.
+   *Amended 2026-10-26:* replaced by the per-executable minimum in
+   [ADR-0080](0080-minimal-engine-entitlements.md).
 5. **Apple components keep Apple's signature.** `D3DMetal.framework` and
    `libd3dshared.dylib` are copied unmodified from the owner's own copy
    of Apple's "Evaluation environment for Windows games 4.0 beta 3". Every

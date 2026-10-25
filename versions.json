@@ -35,13 +35,13 @@
     "last_known_release": "v2.3.5"
   },
   "release_engine": {
-    "_doc": "Pins for the Calimocho engine release built by tools/release_engine.py. Version is 0.<Wine major+minor>.<Apple GPTK major>.<our build number> (owner, 2026-10-26); any rebuild, including a new GPTK beta, bumps the last number. The engine ID keeps the readable <Wine>-<Apple D3DMetal>-<build> form. See docs/ADR/0079-forza-opt-ins-in-the-general-engine.md and docs/release/11.20-4.0b3-02.md.",
-    "version": "0.1120.4.2",
-    "engine_id": "calimocho-11.20-4.0b3-02",
-    "patch_counter": "02",
+    "_doc": "Pins for the Calimocho engine release built by tools/release_engine.py. Version is 0.<Wine major+minor>.<Apple GPTK major>.<our build number> (owner, 2026-10-26); any rebuild, including a new GPTK beta, bumps the last number. The engine ID keeps the readable <Wine>-<Apple D3DMetal>-<build> form. See docs/ADR/0079-forza-opt-ins-in-the-general-engine.md and docs/release/11.20-4.0b3-03.md.",
+    "version": "0.1120.4.3",
+    "engine_id": "calimocho-11.20-4.0b3-03",
+    "patch_counter": "03",
     "source_repository": "https://github.com/WorkingPrinciple/calimocho",
-    "source_tag": "engine-0.1120.4.2",
-    "install_location": "~/Library/Application Support/Xode/Engines/calimocho-11.20-4.0b3-02",
+    "source_tag": "engine-0.1120.4.3",
+    "install_location": "~/Library/Application Support/Xode/Engines/calimocho-11.20-4.0b3-03",
     "configure_prefix": "/opt/calimocho",
     "wine": {
       "version": "11.20",
@@ -100,14 +100,14 @@
     "dependency_sources": [
       {
         "name": "freetype",
-        "version": "2.13.3",
-        "url": "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz",
-        "sha256": "0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289",
+        "version": "2.14.3",
+        "url": "https://download.savannah.gnu.org/releases/freetype/freetype-2.14.3.tar.xz",
+        "sha256": "36bc4f1cc413335368ee656c42afca65c5a3987e8768cc28cf11ba775e785a5f",
         "license": "FTL or GPL-2.0",
         "licence_members": [
-          "freetype-2.13.3/LICENSE.TXT",
-          "freetype-2.13.3/docs/FTL.TXT",
-          "freetype-2.13.3/docs/GPLv2.TXT"
+          "freetype-2.14.3/LICENSE.TXT",
+          "freetype-2.14.3/docs/FTL.TXT",
+          "freetype-2.14.3/docs/GPLv2.TXT"
         ]
       },
       {
@@ -204,7 +204,12 @@
       "identity_sha1": "410914520BCC840C0125D3826CCF0F247F603321",
       "authority": "Developer ID Application: Dragos Hont (M62Z4M5EUY)",
       "team_id": "M62Z4M5EUY",
-      "entitlements": "scripts/wine-entitlements.plist"
+      "entitlements": {
+        "_doc": "Per-executable entitlements, the minimum that real launches needed (docs/ADR/0080-minimal-engine-entitlements.md). null means none.",
+        "lib/wine/x86_64-unix/wine": "scripts/entitlements/wine-loader.plist",
+        "bin/wine": null,
+        "bin/wineserver": null
+      }
     },
     "source_bundle_files": [
       "versions.json",
@@ -216,13 +221,13 @@
       "tools/build_tls.py",
       "tools/build_moltenvk.py",
       "tools/probe_wine_source.py",
-      "scripts/wine-entitlements.plist",
       "NOTICE",
       "LICENSE",
       "tests/wine/test_winebus_controller.py",
       "TRADEMARKS.md",
       "COPYING.LIB",
-      "docs/release/11.20-4.0b3-02.md"
+      "scripts/entitlements/wine-loader.plist",
+      "docs/release/11.20-4.0b3-03.md"
     ],
     "tsshim": {
       "_doc": "Highball tsshim (timestamp queries, shader-model fallback, MSAA depth resolve, append-aligned input layouts in front of D3DMetal d3d12). GPL-3.0. Built here with export and file name tsshim_export_name. Apple's d3d12.dll is never patched and stays the engine default. The FH6 profile enables the shim per prefix: copy lib/wine/x86_64-windows/d3d12_tsshim.dll to drive_c/windows/system32/d3d12.dll after any prefix update, and set HB_D3D12_REAL to the Windows path (Z:...) of the engine's lib/wine/x86_64-windows/d3d12.dll.",
@@ -271,13 +276,14 @@
           "Keep XODUS_PRIVATE_RUNTIME_COM_STA unset (runtime COM must stay MTA)."
         ]
       }
-    }
+    },
+    "freetype_credit_years": "1996-2026"
   },
   "freetype_source": {
-    "version": "2.13.3",
-    "url": "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz",
-    "sha256": "0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289",
-    "checksum_source": "https://raw.githubusercontent.com/buildroot/buildroot/2025.02/package/freetype/freetype.hash",
+    "version": "2.14.3",
+    "url": "https://download.savannah.gnu.org/releases/freetype/freetype-2.14.3.tar.xz",
+    "sha256": "36bc4f1cc413335368ee656c42afca65c5a3987e8768cc28cf11ba775e785a5f",
+    "checksum_source": "Identical bytes from download.savannah.gnu.org and sourceforge.net/projects/freetype (2026-10-26); FreeType 2.14.3 is the 2026-03-22 security maintenance release",
     "license": "FTL or GPL-2.0; retained docs/LICENSE.TXT"
   },
   "tls_sources": [

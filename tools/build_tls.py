@@ -22,6 +22,8 @@ OPTIONS = {
         "--disable-doc", "--disable-tools", "--disable-tests", "--disable-cxx",
         "--disable-nls", "--without-brotli", "--without-zstd",
         "--without-zlib",
+        # Keep the build prefix out of the library; root-owned standard path, absent on macOS.
+        "--with-system-priority-file=/etc/gnutls/config",
     ],
 }
 
@@ -48,7 +50,9 @@ def build(archives, output):
     }
     environment.update(
         CC="/usr/bin/clang -arch x86_64", CXX="/usr/bin/clang++ -arch x86_64",
-        CFLAGS="-O2", CPPFLAGS=f"-I{prefix}/include", LDFLAGS=f"-L{prefix}/lib",
+        # Map build paths out of __FILE__ strings and debug info (reproducible, no dev paths).
+        CFLAGS=f"-O2 -ffile-prefix-map={output}/=tls-build/",
+        CPPFLAGS=f"-I{prefix}/include", LDFLAGS=f"-L{prefix}/lib",
         PKG_CONFIG_LIBDIR=str(prefix / "lib/pkgconfig"),
         DYLD_FALLBACK_LIBRARY_PATH=f"{prefix}/lib:/usr/lib",
         CONFIG_SITE="/dev/null", LC_ALL="C",

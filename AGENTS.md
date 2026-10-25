@@ -211,7 +211,9 @@ that unblocks the FOSS path, subject to the guardrails in
   "Developer ID Application: Dragos Hont (M62Z4M5EUY)", inside-out, one
   file at a time:
   `codesign --force --sign <identity> --options runtime --timestamp`.
-  Never `--deep`. Executables add `scripts/wine-entitlements.plist`.
+  Never `--deep`. Each executable gets only the entitlements pinned in
+  `versions.json` (today: the Wine loader gets `disable-library-validation`,
+  nothing else; see docs/ADR/0080-minimal-engine-entitlements.md).
 - Apple's D3DMetal components keep Apple's own signature. We never
   re-sign or modify them (GPTK licence section 2D).
 - Notarization and public release uploads are separate owner decisions.

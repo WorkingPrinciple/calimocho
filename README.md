@@ -210,7 +210,7 @@ or use the recipe above.
 
 - Version scheme: `0.<Wine major+minor>.<Apple GPTK major>.<our build>`;
   engine IDs read `<Wine>-<Apple D3DMetal>-<build>`. The
-  current one is `0.1120.4.2`, engine ID `calimocho-11.20-4.0b3-02` (Forza Horizon 6 fixes as opt-ins
+  current one is `0.1120.4.3`, engine ID `calimocho-11.20-4.0b3-03` (Forza Horizon 6 fixes as opt-ins
   that are off for every other game, see
   [ADR-0079](docs/ADR/0079-forza-opt-ins-in-the-general-engine.md)).
 - Built from the official Wine 11.20 tarball plus
@@ -224,6 +224,6 @@ or use the recipe above.
   never contains Apple binaries; the build takes them from your own
   copy of Apple's Game Porting Toolkit.
 - Release notes, contents and licence details:
-  [`docs/release/11.20-4.0b3-02.md`](docs/release/11.20-4.0b3-02.md).
+  [`docs/release/11.20-4.0b3-03.md`](docs/release/11.20-4.0b3-03.md).
 - Tested games, with what we actually saw:
   [`docs/TESTED-GAMES.md`](docs/TESTED-GAMES.md).
