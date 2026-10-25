@@ -1,9 +1,10 @@
 # Tested games
 
-This is the list of Windows games we have tried on Calimocho, with what
-we actually observed. It is the source for the README and for posts about
-the project, so keep it accurate: only move a game up a level when a new
-test shows it, and record the date.
+This is the list of games we have tried, on Calimocho and on the engines
+that came before it, with what we actually observed. It is the source for
+the README and for posts about the project, so keep it accurate: never drop
+a game, only move a game up a level when a new test shows it, and record the
+date.
 
 ## How these were tested
 
@@ -83,7 +84,32 @@ Vampire Survivors.
 | LIMBO | No window; exits right away. |
 | Mixtape | "Fatal error" crash inside the game. |
 
+## Earlier engines (CrossOver or free Wine/GPTK recipes), 22–23 October 2026
+
+Before Calimocho, these 12 titles passed a stricter test on an earlier
+engine: actual gameplay, a normal quit, a fresh relaunch, and progress kept
+across that relaunch. Each result holds only for the exact engine and recipe
+it was recorded on; it doesn't carry over to Calimocho or to other engines.
+Where a game's Calimocho result above differs, both are kept.
+
+| Game | Earlier-engine result |
+|---|---|
+| Minecraft: Java Edition + Minecraft Launcher | Plays. Native Mac launcher and game, not Wine. World kept after relaunch. |
+| No Man's Sky | Plays. Separate results on CrossOver and on free Wine with GPTK 3; counted once. |
+| Hogwarts Legacy | Plays, save kept (accepted with a cave-checkpoint exception). |
+| Hollow Knight: Voidheart Edition | Plays, progress kept. |
+| Hades II | Plays, progress kept. |
+| Halls of Torment | Plays, progress kept. (On Calimocho: Blocked, see above.) |
+| Mixtape | Plays, progress kept. (On Calimocho: Doesn't run, see above.) |
+| Abiotic Factor | Plays; world, character and an inventory marker kept. |
+| Monster Sanctuary | Plays, progress kept. |
+| TUNIC | Plays; Wooden Stick kept after relaunch. |
+| Brotato | Plays; Chunky unlock kept after relaunch. Also verified through Xode's Play button. |
+| Stardew Valley | Plays; Day 2 and seeds kept after relaunch. |
+
 ## Counts (24–25 October 2026)
 
-41 games tried: 16 play, 3 reach the menu, 11 open, 8 are blocked and 3
-don't run. Well Dweller was tested but its result hasn't been reviewed yet.
+41 games tried on Calimocho: 16 play, 3 reach the menu, 11 open, 8 are
+blocked and 3 don't run. Well Dweller was tested but its result hasn't been
+reviewed yet. Including Minecraft Java from the earlier-engine section, 42
+different titles have been tested.
