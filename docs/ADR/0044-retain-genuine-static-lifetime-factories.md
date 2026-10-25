@@ -25,6 +25,14 @@ also queries IMap of string and IInspectable and clears the store.
 All three pinned source URLs were fetched successfully. No private ABI
 is inferred from binary offsets or guessed from the CoreApplication name.
 
+Re-fetched source identities at the pinned commit:
+
+| File | SHA-256 |
+| --- | --- |
+| `strings/base_abi.h` | `ccbadb65527e8e97dfaa646947fb463cbf061b168eb198b709fddd35b1084dc7` |
+| `strings/base_implements.h` | `b7869ec74f826ff9cc13bf6ce74988842fb47e55ff59eab60e924a87cebd28e1` |
+| `test/old_tests/UnitTests/factory_cache.cpp` | `f34f902f046074a0409571863ba7a563e705a8138666963b6bf26061745b15d1` |
+
 ## Decision
 
 Implement the exact IStaticLifetime interface on the CoreApplication factory,
