@@ -104,6 +104,24 @@ area. The exact Dock exception did not extend to those windows. No runtime
 was spawned. The scheduler was given the fresh inventory rather than the
 earlier assumption that Dock was the only main-display obstacle.
 
+The scheduler then cleared the ordinary windows reversibly and granted the
+bounded graphics slot. Vulkan04, D3D1105 and D3D1206 each presented 120 frames
+and read back exactly RGBA 51,102,204,255. Vulkan also observed wideLines
+enabled and the exact private MoltenVK loaded by the owned probe. Native
+windows passed the non-overlap guard with only the authorized Dock tuple.
+Foreground, baseline and payload hashes were unchanged; owned servers and
+process groups stopped and prefix open-file checks were clean.
+
+The new `RUNTIME-FROZEN` registry has SHA-256
+`dcb8489851cafde7ffc9333de3d61a33c61e622b1e4b6a3262016c96ad42b7c7`.
+Its qualification supplement has SHA-256
+`6f2ded3a44931662b70999246e6b65f22064a8214ab0359c0599d5459b53b5a5`.
+It binds all three original observations, unchanged full installed inventory,
+and the earlier headless qualification. It clarifies the Dock exception
+without rewriting the older capture's narrower scope prose. These are
+runtime-probe results, not DIRT5 title-screen acceptance. The scheduler
+received the record with the separate opt-in DIRT5 recipe.
+
 ## Reproduction
 
 Use installed tools only and require a new build directory:

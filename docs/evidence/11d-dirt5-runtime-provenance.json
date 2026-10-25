@@ -1,0 +1,43 @@
+{
+  "producerRepository": "https://github.com/dragoshont/calimocho",
+  "upstreamWineCommit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+  "immutableInputs": [
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11d-ags54-02/receipt.json",
+      "sha256": "46a47c2d47e8c43b5edbaac44accb8fb97972fab35a8c8be0d13a90b0c7b1589"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11d-ags54-02/ags54-minidump.registry.local.RUNTIME-FROZEN.json",
+      "sha256": "dcb8489851cafde7ffc9333de3d61a33c61e622b1e4b6a3262016c96ad42b7c7"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11d-ags54-02/graphics-qualification-frozen.json",
+      "sha256": "6f2ded3a44931662b70999246e6b65f22064a8214ab0359c0599d5459b53b5a5"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11d-ags54-02/headless-qualification-frozen.json",
+      "sha256": "2842fd44e7a15a300012d54f19ae9a295e2ab6dd00ccfea6795ef8f1cbbb5e41"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11d-ags54-02/dirt5-ags54.environment.json",
+      "sha256": "d3d4c0a98994e5b6ead1e664eb8b227ea3ff5779aa2993f2c843b8de82810f6f"
+    }
+  ],
+  "deployedInventoryAudit": {
+    "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11d-ags54-02/dirt5-integrity-audit-FROZEN.json",
+    "sha256": "257ea1bb27d2c3b8160146bf5c8bf5f55af0c8ffeb513b25719c61ff4549d1d8",
+    "status": "unchanged"
+  },
+  "wineSha256": "f6d0546fad2d0dafaa09a9fe6cabe75bb070567df6b0933ecd3622dcb6349194",
+  "wineserverSha256": "e3ec4e7e76cee273f17d5fa3459902642f73d6921e94c576aa74e8cdbdcd7da1",
+  "variantEngineName": "calimocho-wine11.20-gptk4b3-ags54-minidump-dirt5",
+  "variantOverride": "mscoree,mshtml=;amd_ags_x64=b",
+  "graphics": "Vulkan/D3D11/D3D12:120 presents, exact RGBA51,102,204,255",
+  "headless": "actual AGS device/minidump and HTTPS positive/expired-certificate negative",
+  "gameAcceptance": "not observed by producer; execution owner must admit and test",
+  "displayException": {
+    "ownerAuthorizedDockPid": 716,
+    "windowId": 33,
+    "qualificationOnly": true
+  }
+}

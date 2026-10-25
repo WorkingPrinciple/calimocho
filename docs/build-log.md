@@ -2438,3 +2438,26 @@ pipeline resource encoding (`MVKPipeline.mm:295-323`). A capability-withdrawal
 variant would instead need extension, core-feature and API-version changes
 with explicit compatibility consequences. Neither path is implemented or
 claimed qualified here.
+
+### 11d AGS runtime probes and DIRT5 admission provenance
+
+The isolated AGS5.4/minidump sibling completed its headless AGS device,
+minidump and HTTPS positive/expired-certificate negative checks. Its actual
+Vulkan, D3D11 and D3D12 probes each presented 120 frames and returned exactly
+RGBA 51,102,204,255. The graphics guard recorded only the owner-authorized
+Dock PID716/window33 exception. Foreground, payloads and baseline hashes
+were unchanged; owned servers stopped and waited and prefix open-file
+checks were clean.
+
+The runtime-qualified registry `dcb8489851cafde7ffc9333de3d61a33c61e622b1e4b6a3262016c96ad42b7c7`
+remains unchanged. The separate DIRT5 admission variant embeds the complete
+`mscoree,mshtml=;amd_ags_x64=b` override instead of depending on external
+environment merging. A fresh complete installed-inventory comparison and
+independent profile-asset/dependency hashes establish `integrity: unchanged`,
+not game qualification. Tracked producer evidence binds that audit, the
+original registry, graphics/headless receipts and separate recipe. The
+producer commit and upstream Wine commit are distinct identities.
+
+See [ADR-0037](ADR/0037-add-an-opt-in-wine-built-ags54-adapter.md) and
+`docs/evidence/11d-dirt5-runtime-provenance.json`. No DIRT5 title-screen
+acceptance follows from these producer checks.
