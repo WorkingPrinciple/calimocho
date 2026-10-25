@@ -2791,3 +2791,15 @@ identities and sealed predecessor integrity. Native013, target thread
 frames, HWND facts and any conditional exact-window screenshot remain
 unobserved at this source stage. See
 [ADR-0045](ADR/0045-observe-bounded-target-state-without-input.md).
+
+The013 receipt is frozen at SHA-256
+`a0cf124b6c1040de0cbe180a70c9969612314e95511281cc769d58ee752e0285`,
+source producer `18c16e1f08c4e8d5159656156eea9c310d015ebc`.
+The target-state helper SHA-256 is
+`ad75ef920309fdbe51d842140119b47c9f07a91e94078e0846f4144093e10810`.
+The independent frozen audit checks3915 deployed entries, exact producer
+blobs, helper/collector hashes, both scheduled offsets, unchanged native
+input/mappings and the sealed012 predecessor. The full host suite passes
+186 tests. The receipt was sent to the runtime observer owner, copying
+the coordinator. Execution and the conditional exact-window screenshot
+remain with that owner; no013 native result is claimed at handoff.

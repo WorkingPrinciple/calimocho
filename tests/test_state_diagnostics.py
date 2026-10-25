@@ -1,19 +1,51 @@
+import hashlib
 import json
 import os
 from pathlib import Path
 import subprocess
-import sys
-import tempfile
 import unittest
 from unittest.mock import patch
 
 from tools.build_minidump_overlay import inventory
 from tools.build_uwp_overlay import REPO
+from tools.freeze_launcher_runtime import checked_assets
 from tools.diagnose_package_activation import ActivationTrace, StateSnapshots, state_rows
 from tools.probe_wine_source import sha256
 
 
 class StateDiagnosticsTests(unittest.TestCase):
+    def test_frozen013_binds_new_helpers_and_preserves_012_and_observed_native_inputs(self):
+        path = REPO / "build/winehq-11.20/package-uwp-state-01/cell013-receipt.json"
+        receipt = json.loads(path.read_text())
+        previous = json.loads(Path(receipt["predecessor_receipt"]).read_text())
+        self.assertEqual(sha256(Path(receipt["predecessor_receipt"])),
+                         "d28d3873654eaf4c563db8cf64ef4b2368176729befb6c72eec847b128a9c39f")
+        entry = json.loads(Path(receipt["registry"]).read_text())["engines"][0]
+        checked_assets(entry)
+        files = json.loads(Path(receipt["inventory"]).read_text())["files"]
+        self.assertEqual(inventory(Path(receipt["install"])), files)
+        self.assertEqual(len(files), 3915)
+        for key in ("registry", "inventory", "build_receipt", "staging_receipt", "diagnostic_collector",
+                    "helper", "native_fixture", "launcher_registration", "state_observer_build"):
+            self.assertEqual(sha256(Path(receipt[key])), receipt[key + "_sha256"])
+        observer = receipt["state_observer"]
+        self.assertEqual(sha256(Path(observer["path"])), observer["sha256"])
+        self.assertEqual(observer["argv"][:3], receipt["activation_argv"][:3])
+        self.assertEqual(observer["argv"][3], observer["path"])
+        self.assertEqual(observer["image"], receipt["target_observer"]["image"])
+        self.assertEqual(observer["app_id"], "Microsoft.Xbox.AppL")
+        self.assertEqual(observer["offset_seconds"], [20, 60])
+        self.assertEqual(observer["helper_bound_seconds"], 10)
+        self.assertEqual(receipt["collector_limit_seconds"], 180)
+        self.assertEqual(receipt["native_xaml_input"], previous["native_xaml_input"])
+        self.assertEqual(receipt["native_xaml_registration"], previous["native_xaml_registration"])
+        self.assertEqual(receipt["native_mapping_count"], 558)
+        self.assertEqual(receipt["environment"]["WINEDLLOVERRIDES"], previous["environment"]["WINEDLLOVERRIDES"])
+        for relative, digest in receipt["source_inputs"].items():
+            blob = subprocess.check_output(["git", "show", receipt["producer_commit"] + ":" + relative], cwd=REPO)
+            self.assertEqual(hashlib.sha256(blob).hexdigest(), digest)
+        self.assertFalse(receipt["runtime_executed"])
+
     def test_progress_parser_matches_emitted_shape_and_only_retains_target_fixed_fields(self):
         trace = ActivationTrace()
         trace.stdout("calimocho-activation child_pid 240")
