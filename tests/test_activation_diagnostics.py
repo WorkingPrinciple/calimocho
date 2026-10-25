@@ -11,6 +11,29 @@ from tools.diagnose_package_activation import ActivationTrace, collect
 
 
 class ActivationDiagnosticsTests(unittest.TestCase):
+    def test_uwp_window_and_missing_interface_are_child_bound_and_content_redacted(self):
+        trace = ActivationTrace()
+        trace.stdout("calimocho-activation child_pid 100")
+        trace.stderr('0064:0070:trace:pkglaunch:activate_route route scheme=L"msxboxl" '
+                     'app=L"Microsoft.Xbox.AppL" pid=200 result=00000000 missing=none')
+        trace.stderr("00c8:00cc:trace:pkgcore:fire_activated activated kind=4 handlers=1 result=00000000")
+        trace.stderr("00c8:00cc:trace:pkgwindow:host_proc "
+                     "window category=package-view class=CalimochoCoreWindow created=1 visible=0")
+        trace.stderr("00c8:00cc:trace:pkgwindow:window_query "
+                     "missing-iid={277151c3-9e3e-42f6-91a4-5dfdeb232451} result=80004002")
+        trace.stderr("00c8:00cc:trace:pkgwindow:missing missing-method=PointerMoved result=80004001")
+        trace.stderr("00c8:00cc:trace:pkgwindow:missing missing-method=SECRET result=80004001")
+        trace.stderr("00c8:00cc:trace:pkgwindow:host_proc "
+                     "window category=package-view class=SECRET visible=1")
+        trace.stderr("00d0:00cc:trace:pkgcore:fire_activated activated kind=4 handlers=1 result=00000000")
+        verdict = trace.verdict()
+        self.assertEqual(len(verdict["activation_delivery"]), 1)
+        self.assertEqual(verdict["activation_delivery"][0]["pid"], 200)
+        self.assertEqual(len(verdict["window_facts"]), 1)
+        self.assertEqual(len(verdict["protocol_target_activation_results"]), 2)
+        self.assertEqual(verdict["activation_results"], [])
+        self.assertNotIn("SECRET", str(verdict))
+
     def test_missing_launcher_interface_and_method_are_bounded_and_ce_pid_only(self):
         trace = ActivationTrace()
         trace.stdout("calimocho-activation child_pid 100")

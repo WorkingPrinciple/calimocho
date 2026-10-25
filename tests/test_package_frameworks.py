@@ -10,6 +10,27 @@ import struct
 
 
 class FrameworkTests(unittest.TestCase):
+    def test_opt_in_application_classes_precede_framework_and_missing_server_fails(self):
+        package = self.root / "package"
+        package.mkdir()
+        (package / "AppxManifest.xml").write_text(self.package())
+        (package / "server.dll").write_bytes(b"own server")
+        with patch("tools.package_frameworks.verify_payload", return_value={}):
+            graph = resolve(self.app, self.root, [], "fixture")
+        meta = {"full_name": "Test.App_1.0.0.0_x64__8wekyb3d8bbwe",
+                "family_name": "Test.App_8wekyb3d8bbwe"}
+        result = graph_artifacts(self.root, meta, graph, application_classes=True)
+        registration = Path(result["framework_registration"]).read_text(encoding="utf-16")
+        self.assertEqual(registration.count("\\ActivatableClassId\\Test.PublicClass]"), 1)
+        self.assertIn("package\\\\server.dll", registration)
+        self.assertEqual(len(result["application_classes"]), 1)
+        with tempfile.TemporaryDirectory() as other:
+            output = Path(other).resolve()
+            (output / "package").mkdir()
+            (output / "package/AppxManifest.xml").write_text(self.package())
+            with self.assertRaisesRegex(ValueError, "missing application class server"):
+                graph_artifacts(output, meta, graph, application_classes=True)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

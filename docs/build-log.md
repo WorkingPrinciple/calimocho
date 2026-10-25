@@ -3,6 +3,41 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: cell009 process-bound UWP and real CoreWindow candidate
+
+ADR-0041 records the approved continuation after cell008's explicit UWP gap.
+The new source carries a server-owned, process-only protocol record with the
+real caller AppId and target identity. CoreApplication creates its view and
+real hidden HWND, calls SetWindow and Load, queues Activated and enters Run.
+The dispatcher delivers a genuine protocol or launch event during message
+pumping. Activate shows the window; bounds, visibility, activation and size
+events use that HWND. Unsupported queries report their first missing surface.
+
+The isolated `package-uwp-01` source build completes and stages exactly six
+changed files relative to frozen008: wineserver, Unix/PE ntdll, twinapi.appcore,
+windows.ui and Launcher. The v7 bounded observer and owned HWND lifecycle
+fixture compile without running either. A resumed stage retains its previous
+unqualified installed tree and receipts. Frozen-output guards prevent a later
+build or stage from changing the handoff.
+
+A fresh retained snapshot passes the existing pinned-root signature,
+timestamp, blockmap and four-framework checks. Its combined class import
+includes442 authenticated main-package entries, with all server DLLs present.
+This is an opt-in; older preparation and frozen007/008 remain unchanged.
+The new collector tracks both public XAML basenames and limits window/event
+facts to CE or an actual recorded handoff PID, retaining no URI or content.
+
+Initial builds failed on missing installed-header registration, generated
+server protocol, a no-op directory target, WinRT namespace settings and GUID
+definitions. Those attempts remain retained. A separate reference increment
+fix avoids a COM macro's repeated evaluation. The final build also includes
+real asynchronous-action IDs and closed-state errors rather than fake values.
+
+Native fixture execution, actual CE routing, process-bound event delivery,
+window display and Xbox UI remain unobserved by this source lane. No game,
+prefix or foreign process was started or changed for this build. Xbox0ab owns
+the scheduled008/009 cell execution; source/build success is not UI evidence.
+
 ## 2026-10-25: truthful no-device GameInput sibling
 
 ADR-0039 records the owner's Witcher input/haptics evidence and the exact

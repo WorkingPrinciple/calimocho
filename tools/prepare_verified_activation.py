@@ -12,7 +12,8 @@ import xml.etree.ElementTree as ET
 
 from tools.package_activation import identity
 from tools.verify_installed_appx import verify
-from tools.package_frameworks import resolve
+from tools.package_frameworks import classes, resolve
+from tools.verify_installed_appx import xml
 
 
 def dos(path):
@@ -22,7 +23,7 @@ def dos(path):
     return value
 
 
-def graph_artifacts(output, metadata, graph):
+def graph_artifacts(output, metadata, graph, application_classes=False):
     entries = [{"full_name": metadata["full_name"], "family_name": metadata["family_name"],
                 "path": str(output / "package")}]
     entries += [{"full_name": item["identity"]["full_name"],
@@ -41,10 +42,25 @@ def graph_artifacts(output, metadata, graph):
         stream.write(blob)
     graph_path.chmod(0o444)
     lines = ["Windows Registry Editor Version 5.00", ""]
-    for package in graph:
+    own_classes = []
+    if application_classes:
+        own_classes = classes(xml((output / "package/AppxManifest.xml").read_bytes()), output / "package")
+        seen = set()
+        for entry in own_classes:
+            key = entry["class"].casefold()
+            if key in seen or not entry["server_file_present"]:
+                raise ValueError("Ambiguous or missing application class server: " + entry["class"])
+            seen.add(key)
+            entry["selected_in_graph_order"] = True
+    selected = set()
+    for package in ([{"classes": own_classes}] if application_classes else []) + graph:
         for entry in package["classes"]:
             if not entry["selected_in_graph_order"]:
                 continue
+            key = entry["class"].casefold()
+            if key in selected:
+                continue
+            selected.add(key)
             lines.append("[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\WindowsRuntime\\ActivatableClassId\\"
                          + entry["class"] + "]")
             for key, value in (("DllPath", dos(entry["dll"])),
@@ -59,12 +75,16 @@ def graph_artifacts(output, metadata, graph):
             "framework_registration": str(registration),
             "framework_registration_sha256": hashlib.sha256(registration.read_bytes()).hexdigest(),
             "graph_entries": entries, "frameworks": graph,
+            **({"application_classes": own_classes} if application_classes else {}),
             "environment": {"CALIMOCHO_PACKAGE_GRAPH": dos(graph_path)}}
 
 
-def prepare(package, application, roots, openssl, output, framework_root=None, protocols=False):
+def prepare(package, application, roots, openssl, output, framework_root=None, protocols=False,
+            application_classes=False):
     if protocols and framework_root is None:
         raise ValueError("Protocol activation requires an explicitly verified framework graph")
+    if application_classes and framework_root is None:
+        raise ValueError("Application classes require an explicitly verified framework graph")
     package = Path(package).resolve(strict=True)
     output = Path(output).resolve()
     if output == package or package in output.parents:
@@ -90,7 +110,7 @@ def prepare(package, application, roots, openssl, output, framework_root=None, p
         for item in observed:
             shutil.copytree(item["path"], destination / item["identity"]["Name"], symlinks=True)
         graph = resolve(snapshot / "AppxManifest.xml", destination, roots, openssl)
-        progress.update(graph_artifacts(output, metadata, graph))
+        progress.update(graph_artifacts(output, metadata, graph, application_classes))
         for path in destination.rglob("*"):
             if path.is_file():
                 path.chmod(0o444)
@@ -138,9 +158,10 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--framework-root", type=Path)
     parser.add_argument("--protocols", action="store_true")
+    parser.add_argument("--application-classes", action="store_true")
     args = parser.parse_args()
     prepare(args.package, args.application, args.root, args.openssl, args.output, args.framework_root,
-            args.protocols)
+            args.protocols, args.application_classes)
 
 
 if __name__ == "__main__":

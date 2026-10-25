@@ -37,6 +37,8 @@ class ActivationTrace:
         self.activation_facts = []
         self.activation_results = []
         self.protocol_results = []
+        self.window_facts = []
+        self.activation_delivery = []
 
     def append_fact(self, target, fact):
         if len(target) < 128:
@@ -74,6 +76,41 @@ class ActivationTrace:
         pid, tid, level, channel, function, message = event.groups()
         fact = {"pid": int(pid, 16), "tid": int(tid, 16),
                 "channel": channel, "function": function}
+        if channel in ("pkgcore", "pkgwindow"):
+            missing_iid = re.fullmatch(
+                r'missing-iid=(\{[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\}) result=80004002',
+                message, re.IGNORECASE)
+            missing_method = re.fullmatch(r'missing-method=([A-Za-z.]{1,64}) result=80004001', message)
+            methods = {
+                "Suspending", "RemoveSuspending", "Resuming", "RemoveResuming", "Properties",
+                "RunWithActivationFactories", "CoreWindow.GetForCurrentThread", "CreateCoreWindow",
+                "SplashScreen", "AutomationHostProvider", "CustomProperties", "FlowDirection",
+                "PointerCursor", "PutPointerCursor", "GetAsyncKeyState", "GetKeyState",
+                "ReleasePointerCapture", "SetPointerCapture", "RunIdleAsync", "AsyncInfo.Id",
+            }
+            events = {"AutomationProviderRequested", "CharacterReceived", "Closed", "InputEnabled",
+                      "KeyDown", "KeyUp", "PointerCaptureLost", "PointerEntered", "PointerExited",
+                      "PointerMoved", "PointerPressed", "PointerReleased", "TouchHitTesting",
+                      "PointerWheelChanged", "VisibilityChanged"}
+            methods |= events | {"Remove" + name for name in events}
+            if missing_iid:
+                fact.update(missing_iid=missing_iid[1].lower(), hresult="0x80004002")
+                self.append_fact(self.activation_results, fact)
+            elif missing_method and missing_method[1] in methods:
+                fact.update(missing_method=missing_method[1], hresult="0x80004001")
+                self.append_fact(self.activation_results, fact)
+            else:
+                window = re.fullmatch(
+                    r'window category=package-view class=CalimochoCoreWindow '
+                    r'(created=1 visible=0|visible=1|destroyed=1)', message)
+                delivery = re.fullmatch(r'activated kind=([04]) handlers=([0-9]{1,2}) result=([0-9a-f]{8})', message)
+                if window:
+                    fact.update(category="package-view", window_class="CalimochoCoreWindow", state=window[1])
+                    self.append_fact(self.window_facts, fact)
+                elif delivery:
+                    fact.update(kind=int(delivery[1]), handlers=int(delivery[2]), hresult="0x" + delivery[3])
+                    self.append_fact(self.activation_delivery, fact)
+            return
         if channel == "pkglaunch" and function == "activate_route":
             route = re.fullmatch(
                 r'route scheme=L"([a-z][a-z0-9+.-]{0,62})" '
@@ -203,6 +240,9 @@ class ActivationTrace:
             "sync_facts": self.sync_facts,
             "activation_facts": self.activation_facts,
             "activation_results": [fact for fact in self.activation_results if fact["pid"] == pid],
+            "protocol_target_activation_results": [fact for fact in self.activation_results if fact["pid"] in target_pids],
+            "activation_delivery": [fact for fact in self.activation_delivery if fact["pid"] == pid or fact["pid"] in target_pids],
+            "window_facts": [fact for fact in self.window_facts if fact["pid"] == pid or fact["pid"] in target_pids],
             "protocol_results": routes,
             "protocol_target_loads": target_loads,
             "protocol_target_exit_calls": target_exits,
