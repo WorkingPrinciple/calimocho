@@ -27,6 +27,44 @@ unchanged022 context wrapper/helper and sealed022 predecessor.
 All240 host tests pass. The receipt was sent to the exclusive runtime
 owner for one fresh023 no-input observation, not a UI acceptance claim.
 
+Actual023 redacted evidence was independently read and SHA-256 checked as
+`ba58124501a8d89c2ea4b0de090c8b3c03ad6950a1542211dfb5468a9d62cd37`.
+Claims context2246 observes thread-effective-token, pointer mask0x60,
+sampled unpackaged=false/gamingapp=true and actual return0. No matching
+C0000002 relay return or fail-fast context remains in this capture.
+This establishes the actual claims return, not output contents or branch trace.
+
+The next concrete failure is an unhandled-filter entry2278, code80000100,
+flags1, at kernelbase+4f2dc, followed by exact target256 handle exit80000100.
+Its two image-relative parameters are original XAML+f3e960 and+fc785a.
+Static RVA resolution against hash-verified native16302bfe identifies
+the import identifiers `api-ms-win-rtcore-ntuser-private-l1-1-7.dll` and
+`IsOneCoreTransformMode`. The redacted error fingerprint is
+DelayLoadFailureHook. Pinned Wine source comments out that user32 export
+and lists NtIsOneCoreTransformMode as a win32u syscall stub with zero
+argument bytes. This does not establish its semantics or return value.
+
+Initialize still enters without exit. No later lifecycle or UI acceptance
+is observed. Collection takes5.735 seconds with explicit post-target-exit
+drain truncation, not180-second timeout. No sampler or fixture executes.
+The new import gap was sent to the producer without adding a guessed
+return value, native DLL rewrite or unchanged replay. Final cleanup seal
+is retained separately when available.
+
+Follow-through distinguishes API-set wiring from implementation. The existing
+schema maps `api-ms-win-rtcore-ntuser-private-l1-1-0` to user32. The pinned
+ntdll resolver hashes and compares the name before its final hyphen, so the
+requested suffix7 shares that existing family with suffix0. Inspection of
+the actual staged user32 PE export directory (841 named exports) confirms
+IsOneCoreTransformMode is absent. Adding a broad API-set redirect would not
+provide the missing implementation.
+
+The publicly pinned phnt prototype declares BOOL(void) forwarding to
+NtIsOneCoreTransformMode. It does not establish the local state semantics.
+The adjacent enable-function documentation has argument prose inconsistent
+with its void prototype, so it is not evidence for a guessed state setter.
+The producer was asked for native/static query and state evidence before024.
+
 ## 2026-10-25: effective-token claims sibling022
 
 The producer's static follow-through identifies token-6 at both native
