@@ -242,7 +242,9 @@ static int activate(const WCHAR *blob_path, const WCHAR *executable, BOOL fixtur
         status = RtlCreateEnvironment(TRUE, &environment);
         RtlInitUnicodeString(&name, L"WINEDEBUG");
         RtlInitUnicodeString(&value,
-#ifdef CALIMOCHO_EXCEPTION_DIAGNOSTICS
+#ifdef CALIMOCHO_STATUS_DIAGNOSTICS
+            L"err+all,fixme-all,trace+process,trace+loaddll,trace+combase,XboxPcApp.exe:fixme+all,trace+pkgactivate,trace+pkglaunch,trace+pkgcore,trace+pkgwindow,trace+pkgiface,trace+pkgrelay,trace+pkgwait,trace+pkgro,trace+pkgthread,trace+pkghandle,trace+pkgrpc,trace+pkgexception,trace+pkgstatus,trace+relay,+pid,+tid");
+#elif defined(CALIMOCHO_EXCEPTION_DIAGNOSTICS)
             L"err+all,trace+process,trace+loaddll,trace+combase,fixme+combase,trace+pkgactivate,trace+pkglaunch,trace+pkgcore,trace+pkgwindow,trace+pkgiface,trace+pkgrelay,trace+pkgwait,trace+pkgro,trace+pkgthread,trace+pkghandle,trace+pkgrpc,trace+pkgexception,trace+relay,+pid,+tid");
 #elif defined(CALIMOCHO_HANDLE_PROVENANCE)
             L"err+all,trace+process,trace+loaddll,trace+combase,fixme+combase,trace+pkgactivate,trace+pkglaunch,trace+pkgcore,trace+pkgwindow,trace+pkgiface,trace+pkgrelay,trace+pkgwait,trace+pkgro,trace+pkgthread,trace+pkghandle,trace+pkgrpc,trace+relay,+pid,+tid");

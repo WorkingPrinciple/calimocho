@@ -81,6 +81,8 @@ def stage(root, resume=False):
         command.append("-DCALIMOCHO_HANDLE_PROVENANCE")
     if "exception_diagnostics" in build:
         command.append("-DCALIMOCHO_EXCEPTION_DIAGNOSTICS")
+    if "status_diagnostics" in build:
+        command.append("-DCALIMOCHO_STATUS_DIAGNOSTICS")
     command += [str(root / "build/dlls" / module / "x86_64-windows" / ("lib" + module + ".a"))
                 for module in ("ntdll", "kernelbase", "combase")]
     # kernelbase was unchanged, so use the frozen framework build's import library.

@@ -3225,3 +3225,57 @@ changed modules, all producer blobs, generated diagnostic sources,
 exact engine/server/observer commands and sealed018 predecessor.
 The receipt was sent to0ab, copying the coordinator, for once-only
 fresh019 observation and exact-prefix cleanup. No local Wine execution.
+
+### Actual019: fail-fast argument is0xd0000002
+
+The once-only observation retained argument HRESULT0xd0000002 for
+AppL256/TID260 at sequence2243. The validated export-hook return site
+was ntdll+10e03. Immediately preceding independent relay2242 reports
+native XAML+33f121. These sites must not be collapsed into one caller.
+The hook copied16 admitted relays and15 owned COM events, including
+AddCallback S_OK and its later Release2.
+
+No admitted restricted-error/originate row, failing owned COM HRESULT,
+unhandled-filter exception or source/collector loss flag was retained.
+The exact target handle observed0xc0000602. Initialize did not return.
+The4.383-second collector hit its explicit2-second post-exit drain
+cutoff, not180seconds. No sampler or fixture ran; window/screenshot
+remain unknown.
+
+Independently checked redacted SHA-256:
+`8b09ebc1af1455496d6b8a9be2bc9cd5fe832b952b6a9d70dacc48bfd3e03b30`.
+Unchanged runtime:
+`42097c79a3b8806c716c7f7d1b18bd74954d5c3f251812a057cfd4416d96cacd`.
+Separate final analysis:
+`aac0083215377499e739cd453343b3e70c837f3f6c2badb9af56a21414c52fe8`.
+The analysis binds exact019 stop/wait0, all13 recorded host PIDs absent,
+no prefix open files, matching source/log/prefix identities and unchanged
+012-018 results. No replay or originating-API claim.
+
+### Cell020: status-return and redacted stub discriminator
+
+[ADR-0052](ADR/0052-discriminate-not-implemented-returns.md) records the
+next bounded diagnostic. Exact019 export disassembly proves incoming ECX
+is forwarded before reuse. HRESULT_FROM_NT(STATUS_NOT_IMPLEMENTED)
+equals0xd0000002, so no speculative capture fix is applied.
+
+The new source admits actual relay thunks more broadly but retains only
+matching low32 return statuses and image-relative caller/export names.
+Norelay/syscalls remain uncovered. App-qualified FIXME emission is
+retained only as Run-scoped function/channel fingerprints without
+arguments. The existing complete view and lifetime typed wrappers and019
+capture remain unchanged.
+
+The initial source-port seam expected an older narrow caller condition;
+inspection corrected it to the actual015-expanded condition. The first
+compile then rejected emulated PE thread-local storage because ntdll
+cannot import its CRT/kernel dependencies. The diagnostic no longer
+uses that TLS; its caller formatter reads validated loader-entry metadata
+instead of issuing memory-query syscalls from the return probe.
+Both failures are retained in the owned build directory. The resumed
+fresh `package-uwp-status-01` build/stage and observer compile succeeded.
+No Wine executed here.
+
+All230 deterministic host tests passed, including original-ECX forwarding,
+app-qualified debug setup, existing view table shape, actual-return
+source binding, status/COM distinctions, Run-scope privacy and loss bounds.

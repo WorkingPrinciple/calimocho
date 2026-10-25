@@ -62,12 +62,31 @@ class CallDiagnostics:
         self.error_context_count = 0
         self.failfasts = []
         self.error_context_limited = set()
+        self.fixmes = []
+        self.fixme_count = 0
+        self.status_returns = deque(maxlen=128)
+        self.status_return_count = 0
+        self.status_return_limited = set()
+
+    def observe_fixme(self, pid, tid, channel, function):
+        if pid not in self.running:
+            return
+        self.sequence += 1
+        self.fixme_count += 1
+        if (len(channel) > 64 or len(function) > 128
+                or not re.fullmatch(r"[A-Za-z0-9_]+", channel)
+                or not re.fullmatch(r"[A-Za-z0-9_]+", function)):
+            return
+        if len(self.fixmes) < 128:
+            self.fixmes.append({"pid": pid, "tid": tid, "sequence": self.sequence,
+                                "channel": channel, "function": function, "arguments": "redacted",
+                                "basis": "actual FIXME emission, not proof of STATUS_NOT_IMPLEMENTED"})
 
     def observe(self, pid, tid, channel, function, message):
         if channel == "pkgcore" and function == "application_run" and message == "exception-policy no-gpfault-dialog=1":
             self.exception_policy_pids.add(pid)
             return
-        if channel not in ("pkgiface", "pkgrelay", "pkgwait", "pkgro", "pkgthread", "pkghandle", "pkgrpc", "pkgexception"):
+        if channel not in ("pkgiface", "pkgrelay", "pkgwait", "pkgro", "pkgthread", "pkghandle", "pkgrpc", "pkgexception", "pkgstatus"):
             return
         if pid not in self.counts:
             if len(self.counts) >= 8:
@@ -77,7 +96,20 @@ class CallDiagnostics:
             self.relays[pid] = deque(maxlen=300)
         self.sequence += 1
         fact = {"pid": pid, "tid": tid, "sequence": self.sequence}
-        if channel == "pkgexception" and function == "diagnostic_exception" and pid in self.running:
+        if channel == "pkgstatus" and function == "diagnostic_status_return" and pid in self.running:
+            if message == "status-return limited=1":
+                self.status_return_limited.add(pid)
+                return
+            match = re.fullmatch(
+                r"status-return module=([A-Za-z0-9_.-]{1,127}) export=([A-Za-z_][A-Za-z0-9_]{0,127}) "
+                r"result=(c0000002|d0000002) caller=([A-Za-z0-9_.-]{1,127}) offset=([0-9a-f]{1,8})", message)
+            if match:
+                fact.update(module=match[1], export=match[2], result="0x" + match[3],
+                            caller_module=match[4], caller_offset=match[5], source="actual-relay-return",
+                            basis="matching low32 return bits; relay metadata does not prove semantic return type")
+                self.status_returns.append(fact)
+                self.status_return_count += 1
+        elif channel == "pkgexception" and function == "diagnostic_exception" and pid in self.running:
             if message == "exception limited=1":
                 self.exception_limited.add(pid)
                 return
@@ -228,6 +260,9 @@ class CallDiagnostics:
                         self.first_failures.append(dict(fact))
                     if match[6] == "80004002":
                         self.first_no_interface.setdefault(pid, dict(fact))
+                    if match[6] == "d0000002":
+                        self.status_returns.append(dict(fact, source="owned-COM-HRESULT", result="0xd0000002"))
+                        self.status_return_count += 1
                     if match[6] == "80004001":
                         self.first_not_implemented.setdefault(pid, dict(fact))
             self.interface_count += 1
@@ -367,6 +402,12 @@ class CallDiagnostics:
             "restricted_error_context": select(self.error_context),
             "error_context_source_limited": bool(target_pids & self.error_context_limited),
             "error_context_tail_overwritten": max(0, self.error_context_count - self.error_context.maxlen),
+            "run_fixme_fingerprints": select(self.fixmes),
+            "run_fixme_fingerprints_seen": self.fixme_count,
+            "run_fixme_fingerprints_not_retained": max(0, self.fixme_count - len(self.fixmes)),
+            "not_implemented_returns": select(self.status_returns),
+            "status_return_tail_overwritten": max(0, self.status_return_count - self.status_returns.maxlen),
+            "status_return_source_limited": bool(target_pids & self.status_return_limited),
             "no_gpfault_dialog_policy_observed": sorted(target_pids & self.exception_policy_pids),
             "basis": "instrumented calls, not a deadlock or unsignalled-event cause determination",
         }
@@ -448,6 +489,8 @@ class ActivationTrace:
         if not event:
             return
         pid, tid, level, channel, function, message = event.groups()
+        if level == "fixme":
+            self.calls.observe_fixme(int(pid, 16), int(tid, 16), channel, function)
         self.calls.observe(int(pid, 16), int(tid, 16), channel, function, message)
         fact = {"pid": int(pid, 16), "tid": int(tid, 16),
                 "channel": channel, "function": function}
@@ -855,7 +898,7 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2,
                                 continue
                             line = part.decode("utf-8", errors="replace").rstrip("\r")
                             if seen > 8 * 1024 * 1024 and stream == "stderr" and not re.match(
-                                    r"^[0-9a-f]+:[0-9a-f]+:trace:(?:pkgiface|pkgrelay|pkgwait|pkgcore|pkgwindow|pkglaunch|pkgro|pkgthread|pkghandle|pkgrpc|pkgexception):",
+                                    r"^[0-9a-f]+:[0-9a-f]+:(?:fixme:[A-Za-z0-9_]+:|trace:(?:pkgiface|pkgrelay|pkgwait|pkgcore|pkgwindow|pkglaunch|pkgro|pkgthread|pkghandle|pkgrpc|pkgexception|pkgstatus):)",
                                     line, re.IGNORECASE):
                                 continue
                             getattr(trace, stream)(line)
