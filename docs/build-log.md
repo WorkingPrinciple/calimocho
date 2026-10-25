@@ -1249,3 +1249,56 @@ the original pending-test provenance. Compute and fragment coverage is not
 every graphics stage or Vulkan conformance. NMS warning removal and
 performance remain unaccepted. Independent S2 admission is the next gate,
 followed by a separately authorized single NMS launch.
+
+### 128-02 NMS runtime: performance rejected by owner
+
+S2 admitted the candidate in private admission commit
+`3be5c656062fa6e0b5accec7c404b648f30f0d6a`. The parent explicitly granted one
+NMS launch. The signed diagnostic CLI was verified as SHA-256
+`56b902dc7e74c087a2bcf4f53e004d6ee114a709edf25c27f7c085b68fc91b3f`.
+The exact registry inspected admitted/ready, but unqualified. Four current
+save files were backed up and verified before launch, with no restoration.
+
+Run `0e1ed18f-e1dc-488a-99f2-1bff6266025d` used the preserved prefix and
+existing runtime/shims. `lsof` confirmed the candidate-02 MoltenVK mapping.
+Startup reached the save selector without a sampler dialog and without
+agent input. The original address-space, shader-library and vertex-pipeline
+errors were absent during observation. This does not establish the exact
+numeric NMS threshold or comprehensive shader-path acceptance.
+
+The owner reported continued stutter and rejected the experience. Record
+**performance FAIL**, not a successful game fix. Loading screenshots showed
+7.73 and 8.07 FPS; a later loading transition showed 25.09 and inventory
+27.38. These are not comparable in-world baseline frame-time samples.
+Historical baseline logs contain no continuous FPS measurements, so they
+cannot establish whether earlier working runs also loaded at 7 FPS.
+The owner's in-world judgment remains the relevant discriminator.
+
+Nothing is adopted. The parent directed normal quit first, then exactly
+one original-170ca launch with the same prefix/save and owner smoothness
+judgment. At this entry, normal exit is not yet verified, so no baseline
+launch has occurred. A further source-only bisect removes proposal 2719
+from a new owned copy and gives it a distinct pipeline-cache UUID namespace,
+without deleting user caches. It still needs a rebuilt translator archive,
+separate frozen identity, tests and independent admission. The backport is
+a hypothesis, not a proven stutter cause.
+
+### Original 170ca baseline: owner-smooth, experiments stopped
+
+After the candidate exited normally, run
+`bed6f80e-799c-4dc5-b7e6-9c98d5c83be3` launched the original engine
+`calimocho-wine11.20-gptk4b3-tls-vulkan-private` (registry SHA-256
+`170ca4ad08a5274b614e74bf740866ef219a97fdc7855270c5d8fa03192ed609`) with the
+same prefix and save. `lsof` confirmed the original MoltenVK mapping. No
+graphics settings, resolution, cache or save were changed.
+
+The owner judged in-world movement "Smooth again, like the earlier working
+run." The original sampler warning dialog is still shown. The run exited
+naturally after the owner quit, with CLI exit 0, Wine exit 0 and no signal
+sent by the agent. A fresh process check found no NMS, launcher or prefix
+wineserver.
+
+The owner then directed: no quick fix, leave it be. The no-2719 bisect copy
+was never compiled, frozen or admitted. No candidate is adopted or
+deployed. The stutter cause stays unproven; the warning stays unresolved by
+owner choice.
