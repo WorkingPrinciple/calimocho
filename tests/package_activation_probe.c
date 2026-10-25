@@ -12,16 +12,71 @@
 #include "windows.h"
 #include "winternl.h"
 #include "appmodel.h"
+#include "roapi.h"
+#include "winstring.h"
 #include "wine/package.h"
 
 LONG WINAPI GetCurrentPackageFullName(UINT32 *, WCHAR *);
 LONG WINAPI GetCurrentPackageFamilyName(UINT32 *, WCHAR *);
 LONG WINAPI GetCurrentApplicationUserModelId(UINT32 *, WCHAR *);
 LONG WINAPI GetCurrentPackageId(UINT32 *, BYTE *);
+LONG WINAPI GetCurrentPackageInfo(UINT32, UINT32 *, BYTE *, UINT32 *);
+LONG WINAPI GetCurrentPackagePath(UINT32 *, WCHAR *);
+LONG WINAPI GetPackagePathByFullName(const WCHAR *, UINT32 *, WCHAR *);
 
 static unsigned int failures;
 #define check(test) do { if (!(test)) { \
     fprintf(stderr, "FAIL line %u: %s\n", __LINE__, #test); ++failures; } } while (0)
+
+static void verify_graph(BOOL registered)
+{
+    WCHAR setting[1024], path[1024];
+    UINT32 size = 0, count = 0, length = 0;
+    BYTE *buffer;
+    PACKAGE_INFO *packages;
+    HMODULE dll;
+    unsigned int (WINAPI *marker)(void);
+    HSTRING classid;
+    void *factory = NULL;
+    static const GUID activation_factory = {0x00000035,0x0000,0x0000,{0xc0,0x00,0x00,0x00,0x00,0x00,0x00,0x46}};
+    if (!GetEnvironmentVariableW(L"CALIMOCHO_PACKAGE_GRAPH", setting, ARRAY_SIZE(setting))) return;
+    if (!registered)
+    {
+        check(GetCurrentPackageInfo(0, &size, NULL, &count) == APPMODEL_ERROR_NO_PACKAGE);
+        return;
+    }
+    check(GetCurrentPackageInfo(0, &size, NULL, &count) == ERROR_INSUFFICIENT_BUFFER);
+    check(count == 2 && size > 2 * sizeof(PACKAGE_INFO));
+    buffer = malloc(size);
+    if (!buffer) { check(FALSE); return; }
+    check(GetCurrentPackageInfo(0, &size, buffer, &count) == ERROR_SUCCESS);
+    packages = (PACKAGE_INFO *)buffer;
+    check(count == 2 && !packages[0].flags && packages[1].flags == PACKAGE_PROPERTY_FRAMEWORK);
+    check(GetCurrentPackagePath(&length, NULL) == ERROR_INSUFFICIENT_BUFFER);
+    check(length < ARRAY_SIZE(path));
+    check(GetCurrentPackagePath(&length, path) == ERROR_SUCCESS);
+    check(!wcscmp(path, packages[0].path));
+    length = ARRAY_SIZE(path);
+    check(GetPackagePathByFullName(packages[1].packageFullName, &length, path) == ERROR_SUCCESS);
+    check(!wcscmp(path, packages[1].path));
+    size = 0;
+    check(GetCurrentPackageInfo(PACKAGE_FILTER_DIRECT, &size, NULL, &count) == ERROR_INSUFFICIENT_BUFFER);
+    check(count == 1);
+    size = 0;
+    check(GetCurrentPackageInfo(0x80000000, &size, NULL, &count) == ERROR_NOT_SUPPORTED);
+    dll = LoadLibraryW(L"calimocho_graph_fixture.dll");
+    check(dll != NULL);
+    if (dll)
+    {
+        marker = (void *)GetProcAddress(dll, "graph_marker");
+        check(marker && marker() == 0x1234abcd);
+        FreeLibrary(dll);
+    }
+    check(WindowsCreateString(L"Calimocho.Fixture.Absent", 24, &classid) == S_OK);
+    check(FAILED(RoGetActivationFactory(classid, &activation_factory, &factory)));
+    WindowsDeleteString(classid);
+    free(buffer);
+}
 
 static int verify_identity(BOOL packaged, BOOL registered)
 {
@@ -35,6 +90,7 @@ static int verify_identity(BOOL packaged, BOOL registered)
     struct { ULONG flags, origin; } claim = {0xdeadbeef, 0xdeadbeef};
     NTSTATUS (WINAPI *query_claims)(HANDLE, void *, void *, void *, void *, void *, void *, void *);
     BYTE package_id[2048];
+    verify_graph(registered);
 
     memset(&identity, 0xa5, sizeof(identity));
     status = wine_query_package_identity((HANDLE)(LONG_PTR)-4, &identity);
@@ -186,7 +242,7 @@ static int activate(const WCHAR *blob_path, const WCHAR *executable, BOOL fixtur
         status = RtlCreateEnvironment(TRUE, &environment);
         RtlInitUnicodeString(&name, L"WINEDEBUG");
         RtlInitUnicodeString(&value,
-            L"err+all,trace+process,trace+loaddll,trace+sync,trace+combase,fixme+combase,+pid,+tid");
+            L"err+all,trace+process,trace+loaddll,trace+sync,trace+combase,fixme+combase,trace+pkgactivate,+pid,+tid");
         if (!status) status = RtlSetEnvironmentVariable(&environment, &name, &value);
         if (status)
         {

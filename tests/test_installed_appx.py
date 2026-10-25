@@ -19,9 +19,11 @@ def der(tag, data):
     return bytes([tag]) + length + data
 
 
-TIMESTAMP_TOKEN = der(0x30, der(6, bytes.fromhex("2a864886f70d010702")) +
-                      der(0xa0, der(0x30, der(2, b"\x03") + der(0x31, b"") +
-                                    der(0x30, der(6, bytes.fromhex("2a864886f70d0109100104"))))))
+def timestamp_token(content):
+    return der(0x30, der(6, bytes.fromhex("2a864886f70d010702")) +
+               der(0xa0, der(0x30, der(2, b"\x03") + der(0x31, b"") +
+                             der(0x30, der(6, bytes.fromhex("2a864886f70d0109100104")) +
+                                 der(0xa0, der(4, content))))))
 
 
 class InstalledAppxTests(unittest.TestCase):
@@ -135,7 +137,8 @@ class InstalledAppxTests(unittest.TestCase):
                 Path(args[args.index("-out") + 1]).write_bytes(content)
             return b"fixture certificate"
 
-        with patch("tools.verify_installed_appx.signature_timestamp", return_value=(b"signature", TIMESTAMP_TOKEN)), \
+        with patch("tools.verify_installed_appx.signature_timestamp",
+                   return_value=(b"signature", timestamp_token(content))), \
                 patch("tools.verify_installed_appx.embedded_certificates"), \
                 patch("tools.verify_installed_appx.command", side_effect=openssl), \
                 patch("tools.verify_installed_appx.check_certificate_extensions",
@@ -152,11 +155,34 @@ class InstalledAppxTests(unittest.TestCase):
                 raise ValueError("TSA certificate verify error")
             return b""
 
-        with patch("tools.verify_installed_appx.signature_timestamp", return_value=(b"signature", TIMESTAMP_TOKEN)), \
+        with patch("tools.verify_installed_appx.signature_timestamp",
+                   return_value=(b"signature", timestamp_token(self.timestamp_fixture(b"\0" * 32)))), \
                 patch("tools.verify_installed_appx.embedded_certificates"), \
                 patch("tools.verify_installed_appx.command", side_effect=openssl):
             with self.assertRaisesRegex(ValueError, "TSA certificate verify"):
                 verify_timestamp("fixture-openssl", b"p7x", self.root)
+
+    def test_tsa_validity_is_checked_at_signed_time_without_disabling_chain(self):
+        content = self.timestamp_fixture(hashlib.sha256(b"signature").digest())
+
+        def openssl(_binary, *args):
+            if args[0] == "cms":
+                self.assertIn("-attime", args)
+                self.assertIn(1792002659, args)
+                self.assertNotIn("-noverify", args)
+                self.assertNotIn("-no_check_time", args)
+                Path(args[args.index("-signer") + 1]).write_bytes(
+                    b"-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----")
+                Path(args[args.index("-out") + 1]).write_bytes(content)
+            return b"fixture certificate"
+
+        with patch("tools.verify_installed_appx.signature_timestamp",
+                   return_value=(b"signature", timestamp_token(content))), \
+                patch("tools.verify_installed_appx.embedded_certificates"), \
+                patch("tools.verify_installed_appx.command", side_effect=openssl), \
+                patch("tools.verify_installed_appx.check_certificate_extensions",
+                      return_value={"1.3.6.1.5.5.7.3.8"}):
+            self.assertEqual(verify_timestamp("fixture-openssl", b"p7x", self.root), 1792002659)
 
     def test_gentime_is_not_accepted_without_signer_validity_check(self):
         # OpenSSL verifies the code-signing chain at authenticated genTime.

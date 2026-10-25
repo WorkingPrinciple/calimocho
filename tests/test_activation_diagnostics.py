@@ -11,6 +11,25 @@ from tools.diagnose_package_activation import ActivationTrace, collect
 
 
 class ActivationDiagnosticsTests(unittest.TestCase):
+    def test_completed_factory_result_is_exact_and_ce_pid_only(self):
+        trace = ActivationTrace()
+        trace.stdout("calimocho-activation child_pid 240")
+        record = ('00f0:00f4:trace:pkgactivate:trace_package_activation '
+                  'operation=RoGetActivationFactory class=L"Microsoft.Windows.AppLifecycle.AppInstance" '
+                  'iid={00000035-0000-0000-c000-000000000046} hr=80040154 '
+                  'registration=0 server=absent')
+        trace.stderr(record)
+        trace.stderr(record.replace("00f0:", "00fc:"))
+        results = trace.verdict()["activation_results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["runtime_class"], "Microsoft.Windows.AppLifecycle.AppInstance")
+        self.assertEqual(results[0]["hresult"], "0x80040154")
+        self.assertFalse(results[0]["registration_present"])
+        trace.stderr(record.replace("Microsoft.Windows.AppLifecycle.AppInstance", "SECRET/path"))
+        self.assertNotIn("SECRET", str(trace.verdict()))
+        self.assertEqual(trace.verdict()["activation_results"][-1]["message_class"],
+                         "activation-result-format-redacted")
+
     def test_child_and_xaml_require_matching_pid_and_load_event(self):
         trace = ActivationTrace()
         trace.stdout("calimocho-activation child_pid 100")

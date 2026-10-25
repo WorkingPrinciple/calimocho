@@ -35,6 +35,7 @@ class ActivationTrace:
         self.handoff_facts = []
         self.sync_facts = []
         self.activation_facts = []
+        self.activation_results = []
 
     def append_fact(self, target, fact):
         if len(target) < 128:
@@ -72,6 +73,23 @@ class ActivationTrace:
         pid, tid, level, channel, function, message = event.groups()
         fact = {"pid": int(pid, 16), "tid": int(tid, 16),
                 "channel": channel, "function": function}
+        if channel == "pkgactivate" and function == "trace_package_activation":
+            completed = re.fullmatch(
+                r'operation=(RoGetActivationFactory|RoActivateInstance) '
+                r'class=L"([A-Za-z_][A-Za-z0-9_.]{0,511})" '
+                r'iid=(\{[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\}) '
+                r'hr=([0-9a-f]{8}) registration=([01]) '
+                r'server=(absent|unknown|in-process-dll|out-of-process-server)',
+                message, re.IGNORECASE)
+            if completed:
+                operation, runtime_class, iid, hr, present, server = completed.groups()
+                fact.update(operation=operation, runtime_class=runtime_class, iid=iid.lower(),
+                            hresult="0x" + hr.lower(), registration_present=present == "1",
+                            server_type=server)
+            else:
+                fact["message_class"] = "activation-result-format-redacted"
+            self.append_fact(self.activation_results, fact)
+            return
         if level == "err":
             message_class = "other-redacted"
             for marker, category in (
@@ -152,6 +170,7 @@ class ActivationTrace:
             "handoff_facts": self.handoff_facts,
             "sync_facts": self.sync_facts,
             "activation_facts": self.activation_facts,
+            "activation_results": [fact for fact in self.activation_results if fact["pid"] == pid],
             "raw_trace_persisted": False,
             "trace_truncated": self.truncated,
         }
@@ -243,6 +262,10 @@ def main():
     ):
         if hashlib.sha256(Path(receipt[field]).read_bytes()).hexdigest() != receipt[digest]:
             raise ValueError(f"Receipt hash mismatch: {field}")
+    for field in ("graph", "framework_registration"):
+        if field in receipt:
+            if hashlib.sha256(Path(receipt[field]).read_bytes()).hexdigest() != receipt[field + "_sha256"]:
+                raise ValueError(f"Receipt hash mismatch: {field}")
     install = Path(receipt["install"])
     for relative, digest in (
         ("bin/wine", "wine_sha256"), ("bin/wineserver", "wineserver_sha256"),

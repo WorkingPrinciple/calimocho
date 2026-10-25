@@ -33,7 +33,10 @@ def command(openssl, *args):
 
 
 def xml(data):
-    if len(data) > 16 * 1024 * 1024 or b"<!" in data or b"\0" in data:
+    if len(data) > 16 * 1024 * 1024:
+        raise ValueError("Unsupported or oversized package XML")
+    without_comments = re.sub(rb"<!--.*?-->", b"", data, flags=re.DOTALL)
+    if b"<!" in without_comments or b"\0" in data:
         raise ValueError("Unsupported or oversized package XML")
     return ET.fromstring(data)
 
@@ -228,14 +231,24 @@ def verify_timestamp(openssl, signature, work):
     if len(token_data) < 3 or token_data[2][0] != 0x30:
         raise ValueError("Malformed timestamp content type")
     token_content = der_nodes(token_data[2][1])
-    if not token_content or token_content[0] != (6, bytes.fromhex("2a864886f70d0109100104")):
+    if (len(token_content) != 2
+            or token_content[0] != (6, bytes.fromhex("2a864886f70d0109100104"))
+            or token_content[1][0] != 0xa0):
         raise ValueError("Timestamp is not id-ct-TSTInfo")
+    encapsulated = der_nodes(token_content[1][1])
+    if len(encapsulated) != 1 or encapsulated[0][0] != 4:
+        raise ValueError("Missing encapsulated timestamp content")
+    # This time is untrusted until CMS signature + chain + imprint checks below
+    # succeed. It selects certificate validity time, never bypasses that check.
+    claimed_content = encapsulated[0][1]
+    claimed_time = timestamp_time(claimed_content)
     (work / "timestamp.der").write_bytes(token)
     (work / "signature-value.bin").write_bytes(signature_value)
     embedded_certificates(openssl, work / "timestamp.der", cms=True)
     command(openssl, "cms", "-verify", "-binary", "-inform", "DER",
             "-in", work / "timestamp.der", "-CAfile", work / "tsa-roots.pem",
             "-no-CApath", "-no-CAstore", "-purpose", "timestampsign", "-ignore_critical",
+            "-attime", claimed_time,
             "-signer", work / "tsa-signer.pem", "-out", work / "tstinfo.der")
     signer = (work / "tsa-signer.pem").read_bytes()
     if signer.count(b"-----BEGIN CERTIFICATE-----") != 1:
@@ -244,6 +257,8 @@ def verify_timestamp(openssl, signature, work):
     if check_certificate_extensions(certificate) != {TSA_EKU}:
         raise ValueError("Timestamp signer must have only the timeStamping EKU")
     content = (work / "tstinfo.der").read_bytes()
+    if content != claimed_content:
+        raise ValueError("Verified timestamp content differs from encapsulated content")
     fields = sequence(content)
     if len(fields) < 5 or fields[2][0] != 0x30:
         raise ValueError("Malformed RFC3161 message imprint")
@@ -254,7 +269,7 @@ def verify_timestamp(openssl, signature, work):
     return timestamp_time(content)
 
 
-def package_file(root, name):
+def package_file(root, name, allow_missing=False):
     path = PureWindowsPath(name)
     if path.anchor or not path.parts or ":" in name or any(
             part in ("", ".", "..") for part in name.replace("\\", "/").split("/")):
@@ -264,7 +279,7 @@ def package_file(root, name):
         candidate = candidate / part
         if candidate.is_symlink():
             raise ValueError("Package symlinks are not accepted")
-    if not candidate.is_file():
+    if not candidate.is_file() and not (allow_missing and not candidate.exists()):
         raise ValueError(f"Missing package file: {name}")
     return candidate
 
@@ -363,7 +378,7 @@ def verify_signature(root, roots, openssl):
         }
 
 
-def verify(root, application, roots, openssl, progress=None):
+def verify_payload(root, roots, openssl, progress=None):
     progress = progress if progress is not None else {}
     progress["stage"] = "signature and authenticated timestamp"
     progress["archive_digests"] = {
@@ -384,6 +399,13 @@ def verify(root, application, roots, openssl, progress=None):
             raise ValueError(f"Signed {label} digest mismatch")
     progress["stage"] = "installed-file block map"
     count = verify_blocks(root, package_file(root, "AppxBlockMap.xml").read_bytes())
+    return {"installed_content_verified": True, "signer": signer, "files_verified": count}
+
+
+def verify(root, application, roots, openssl, progress=None):
+    progress = progress if progress is not None else {}
+    root = Path(root).resolve(strict=True)
+    payload = verify_payload(root, roots, openssl, progress)
     progress["stage"] = "verified publisher, family and full-trust manifest"
     manifest = package_file(root, "AppxManifest.xml")
     metadata, _ = identity(manifest, application)
@@ -402,9 +424,9 @@ def verify(root, application, roots, openssl, progress=None):
     if not full_trust:
         raise ValueError("Verified manifest does not establish the full-trust condition")
     return {
-        "installed_content_verified": True, "metadata": metadata, "signer": signer,
+        **payload, "metadata": metadata,
         "signed_context_eligible": True,
-        "files_verified": count, "full_trust_manifest": True,
+        "full_trust_manifest": True,
         "scope": "offline installed-file verification; not Windows Store installation or token trust",
     }
 

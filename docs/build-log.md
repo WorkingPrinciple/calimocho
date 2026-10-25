@@ -2461,3 +2461,30 @@ producer commit and upstream Wine commit are distinct identities.
 See [ADR-0037](ADR/0037-add-an-opt-in-wine-built-ags54-adapter.md) and
 `docs/evidence/11d-dirt5-runtime-provenance.json`. No DIRT5 title-screen
 acceptance follows from these producer checks.
+
+### Cell007 verified frameworks and completed factory diagnostics
+
+The retained application and four declared frameworks passed pinned-root,
+Store EKU, authenticated timestamp and complete installed block-map checks.
+The owner-approved new sibling compiled graph-aware ntdll/kernelbase and
+completed class/IID/HRESULT/registration diagnostics in combase. The native
+windowless graph enumeration and loader sentinel fixture finished in 9.07
+seconds with clean owned stop/wait and prefix open-file checks. The actual
+completed fixture factory record returned COM-not-initialized, not a proven
+missing class. The stream drain remained explicitly incomplete.
+
+The earlier snapshot attempts rejected a missing WebView2 server and class
+collisions. Source now records the missing manifest-declared payload instead
+of fabricating it, and records first-declared framework precedence separately
+from local duplicate rejection. The historical TSA failure was fixed by
+validating the TSA at its signed time without disabling chain verification.
+Compilation initially rejected an unavailable CRT helper and an oversized
+debug-channel name; both were corrected before the actual installed fixture.
+An incorrectly nested factory wrapper was caught by linking and moved to
+file scope. No failing build was handed off as runnable.
+
+Only the new isolated six-PE-module overlay changed. The delivered package
+candidate, earlier cells and graphics-qualified 11d install remain untouched.
+Fresh-prefix registration import and actual Xbox cell007 execution belong
+to its owner. See
+[ADR-0038](ADR/0038-resolve-verified-local-framework-activation.md).
