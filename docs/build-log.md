@@ -2950,3 +2950,13 @@ with its existing warnings-as-errors flags. All201 host tests pass,
 including activation/provider grammar, phase/PID-bound creation records,
 real wait-detail shapes, snapshot liveness/start fields and the UTF-16
 classifier regression. Native015 remains unobserved at this source stage.
+
+The frozen015 receipt SHA-256 is
+`58eccd9ec5d9aba954eb80251efadb8d8117b2f49aba6088604e981b5b50a122`,
+source producer `b86b934db32c583aeb69e1ae8cc7e1ff2f3b30bf`.
+An independent frozen audit checks all3915 installed entries/assets,
+exact producer sources, the seventh combase module, collector/observer
+identities and command paths, original native input/mappings,180-second
+cap and sealed014 predecessor. All202 host tests pass.
+The receipt was sent to the runtime observer owner, copying the coordinator.
+Actual015 remains unobserved here at handoff.
