@@ -3,6 +3,34 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: observed native factory matrix and supported-only011 recipe
+
+Xbox0ab executed the owned810-class headless matrix against the retained
+original16302bfe native XAML DLL. All810 unique rows and the summary completed
+with exit0, no timeout and owned cleanup complete. There were558 genuine
+DllGetActivationFactory plus IActivationFactory QueryInterface positives,
+including FrameworkViewSource at index549. The remaining252 were not positive
+under these probe conditions, not universally unsupported Windows classes.
+Matrix mode called no ActivateInstance, Run, registration or window APIs.
+
+The actual observation and fixed-field output were read and hash-checked:
+`a6d66a55991c8afc2098dae0e0ca0c862872008b6fa9a4ef41f969fdc2f0c22b`
+and `8d8cf60816703e6d169e2b6569ef0d2c8675ad83884d61079eb52c96ea678ca2`.
+They live under `xbox-calimocho-xaml-factory-20261025-001/evidence` in
+`xodus-runs`. The consumer reports original DLL identity unchanged before
+and after,5.587 seconds elapsed, no input and no application activation.
+
+ADR-0043's generator now derives011 from that complete observation. It imports
+only558 supported classes mapped by the observed export to the actual XAML
+DLL. The per-class decisions explicitly label the cross-build26300.9711 to
+retained16302bfe evidence. Other DLLs are not redirected; Wine009
+CoreApplication and CoreWindow remain unchanged. The new recipe reuses the
+exact009 engine and010 native override, collector and180-second exit observer.
+Its receipt hash is
+`7c61c26de2fcbaf1814e09b1e2b91afd925f49c5f1827ae73b33fe44ac78a83c`.
+All3915 deployed entries and individual registry assets were rechecked.
+The receipt is with Xbox0ab;011 instance, activation and UI are unobserved.
+
 ## 2026-10-25: native XAML loader discriminator after actual009 handoff
 
 Actual010 subsequently loaded native Windows.UI.Xaml.dll from the expected
