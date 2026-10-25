@@ -801,3 +801,172 @@ discussion).
 - `docs/build-log.md`: this entry
 - (No code or other doc changes; PK bottles restored to original
   state, no calimocho-side state touched)
+
+## 2026-10-25: REQ-104 bounded NMS graphics investigation
+
+### Requirements and correction recorded before source changes
+
+Owner-directed local research/source slice, following the isolated-build
+decision in committed runtime-adapter ADR-0022. This fresh worktree starts
+at archived `c75be80`; it does not reopen a historical shipping phase.
+The program requirements ledger remains parent-owned in ode-to-x `SPEC.md`.
+
+| ID | Requirement | Acceptance |
+|---|---|---|
+| REQ-104 | Diagnose sampler capacity warning and Metal shader compilation separately within 45 active minutes (09:40-10:25 UTC). | Primary upstream evidence, exact source identity, focused before/after results or an evidence-backed blocker. |
+| REQ-104 safety | Preserve the running game and frozen registry `170ca4ad08a5274b614e74bf740866ef219a97fdc7855270c5d8fa03192ed609`. | No input, process attachment, restart, prefix/settings/installed-engine mutation, or loaded-file replacement. |
+| REQ-104 honesty | No dialog hiding or larger sampler limits without genuine support. | Separate advertised limits, actual descriptor paths, and functional tests. |
+| REQ-104 candidate | Any candidate is isolated, source-built and digest-bound. | Source checks are not game acceptance; REQ-80/S2 admission and later parent-authorized Ode Play remain required. |
+
+### Handoff and corrections
+
+- The warning also existed on prior CLI runs. NMS currently renders and the
+  owner reports good gameplay. This is not a proved Ode recipe regression.
+- The log identifies MoltenVK 1.4.2. The address-space compilation error and
+  unsupported integer-format blending are separate from sampler capacity.
+- Historical REQ-N29 / ADR-0031 did not retain a sampler source patch.
+  A 17-sampler fixture was assembled, not GPU-qualified. Do not retry a
+  numerical limit increase or an argument-buffer value toggle as a fix.
+- A CPU/source candidate may be tested here. No game launch is authorized.
+
+### Shader root cause and source candidate
+
+Primary source checked on 2026-10-25:
+[SPIRV-Cross PR 2719](https://github.com/KhronosGroup/SPIRV-Cross/pull/2719),
+opened 2026-10-20 by Faye Salwin, head
+`51e4c6a6cc105fee81afcc0f88ff5e2fa9c8ce1f`, still open/unmerged.
+The proposal names NMS terrain tessellation and the same compiler diagnostic.
+This is a translator defect, not an Apple D3DMetal compiler-input assumption.
+MoltenVK translates the vertex stage to a compute kernel for tessellation.
+It lowers the user output block to thread-local storage, but a separate
+storage classification still treats scalar stores as device-buffer writes.
+That disagreement generates the invalid pointer cast. Builtin outputs have
+different handling and must stay unchanged.
+
+The tracked nine-line backport preserves that distinction. The independently
+written minimal SPIR-V fixture validates for Vulkan 1.0. The exact pinned
+baseline translator emits eight mismatching-address-space errors; the patched
+translator emits direct component stores and Metal compilation exits 0.
+Both ordinary vertex variants compile and are byte-identical. Builtin
+position writes and the final copy of both user output vectors are checked.
+No proprietary game shader or account data was uploaded.
+
+MoltenVK `db66022459ffb663aa2b50f6b018bc2e124f5edf` and all seven dependency
+Git identities were verified. Only SPIRV-Cross has a tracked source change:
+nine added lines in `spirv_msl.cpp`. Its transformed SHA-256 is
+`4b28957cfbab01450d218297fb3895b959cbbc74d73da5f1eb6899a6dab2600d`.
+The source cache was copied to this owned worktree, never built in place.
+Xcode 27.1 (27A9275), x86_64, Release, three build jobs, private Metal API
+enabled and automatic signing disabled were used.
+
+Two preparation failures were retained and corrected:
+
+- The CLI CMake configuration requires HLSL/CPP/reflection backends even
+  though this regression uses MSL. Re-enabled the required build options.
+- The assembler's first compile incorrectly made the API's binary wrapper
+  itself const. Removed that qualifier to match the pinned C API signature.
+
+The first full MoltenVK build still had the old dylib digest. Building the
+SPIRV-Cross target alone updates its product/staging archive but does not
+replace the cached XCFramework consumed by MoltenVK. Copied the newly built
+archive into the owned cached XCFramework, then relinked. The resulting
+dylib differs from the accepted binary. This correction matters: a successful
+Xcode exit alone would have falsely presented the unchanged shader compiler.
+
+Ad-hoc signing used the retained Wine entitlements, `--force --deep --sign -`
+and `--options runtime`. No identity/keychain, Gatekeeper, quarantine or global
+setting changed. The signed candidate dylib SHA-256 is
+`5b1260bab521a90408b0e92420eb695498b5451448441735d8876f02b8458188`.
+`lipo` reports x86_64; `otool -L` has no `/usr/local` reference.
+
+### Sampler warning: measured blocker, not a hidden dialog
+
+Primary source checked on 2026-10-25:
+[MoltenVK issue 1610](https://github.com/KhronosGroup/MoltenVK/issues/1610),
+opened 2022-06-06. Its discussion distinguishes ordinary samplers from
+update-after-bind descriptor indexing. The current pinned source, rather
+than that older discussion's configuration syntax, governs this candidate.
+
+The new native headless property probe explicitly loads this candidate
+dylib with argument buffers and private Metal enabled. It creates an
+instance only: no logical device, queue, window, rendering or GPU commands.
+Actual reported limits are 16 ordinary per-stage samplers and 500000
+update-after-bind samplers / sampler allocations. The higher values are
+different properties, not evidence that NMS's startup check is satisfied.
+The startup dialog's numeric requirement is still not established.
+
+The source causal chain is:
+
+- `MVKDevice.mm:2430,2890`: ordinary sampler count is fixed at 16.
+- `MVKDevice.mm:863,3461`: update-after-bind uses the separate argument-buffer
+  allocation limit when Tier 2 is available.
+- `MVKDescriptorSet.mm:184-193`: push layouts always disable argument buffers.
+- `MVKDescriptorSet.mm:1820-1848`: ordinary and template push writers assert
+  that argument buffers are off.
+- `MVKCommandEncoderState.mm:937-953`: pushed data is CPU-only storage.
+- `MVKPipeline.mm:295-323`: non-argument-buffer bindings enforce individual
+  Metal slots, including the 16-sampler limit.
+- `MVKDevice.mm:2842,948`: Vulkan 1.4 core push support and its descriptor
+  property remain enabled, independently of the extension name.
+
+Consequently, a larger ordinary limit without new push support would be
+dishonest. Real push argument buffers need storage, update/template,
+command-lifetime and resource-encoding work with regular/push/mixed-layout
+functional tests. Disabling the extension alone is insufficient. Withdrawing
+core push and reducing the API version is a compatibility reduction, not an
+equivalent fix. No such source change or environment toggle was applied.
+The warning remains unresolved.
+
+### Focused checks and reproducible local commands
+
+The shader regression and six registry-transformation unit tests pass:
+
+```bash
+python3 tests/test_spirv_vertex_output.py \
+  --assembler build/req104/spirv-assemble \
+  --baseline build/req104/spirv-cross-baseline \
+  --patched build/req104/spirv-cross-patched \
+  --output build/req104/regression-02
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
+  -s tests -p 'test_freeze_nms_shader_candidate.py' -v
+```
+
+The assembler was compiled with `clang++ -arch x86_64 -std=c++17 -Wall
+-Wextra -Werror`, the copied pinned SPIRV-Tools headers and its existing
+source-built `libSPIRVTools.a`. The property probe was compiled with
+`clang -arch x86_64 -std=c11 -Wall -Wextra -Werror` and pinned Vulkan headers.
+The regression invokes `xcrun -sdk macosx metal -std=macos-metal2.1`.
+
+The dependency target was `SPIRV-Cross-macOS` in
+`ExternalDependencies.xcodeproj`; the relink target was
+`MoltenVK Package (macOS only)` in `MoltenVKPackaging.xcodeproj`.
+Both used `XCODE_XCCONFIG_FILE=build/req104/owned.xcconfig` (absolute path
+when invoked), `-jobs 3`, `Release`, and `generic/platform=macOS`.
+The new archive SHA-256 is
+`b7dfdd453f4846d664c636fc459a1e4220d684b0699643d2d687adcb4ea9756f`.
+
+### Frozen handoff and limitations
+
+`tools/freeze_nms_shader_candidate.py audit` verifies the base registry,
+actual source pins, patch, source regression and all hashed external assets.
+It copies the source-built install while preserving Apple payload symlinks.
+The full 3914-entry inventory differs in exactly
+`lib/wine/x86_64-unix/libMoltenVK.dylib`; the source runtime inventory remains
+unchanged. The first `win32u.so` rpath is `@loader_path/`, which places this
+colocated library before its retained fallback rpaths. Actual Wine loading
+of the new candidate is not observed.
+
+Committed evidence lives in
+[req104-nms-shader-candidate.json](evidence/req104-nms-shader-candidate.json).
+After that evidence is committed, `tools/freeze_nms_shader_candidate.py freeze`
+binds the immutable local registry to its producer commit and evidence hash.
+It explicitly removes inherited graphics/TLS/smoke successes and labels the
+candidate unadmitted. Candidate location:
+`build/req104/candidate-01/registry.SOURCE-FROZEN.json`.
+
+This is an early handoff on an actionable sampler implementation blocker,
+within the 45-minute budget. The shader defect is reproduced and corrected
+in a source-level regression; NMS rendering with this candidate is not proved.
+REQ-80/S2 admission and a later parent-authorized real Ode Play are still
+required. Integer-format blending remains a separate warning, not fixed here.
+No game/prefix/settings/active registry was modified and no game was launched.

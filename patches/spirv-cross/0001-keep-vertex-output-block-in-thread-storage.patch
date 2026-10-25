@@ -1,0 +1,28 @@
+From: Faye Salwin
+Subject: [PATCH] MSL: Don't remap a vertex shader's output block to a buffer
+
+Backport of KhronosGroup/SPIRV-Cross PR 2719, commit
+51e4c6a6cc105fee81afcc0f88ff5e2fa9c8ce1f (2026-10-20).
+Source license: Apache-2.0 OR MIT, as retained in SPIRV-Cross.
+Rebased onto MoltenVK 1.4.2's SPIRV-Cross 6c09849fe88c48eaed08413aa022aaa136a3a057.
+The upstream proposal is open, not merged. REQ-104 source candidate only.
+
+diff --git a/spirv_msl.cpp b/spirv_msl.cpp
+--- a/spirv_msl.cpp
++++ b/spirv_msl.cpp
+@@ -17302,6 +17302,15 @@ bool CompilerMSL::variable_decl_is_remapped_storage(const SPIRVariable &variable, St
+ 		if (is_tese_shader() && is_builtin_variable(variable) && (builtin == BuiltInTessCoord || builtin == BuiltInPrimitiveId))
+ 			return false;
+ 
++		// A vertex shader's output block (not gl_PerVertex) is lowered to a thread-local copy which is
++		// written to the buffer on return from main (see get_type_address_space()). Treating it as a
++		// buffer here would cast component stores into it to device pointers, which doesn't compile.
++		if (get_execution_model() == ExecutionModelVertex && variable.storage == StorageClassOutput &&
++		    !is_builtin_variable(variable) && has_decoration(get<SPIRType>(variable.basetype).self, DecorationBlock))
++		{
++			return false;
++		}
++
+ 		// We won't be able to catch writes to control point outputs here since variable
+ 		// refers to a function local pointer.
+ 		// This is fine, as there cannot be concurrent writers to that memory anyways,

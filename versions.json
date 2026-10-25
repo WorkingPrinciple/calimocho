@@ -1,5 +1,29 @@
 {
   "_doc": "Single source of truth for upstream URLs + sha256 pins. Read by scripts/fetch-sources.sh and .github/workflows/upstream-watch.yml.",
+  "req104_moltenvk": {
+    "_doc": "Isolated local source candidate only. No installed-engine replacement or game acceptance.",
+    "repository": "https://github.com/KhronosGroup/MoltenVK.git",
+    "tag": "v1.4.2",
+    "commit": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+    "license": "Apache-2.0",
+    "dependencies": {
+      "cereal": "a56bad8bbb770ee266e930c95d37fff2a5be7fea",
+      "Vulkan-Headers": "e3b1eec08173d6b825cd3ac88c885a63b621504a",
+      "SPIRV-Cross": "6c09849fe88c48eaed08413aa022aaa136a3a057",
+      "SPIRV-Tools": "0d6fd73ca73830ccab5fa1f00ed5ed40124e2c55",
+      "SPIRV-Headers": "29981f65241605e08b0ede4cfeb999fe3b723c6a",
+      "Vulkan-Tools": "8c66b352925cb771f793a4d3220b1321ae0febf1",
+      "Volk": "776893306c5d3b22b6185b5d4a258b81d94572bf"
+    },
+    "translator_patch": {
+      "path": "patches/spirv-cross/0001-keep-vertex-output-block-in-thread-storage.patch",
+      "sha256": "5bf732c3c73761f67b7a44c8d297e5d8f016ac2d219163e0b2286bd7687ea257",
+      "upstream_commit": "51e4c6a6cc105fee81afcc0f88ff5e2fa9c8ce1f",
+      "upstream_url": "https://github.com/KhronosGroup/SPIRV-Cross/pull/2719",
+      "upstream_status_observed_2026_10_25": "open, not merged",
+      "license": "Apache-2.0 OR MIT"
+    }
+  },
   "cx_sources": {
     "_doc": "CodeWeavers' LGPL Wine source drop. Published at codeweavers.com/crossover/source.",
     "crossover_release": "26.1.0",

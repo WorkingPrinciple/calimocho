@@ -1,0 +1,176 @@
+{
+  "requirement": "REQ-104",
+  "status": "source-tested-not-runtime-admitted",
+  "producerRepository": "https://github.com/dragoshont/calimocho",
+  "upstreamWineCommit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+  "base_registry": {
+    "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-cautious-potato/build/winehq-11.20/metal-port-11b-private-binding-01/calimocho-wine11.20-gptk4b3-tls-vulkan-private.registry.local.PERF-FROZEN-170ca4ad.json",
+    "sha256": "170ca4ad08a5274b614e74bf740866ef219a97fdc7855270c5d8fa03192ed609"
+  },
+  "base_library_sha256": "4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385",
+  "candidate_library_sha256": "5b1260bab521a90408b0e92420eb695498b5451448441735d8876f02b8458188",
+  "candidate_engine": "calimocho-wine11.20-gptk4b3-req104-shader-candidate",
+  "source_pins": {
+    "_doc": "Isolated local source candidate only. No installed-engine replacement or game acceptance.",
+    "repository": "https://github.com/KhronosGroup/MoltenVK.git",
+    "tag": "v1.4.2",
+    "commit": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+    "license": "Apache-2.0",
+    "dependencies": {
+      "cereal": "a56bad8bbb770ee266e930c95d37fff2a5be7fea",
+      "Vulkan-Headers": "e3b1eec08173d6b825cd3ac88c885a63b621504a",
+      "SPIRV-Cross": "6c09849fe88c48eaed08413aa022aaa136a3a057",
+      "SPIRV-Tools": "0d6fd73ca73830ccab5fa1f00ed5ed40124e2c55",
+      "SPIRV-Headers": "29981f65241605e08b0ede4cfeb999fe3b723c6a",
+      "Vulkan-Tools": "8c66b352925cb771f793a4d3220b1321ae0febf1",
+      "Volk": "776893306c5d3b22b6185b5d4a258b81d94572bf"
+    },
+    "translator_patch": {
+      "path": "patches/spirv-cross/0001-keep-vertex-output-block-in-thread-storage.patch",
+      "sha256": "5bf732c3c73761f67b7a44c8d297e5d8f016ac2d219163e0b2286bd7687ea257",
+      "upstream_commit": "51e4c6a6cc105fee81afcc0f88ff5e2fa9c8ce1f",
+      "upstream_url": "https://github.com/KhronosGroup/SPIRV-Cross/pull/2719",
+      "upstream_status_observed_2026_10_25": "open, not merged",
+      "license": "Apache-2.0 OR MIT"
+    }
+  },
+  "verified_sources": {
+    "MoltenVK": {
+      "commit": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+      "tracked_changes": ""
+    },
+    "cereal": {
+      "commit": "a56bad8bbb770ee266e930c95d37fff2a5be7fea",
+      "tracked_changes": ""
+    },
+    "Vulkan-Headers": {
+      "commit": "e3b1eec08173d6b825cd3ac88c885a63b621504a",
+      "tracked_changes": ""
+    },
+    "SPIRV-Cross": {
+      "commit": "6c09849fe88c48eaed08413aa022aaa136a3a057",
+      "tracked_changes": "9\t0\tspirv_msl.cpp\n",
+      "compiled_file_sha256": "4b28957cfbab01450d218297fb3895b959cbbc74d73da5f1eb6899a6dab2600d"
+    },
+    "SPIRV-Tools": {
+      "commit": "0d6fd73ca73830ccab5fa1f00ed5ed40124e2c55",
+      "tracked_changes": ""
+    },
+    "SPIRV-Headers": {
+      "commit": "29981f65241605e08b0ede4cfeb999fe3b723c6a",
+      "tracked_changes": ""
+    },
+    "Vulkan-Tools": {
+      "commit": "8c66b352925cb771f793a4d3220b1321ae0febf1",
+      "tracked_changes": ""
+    },
+    "Volk": {
+      "commit": "776893306c5d3b22b6185b5d4a258b81d94572bf",
+      "tracked_changes": ""
+    }
+  },
+  "compiler_regression": {
+    "requirement": "REQ-104",
+    "status": "source-regression-passed",
+    "fixture_sha256": "a214704e77330140f297d49aa2ec29a50cbc555e8f28a53e7ef5ad953c96d769",
+    "spirv_sha256": "ff850ec937b4bfdf6b06184bb88b01777fae080cfda1e78320ea7b049c04c4c5",
+    "baseline_sha256": "02855faf426dff39e2f745106629ae70199d0a8995c91a6e0a1c6a492f1f08cc",
+    "patched_sha256": "366de9812bdac86b1dfbbb7af117fc08ca91504d2015b212f21a9d3b527c5e3e",
+    "assembler_sha256": "03b12d104072bb033e0f73e7e0983e16d1d5cbef94212809fd30996855cb0972",
+    "results": [
+      {
+        "mode": "vertex",
+        "compiler": "baseline",
+        "metal_sha256": "12e6d0b725c53808289eaa7a210a4832e22af087059c32345f326b4b1bf5fc8f",
+        "compile_exit": 0,
+        "expected_failure": false,
+        "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "vertex",
+        "compiler": "patched",
+        "metal_sha256": "12e6d0b725c53808289eaa7a210a4832e22af087059c32345f326b4b1bf5fc8f",
+        "compile_exit": 0,
+        "expected_failure": false,
+        "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "mode": "tessellation",
+        "compiler": "baseline",
+        "metal_sha256": "07f1c9d5144e6004b9f14c590b846d5a2a9795f6da7efaf56815a8e725269309",
+        "compile_exit": 1,
+        "expected_failure": true,
+        "diagnostic_sha256": "3b685913ae993959cf2b9fc26d9bd44effc7997e4d016e9b2e8bc82abdb3fd53"
+      },
+      {
+        "mode": "tessellation",
+        "compiler": "patched",
+        "metal_sha256": "5abb9e81f44da2af756b358507ad7e9ac7bab29c01f9607dfa4332a75e992cd6",
+        "compile_exit": 0,
+        "expected_failure": false,
+        "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "gpu_executed": false,
+    "game_accepted": false
+  },
+  "native_limits_query": {
+    "ordinary_per_stage_samplers": 16,
+    "update_after_bind_per_stage_samplers": 500000,
+    "sampler_allocation_limit": 500000,
+    "logical_device_created": false,
+    "gpu_commands_submitted": false
+  },
+  "inventory": {
+    "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-solid-dollop/build/req104/candidate-01/inventory.FROZEN.json",
+    "sha256": "8f219e0b4da816289b95818a69e8540da5d460253432b1b5adff3696d77ad37d"
+  },
+  "only_changed_module": "lib/wine/x86_64-unix/libMoltenVK.dylib",
+  "base_inventory_unchanged": true,
+  "immutable_inputs": [
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-solid-dollop/build/req104/owned.xcconfig",
+      "sha256": "bee29f198b8240c79ecfe77218da8a2dcdbc68571cc1c3142826d9954ab6b820"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-solid-dollop/build/req104/regression-01/receipt.json",
+      "sha256": "2d57886a28b8ec336f2f4b4763ccc20410f264f9e42ea96770c02b3207e667c8"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-solid-dollop/build/req104/MoltenVK/Package/Release/MoltenVK/dynamic/dylib/macOS/libMoltenVK.dylib",
+      "sha256": "5b1260bab521a90408b0e92420eb695498b5451448441735d8876f02b8458188"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-solid-dollop/build/req104/dependency-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-solid-dollop/build/req104/moltenvk-relinked-build.log",
+      "sha256": "5a946201fc2b69e1cd53b401499fc15100a5a683d0131ecdd27e5e501ac5a9bb"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-solid-dollop/build/req104/dependencies-derived/Build/Products/Release/libSPIRVCross.a",
+      "sha256": "b7dfdd453f4846d664c636fc459a1e4220d684b0699643d2d687adcb4ea9756f"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-solid-dollop/build/req104/sampler-limits.json",
+      "sha256": "53da4dbcb4dacc0525c3873e3c2be815328b14df8cbd967a4ad10cfee768c067"
+    },
+    {
+      "path": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-solid-dollop/build/req104/vulkan-sampler-limits",
+      "sha256": "948a8f89451cddbf7b735a259492d83ed713f33322c23aa15bc79064897e3fd1"
+    }
+  ],
+  "source_patch": {
+    "path": "patches/spirv-cross/0001-keep-vertex-output-block-in-thread-storage.patch",
+    "sha256": "5bf732c3c73761f67b7a44c8d297e5d8f016ac2d219163e0b2286bd7687ea257"
+  },
+  "unqualified_registry_sha256": "1639e1fd3668d519b7df9d8b81d02ffbb6ae68ad0f244e5a0ded0f3310638967",
+  "limitations": [
+    "Sampler capacity unchanged; startup warning unresolved",
+    "Integer-format blending warning separate and unresolved",
+    "No Vulkan pipeline execution or NMS rendering acceptance",
+    "No runtime, prefix, settings or active registry changed",
+    "REQ80/S2 admission and parent-authorized Ode Play required"
+  ]
+}
