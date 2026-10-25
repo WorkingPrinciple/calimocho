@@ -4038,3 +4038,25 @@ start failure. The hang followed host load, not a code change.
 
 Cell031 reruns the cell030 contract unchanged on a fresh root. The
 only source change admits cell 31 in the freezers.
+
+## 2026-10-25: cell031 registrar thread loss, cell032 token worker
+
+Cell031 setup completed. In `services-start.log`, services.exe thread 0060
+entered `svcctl_StartServiceW(CoreMessagingRegistrar)`, expanded the image
+path, and then printed `wine client error:60: read: Bad file descriptor`.
+That message comes from the Wine client protocol (`read_reply_data`), which
+then ends the thread. So the thread did not hang: it was lost inside registrar
+token construction while it held the SCM database lock. Every later SCM call
+(`sc query`) then waited on that lock. Cell027 printed the same message.
+
+Cell032 changes:
+
+- `service_start` builds the registrar token before `service_start_process`
+  takes the lock. The build runs on a worker thread with a 10 s wait. A
+  timeout or a lost worker returns an error, and no registrar process starts.
+- A failed restore of the worker thread token now discards the token instead
+  of calling `ExitProcess`.
+- Ten `registrar token step` traces show which construction step was last
+  reached. The cause of the bad file descriptor is still unknown.
+
+Checks: focused unit tests (22) pass, including the services host compile.

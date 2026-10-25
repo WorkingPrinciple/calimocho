@@ -140,7 +140,10 @@ static DWORD create_registrar_token( struct service_entry *service, HANDLE *resu
     WCHAR *required = NULL;
 
     *result = NULL;
+    /* Step traces locate any failure inside token construction (cell031 thread loss). */
+    WINE_TRACE("registrar token step configuration\n");
     if ((error = registrar_configuration( service ))) return error;
+    WINE_TRACE("registrar token step required privileges\n");
     /* A nonempty privilege union needs separate qualification. */
     error = RegOpenKeyExW( service->db->root_key, service->name, 0, KEY_QUERY_VALUE, &key );
     if (error) return error;
@@ -149,6 +152,7 @@ static DWORD create_registrar_token( struct service_entry *service, HANDLE *resu
     if (error) return error;
     if (required && *required) { free( required ); return ERROR_NOT_SUPPORTED; }
     free( required );
+    WINE_TRACE("registrar token step identifiers\n");
     RtlInitUnicodeString( &name, service->name );
     if ((status = RtlCreateServiceSid( &name, service_sid, &size ))) return RtlNtStatusToDosError( status );
     if ((status = NtAllocateLocallyUniqueId( &logon ))) return RtlNtStatusToDosError( status );
@@ -210,22 +214,29 @@ static DWORD create_registrar_token( struct service_entry *service, HANDLE *resu
     dacl.DefaultDacl = acl;
     expires.QuadPart = MAXLONGLONG;
     InitializeObjectAttributes( &attributes, NULL, 0, NULL, NULL );
+    WINE_TRACE("registrar token step privilege scope\n");
     if ((error = registrar_privilege_scope( &previous, &scope ))) goto done;
+    WINE_TRACE("registrar token step create\n");
     status = NtCreateToken( &token, TOKEN_ALL_ACCESS, &attributes, TokenPrimary, &authentication,
                             &expires, &user, (TOKEN_GROUPS *)&groups, (TOKEN_PRIVILEGES *)&privileges,
                             &owner, &primary, &dacl, &source );
+    WINE_TRACE("registrar token step session, status %#lx\n", status);
     if (!status) status = NtSetInformationToken( token, TokenSessionId, &session, sizeof(session) );
     label.Label = (SID_AND_ATTRIBUTES){sid_storage[1], SE_GROUP_INTEGRITY};
+    WINE_TRACE("registrar token step integrity, status %#lx\n", status);
     if (!status) status = NtSetInformationToken( token, TokenIntegrityLevel, &label, sizeof(label) );
+    WINE_TRACE("registrar token step filter, status %#lx\n", status);
     if (!status) status = NtFilterToken( token, WRITE_RESTRICTED, NULL, NULL, (TOKEN_GROUPS *)&restricted, &filtered );
     error = RtlNtStatusToDosError( status );
+    WINE_TRACE("registrar token step readback, error %lu\n", error);
     if (!error) error = registrar_token_readback( filtered, &user, &source, (TOKEN_GROUPS *)&groups,
                                                  (TOKEN_GROUPS *)&restricted, (TOKEN_PRIVILEGES *)&privileges, acl );
+    WINE_TRACE("registrar token step restore, error %lu\n", error);
     if (!SetThreadToken( NULL, previous ))
     {
-        /* Never launch while a privileged temporary impersonation remains installed. */
-        WINE_ERR("cannot restore SCM thread token, error %lu\n", GetLastError());
-        ExitProcess( ERROR_ACCESS_DENIED );
+        /* The impersonation is confined to the worker thread, which ends after this call; never hand out the token. */
+        WINE_ERR("cannot restore registrar worker thread token, error %lu\n", GetLastError());
+        error = ERROR_ACCESS_DENIED;
     }
     if (!error) { *result = filtered; filtered = NULL; }
 done:
@@ -234,5 +245,60 @@ done:
     if (filtered) CloseHandle( filtered );
     if (token) CloseHandle( token );
     free( acl );
+    return error;
+}
+
+struct registrar_token_job
+{
+    struct service_entry *service;
+    HANDLE token;
+    DWORD error;
+    LONG done;
+};
+
+static DWORD WINAPI registrar_token_worker( void *arg )
+{
+    struct registrar_token_job *job = arg;
+    job->error = create_registrar_token( job->service, &job->token );
+    WINE_TRACE("registrar token worker done, error %lu\n", job->error);
+    InterlockedExchange( &job->done, 1 );
+    return job->error;
+}
+
+/* Runs before the SCM database lock is taken, on a dedicated thread with a bounded wait:
+ * a failing or lost construction can no longer strand the lock or the RPC thread. */
+static DWORD build_registrar_token( struct service_entry *service, HANDLE *result )
+{
+    struct registrar_token_job *job;
+    HANDLE thread;
+    DWORD wait, error;
+
+    *result = NULL;
+    if (!(job = calloc( 1, sizeof(*job) ))) return ERROR_NOT_ENOUGH_MEMORY;
+    job->service = service;
+    WINE_TRACE("registrar token worker start\n");
+    if (!(thread = CreateThread( NULL, 0, registrar_token_worker, job, 0, NULL )))
+    {
+        error = GetLastError();
+        free( job );
+        return error;
+    }
+    wait = WaitForSingleObject( thread, 10000 );
+    CloseHandle( thread );
+    if (wait != WAIT_OBJECT_0)
+    {
+        /* The worker may still write the job; leak it rather than race. */
+        WINE_ERR("registrar token worker did not finish, wait %lu\n", wait);
+        return ERROR_SERVICE_REQUEST_TIMEOUT;
+    }
+    if (!job->done)
+    {
+        WINE_ERR("registrar token worker ended without a result\n");
+        free( job );
+        return ERROR_PROCESS_ABORTED;
+    }
+    error = job->error;
+    if (!error) *result = job->token;
+    free( job );
     return error;
 }

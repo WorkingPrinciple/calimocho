@@ -44,7 +44,19 @@ class RegistrarServiceTests(unittest.TestCase):
             for line in ('WINE_TRACE("registrar process create %s\\n", debugstr_w(path));',
                          'WINE_TRACE("registrar process create returned %d, pid %04lx, error %lu\\n", '):
                 self.assertIn(line, services)
-            self.assertIn("create_registrar_token( service_entry", services)
+            # Cell032: the token is built on a bounded worker before the SCM database lock is taken.
+            self.assertNotIn("create_registrar_token( service_entry", services)
+            body = services[services.index("DWORD service_start(struct service_entry *service, DWORD"):]
+            build = body.index("build_registrar_token( service, &registrar_token )")
+            self.assertLess(build, body.index("err = service_start_process(service, &process, &shared_process, registrar_token);"))
+            self.assertNotIn("service_lock", body[:build])
+            locked = services[services.index("static DWORD service_start_process("):
+                              services.index("DWORD service_start(struct service_entry *service, DWORD")]
+            self.assertNotIn("registrar_token )", locked.split("CreateProcessAsUserW")[0])
+            self.assertNotIn("ExitProcess", text)
+            self.assertIn("WaitForSingleObject( thread, 10000 )", text)
+            self.assertIn("return ERROR_PROCESS_ABORTED;", text)
+            self.assertEqual(text.count('WINE_TRACE("registrar token step '), 10)
             with self.assertRaisesRegex(ValueError, "fresh"):
                 port(source)
             (root / "CELL027-FROZEN").touch()

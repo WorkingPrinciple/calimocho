@@ -1,4 +1,4 @@
-"""Cell027-031 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
+"""Cell027-032 additions: registrar service registration and the ALPC/token/dispatch stack it needs."""
 import importlib
 import json
 from pathlib import Path
@@ -88,8 +88,8 @@ def registration_text():
 
 
 def add_registrar_handoff(root, receipt, cell=27):
-    if cell not in (27, 28, 29, 30, 31):
-        raise ValueError("Registrar handoff supports cells027-031")
+    if cell not in (27, 28, 29, 30, 31, 32):
+        raise ValueError("Registrar handoff supports cells027-032")
     label = "%03d" % cell
     root = Path(root)
     registration = root / ("registrar-CELL%s-FROZEN.reg" % label)
@@ -160,6 +160,16 @@ def add_registrar_handoff(root, receipt, cell=27):
         receipt["limitations"] += [
             "Cell027: sc start CoreMessagingRegistrar did not return within45 s under WINEDEBUG=-all; cause unobserved. Wine SCM does not start DependOnService, so RpcSs is not a start wait",
             "Cell028 adds diagnostics only (scoped WINEDEBUG and two services traces around registrar process creation); the token and start path are unchanged",
+        ]
+    if cell >= 32:
+        receipt["services_diagnostics"]["discriminators"] = [
+            "'registrar token worker start' then the last 'registrar token step <name>' line before silence or a 'wine client error' line: the construction step that lost the worker thread",
+            "'registrar token worker did not finish' (10 s) or 'ended without a result': the worker hung or died; sc start returns an error and the SCM lock stays free",
+            "'registrar token construction rejected, error N': construction failed closed; no registrar process is created",
+        ] + receipt["services_diagnostics"]["discriminators"]
+        receipt["limitations"] += [
+            "Cell031: services.exe thread 0060 logged the image path, then 'wine client error:60: read: Bad file descriptor' (client protocol abort) while holding the scmdatabase lock; the failing call inside token construction is unobserved",
+            "Cell032 builds the registrar token on a worker thread before the SCM lock, waits at most 10 s and fails closed; this contains the loss but does not fix its cause",
         ]
 
 

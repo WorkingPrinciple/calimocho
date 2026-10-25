@@ -98,7 +98,7 @@ class RegistrarCellTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 self.handoff(root, 28)
             with self.assertRaises(ValueError):
-                self.handoff(root, 32)
+                self.handoff(root, 33)
 
     def test_cell029_setup_is_headless_and_session_steps_are_not(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -141,6 +141,17 @@ class RegistrarCellTest(unittest.TestCase):
             self.assertNotIn("prefix_init_argv", cell031)
             self.assertEqual(cell031["services_start_argv"], cell030["services_start_argv"])
             self.assertTrue(cell031["scope"].startswith("cell031 "))
+
+    def test_cell032_adds_token_worker_diagnostics(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, cell031 = self.handoff(self._mk(Path(directory) / "a"), 31)
+            _, cell032 = self.handoff(self._mk(Path(directory) / "b"), 32)
+            self.assertEqual(set(cell031), set(cell032))
+            self.assertEqual(cell032["services_start_argv"], cell031["services_start_argv"])
+            self.assertEqual(cell032["setup_wineboot_timeout_seconds"], 120)
+            self.assertTrue(cell032["services_diagnostics"]["discriminators"][0].startswith("'registrar token worker start'"))
+            self.assertTrue(any(item.startswith("Cell032 builds the registrar token") for item in cell032["limitations"]))
+            self.assertFalse(any("token worker" in item for item in cell031["services_diagnostics"]["discriminators"]))
 
 
 if __name__ == "__main__":

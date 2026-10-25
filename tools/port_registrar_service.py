@@ -26,27 +26,9 @@ def port(source):
     start = services.index("static DWORD service_start_process(")
     end = services.index("\nstatic DWORD service_wait_for_startup(", start)
     section = services[start:end]
-    section = replace(section, "    HANDLE token;", "    HANDLE token, registrar_token = NULL;")
-    section = replace(section, "    service_entry->status.dwCurrentState = SERVICE_START_PENDING;\n"
-        "    service_entry->status.dwControlsAccepted = 0;\n    ResetEvent(service_entry->status_changed_event);\n\n"
-        "    scmdatabase_add_process",
-        """    if (!wcsicmp( service_entry->name, L"CoreMessagingRegistrar" ))
-    {
-        if ((err = create_registrar_token( service_entry, &registrar_token )))
-        {
-            WINE_ERR("registrar token construction rejected, error %lu\\n", err);
-            service_unlock( service_entry );
-            release_process( process );
-            free( path );
-            return err;
-        }
-    }
-
-    service_entry->status.dwCurrentState = SERVICE_START_PENDING;
-    service_entry->status.dwControlsAccepted = 0;
-    ResetEvent(service_entry->status_changed_event);
-
-    scmdatabase_add_process""")
+    # The token is built by the caller before the SCM database lock (see build_registrar_token).
+    section = replace(section, "                                   BOOL *shared_process)",
+        "                                   BOOL *shared_process, HANDLE registrar_token)")
     section = replace(section,
         "    r = CreateProcessW(NULL, path, NULL, NULL, FALSE, CREATE_UNICODE_ENVIRONMENT | DETACHED_PROCESS, environment, NULL, &si, &pi);",
         """    if (registrar_token)
@@ -57,11 +39,30 @@ def port(source):
                                   CREATE_UNICODE_ENVIRONMENT | DETACHED_PROCESS, environment, NULL, &si, &pi );
         err = r ? ERROR_SUCCESS : GetLastError();
         WINE_TRACE("registrar process create returned %d, pid %04lx, error %lu\\n", r, r ? pi.dwProcessId : 0, err);
-        CloseHandle( registrar_token );
         SetLastError( err );
     }
     else r = CreateProcessW(NULL, path, NULL, NULL, FALSE, CREATE_UNICODE_ENVIRONMENT | DETACHED_PROCESS, environment, NULL, &si, &pi);""")
     services = services[:start] + section + services[end:]
+    services = replace(services, """    BOOL shared_process;
+    DWORD err;
+
+    err = service_start_process(""", """    BOOL shared_process;
+    HANDLE registrar_token = NULL;
+    DWORD err;
+
+    err = service_start_process(""")
+    services = replace(services, """    err = service_start_process(service, &process, &shared_process);
+""", """    if (!wcsicmp( service->name, L"CoreMessagingRegistrar" ))
+    {
+        if ((err = build_registrar_token( service, &registrar_token )))
+        {
+            WINE_ERR("registrar token construction rejected, error %lu\\n", err);
+            return err;
+        }
+    }
+    err = service_start_process(service, &process, &shared_process, registrar_token);
+    if (registrar_token) CloseHandle( registrar_token );
+""")
     header = replace((source / paths[1]).read_text(), "    DWORD preshutdown_timeout;",
         "    DWORD sid_type;\n    DWORD preshutdown_timeout;")
     makefile = replace((source / paths[2]).read_text(),
