@@ -10,6 +10,7 @@ from tools.build_gameinput_overlay import WINE
 from tools.build_minidump_overlay import inventory
 from tools.build_uwp_overlay import BASE, REPO
 from tools.probe_wine_source import sha256
+from tools.server_protocol_gate import require_consistent
 from tools.stage_framework_overlay import rebase
 
 
@@ -55,7 +56,20 @@ def stage(root, resume=False):
         modules["lib/wine/x86_64-windows/user32.dll"] = "build/dlls/user32/x86_64-windows/user32.dll"
     if "coremessaging_prerequisites" in build:
         modules["lib/wine/x86_64-windows/ucrtbase.dll"] = "build/dlls/ucrtbase/x86_64-windows/ucrtbase.dll"
-    for relative in ("build/server/wineserver", "build/dlls/ntdll/ntdll.so"):
+    if "coremsg_dispatch" in build:
+        modules["lib/wine/x86_64-unix/win32u.so"] = "build/dlls/win32u/win32u.so"
+        modules["lib/wine/x86_64-windows/win32u.dll"] = "build/dlls/win32u/x86_64-windows/win32u.dll"
+        modules["lib/wine/x86_64-windows/apisetschema.dll"] = \
+            "build/dlls/apisetschema/x86_64-windows/apisetschema.dll"
+    if "registrar_service" in build:
+        modules["lib/wine/x86_64-windows/services.exe"] = "build/programs/services/x86_64-windows/services.exe"
+    if set(modules.values()) - {"windows.system.launcher.dll"} != set(build["built_files"]) - {"windows.system.launcher.dll"}:
+        raise ValueError("Built and staged module sets differ")
+    rebuilt = require_consistent(BASE / "source", root / "source", BASE / "install", list(modules.values()))
+    unix_modules = ["build/server/wineserver", "build/dlls/ntdll/ntdll.so"]
+    if "coremsg_dispatch" in build:
+        unix_modules.append("build/dlls/win32u/win32u.so")
+    for relative in unix_modules:
         result = subprocess.run(["/usr/bin/otool", "-L", str(root / relative)],
                                 capture_output=True, text=True, check=True)
         if "/usr/local/" in result.stdout or "/opt/homebrew/" in result.stdout:
@@ -140,6 +154,8 @@ def stage(root, resume=False):
         "registry": str(path), "registry_sha256": sha256(path),
         "build_receipt_sha256": sha256(root / "build-receipt.json"),
         "files": expected, "changed_files": list(modules),
+        "server_protocol_gate": {"status": "passed", "rebuilt_modules": rebuilt,
+                                 "base_source": str(BASE / "source")},
         "helper": str(helper), "helper_sha256": sha256(helper),
         "helper_source_sha256": sha256(REPO / "tests/package_activation_probe.c"),
         "helper_command": command + ["-o", str(helper)], "helper_exit": helper_exit,

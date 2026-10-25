@@ -3911,3 +3911,37 @@ remaining in the install, exact native-only override, mandatory import
 closure, unchanged claims/context/schema/loader and133 typed slots.
 All252 host tests pass with that audit. The025 runtime root remains absent;
 the freeze is a held source candidate, not execution or native acceptance.
+
+## 2026-10-25: cell027 registrar and dispatch candidate
+
+Cell026 reached CoreMessaging's registrar connect and stopped at the typed
+`NtAlpcConnectPortEx` stub. Cell027 adds the ALPC transport, the scoped
+registrar service token (ADR-0065) and the CoreMessaging thread dispatch
+(ADR-0066), all written fresh against Wine 11.20.
+
+A latent bug was found while preparing it. Adding requests to
+`server/protocol.def` renumbers every later request, and wineserver only
+checks the protocol version against ntdll. Cell026's build added three
+requests but did not rebuild `win32u.so`, so its cursor, layered window,
+raw input, user handle and d3dkmt requests used shifted numbers. The new
+`tools/server_protocol_gate.py` compares request numbers with the base
+build and fails staging if any installed consumer of a shifted request was
+not rebuilt. The cell027 staging receipt records the gate as passed.
+
+The cell027 registration file re-authors the measured Windows service
+metadata (LocalService, ServiceSidType 3, shared svchost, ServiceDll).
+Start=3 is a harness choice: the native start mode was not measured. Wine
+starts services.exe only from `wineboot --init` or `--kill`, so the handoff
+imports the registration, copies native CoreMessaging, runs
+`wineboot --kill`, then `sc start` and `sc query` before activation.
+
+Whiny inspect on native CoreMessaging 88c7b4d6 against the cell027 build:
+240 imports implemented, 10 delay-load stubs. Combase #86 to #88 are the
+deliberate clean-failure guards. The sechost transient security and
+capability stubs and four WinRT error helpers remain.
+
+Known limits: the token covers only the single-member svchost group, the
+eight unidentified S-1-5-32 groups are not reproduced, the measured token
+came from build 26300 with CoreMessaging e770ec95 rather than 88c7b4d6,
+svchost `-p` is ignored, and dispatch op2 and wait-all are unsupported.
+Nothing was launched. This is a source and build candidate only.
