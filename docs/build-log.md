@@ -2521,3 +2521,31 @@ candidate, earlier cells and graphics-qualified 11d install remain untouched.
 Fresh-prefix registration import and actual Xbox cell007 execution belong
 to its owner. See
 [ADR-0038](ADR/0038-resolve-verified-local-framework-activation.md).
+
+### Cell008 package-local Launcher source and build
+
+Actual Xbox cell007 reported a successful Uri factory and a class-not-registered
+Launcher factory. No method, URI or protocol target was observed. The new
+isolated sibling adds Windows.System.Launcher and replaces only its server.
+The public URI method slots compile with explicit ABI assertions. Routing
+uses verified manifest protocols, including the XboxPcTray executable override
+on msgamelaunch. Unknown schemes return false without host fallback. The
+AppL UWP route explicitly reports E_NOTIMPL until genuine activation delivery
+exists; no invented command-line switch or success stub is used.
+
+Both public XAML module basenames are collected with PID attribution. A
+recorded started protocol child suppresses the direct-CE-only drain cutoff,
+within the unchanged finite60s cap. No child exit is inferred from CE exit.
+The focused source suite passes52 checks. The application and complete
+framework graph passed another pinned-root authenticated-content verification.
+The source freezer's recheck initially expected the signed digests in the
+verifier return value; the verifier supplies them through its progress
+mapping. Preserving that mapping fixed the caller without weakening any
+signature or content check.
+
+The earlier failed build and wrong-path registry artifacts remain retained.
+The final DLL, server and both fixture/helper binaries compile. Native
+Launcher fixture and actual Xbox cell008 remain unexecuted until the
+scheduler grants their exclusive lane. Neither compilation nor the
+deployed-inventory audit is a runtime, XAML, UI or game qualification.
+See [ADR-0040](ADR/0040-route-only-verified-package-protocols.md).

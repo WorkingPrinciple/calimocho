@@ -95,7 +95,7 @@ static int verify_identity(BOOL packaged, BOOL registered)
     memset(&identity, 0xa5, sizeof(identity));
     status = wine_query_package_identity((HANDLE)(LONG_PTR)-4, &identity);
     check(status == (packaged ? STATUS_SUCCESS : STATUS_NOT_FOUND));
-    if (packaged) check(identity.verified_gamingapp == registered);
+    if (packaged) check(identity.verified_gamingapp == (unsigned int)registered);
     check(OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_DUPLICATE, &token));
     if (!token) return 1;
     check(DuplicateTokenEx(token, TOKEN_QUERY, NULL, SecurityIdentification, TokenPrimary, &duplicate));
@@ -123,7 +123,7 @@ static int verify_identity(BOOL packaged, BOOL registered)
     else
     {
         check(result == ERROR_INSUFFICIENT_BUFFER);
-        check(length == lstrlenW(identity.full_name) + 1);
+        check(length == lstrlenW(identity.full_name) + 1u);
         memset(buffer, 0xa5, sizeof(buffer));
         --length;
         check(GetCurrentPackageFullName(&length, buffer) == ERROR_INSUFFICIENT_BUFFER);
@@ -155,7 +155,7 @@ static int verify_identity(BOOL packaged, BOOL registered)
         }
         {
             WCHAR executable[MAX_PATH], cmdline[MAX_PATH + 32];
-            STARTUPINFOW startup = {sizeof(startup)};
+            STARTUPINFOW startup = {.cb = sizeof(startup)};
             PROCESS_INFORMATION process;
             DWORD code = 0;
             check(GetModuleFileNameW(NULL, executable, MAX_PATH) > 0);
@@ -242,7 +242,7 @@ static int activate(const WCHAR *blob_path, const WCHAR *executable, BOOL fixtur
         status = RtlCreateEnvironment(TRUE, &environment);
         RtlInitUnicodeString(&name, L"WINEDEBUG");
         RtlInitUnicodeString(&value,
-            L"err+all,trace+process,trace+loaddll,trace+sync,trace+combase,fixme+combase,trace+pkgactivate,+pid,+tid");
+            L"err+all,trace+process,trace+loaddll,trace+sync,trace+combase,fixme+combase,trace+pkgactivate,trace+pkglaunch,+pid,+tid");
         if (!status) status = RtlSetEnvironmentVariable(&environment, &name, &value);
         if (status)
         {

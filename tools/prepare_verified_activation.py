@@ -62,7 +62,9 @@ def graph_artifacts(output, metadata, graph):
             "environment": {"CALIMOCHO_PACKAGE_GRAPH": dos(graph_path)}}
 
 
-def prepare(package, application, roots, openssl, output, framework_root=None):
+def prepare(package, application, roots, openssl, output, framework_root=None, protocols=False):
+    if protocols and framework_root is None:
+        raise ValueError("Protocol activation requires an explicitly verified framework graph")
     package = Path(package).resolve(strict=True)
     output = Path(output).resolve()
     if output == package or package in output.parents:
@@ -119,6 +121,10 @@ def prepare(package, application, roots, openssl, output, framework_root=None):
         "host_authority": "server startup record, not a guest-supplied verified flag",
         "limitation": "Wine is not a sandbox against another native process running as this host user",
     })
+    if protocols:
+        from tools.package_protocols import artifacts
+        progress.update(artifacts(output, progress))
+        progress["environment"]["CALIMOCHO_PACKAGE_PROTOCOLS"] = dos(progress["protocol_table"])
     (output / "verification.json").write_text(json.dumps(progress, indent=2) + "\n")
     return progress
 
@@ -131,8 +137,10 @@ def main():
     parser.add_argument("--openssl", default=shutil.which("openssl"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--framework-root", type=Path)
+    parser.add_argument("--protocols", action="store_true")
     args = parser.parse_args()
-    prepare(args.package, args.application, args.root, args.openssl, args.output, args.framework_root)
+    prepare(args.package, args.application, args.root, args.openssl, args.output, args.framework_root,
+            args.protocols)
 
 
 if __name__ == "__main__":

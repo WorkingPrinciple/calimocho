@@ -36,6 +36,7 @@ class ActivationTrace:
         self.sync_facts = []
         self.activation_facts = []
         self.activation_results = []
+        self.protocol_results = []
 
     def append_fact(self, target, fact):
         if len(target) < 128:
@@ -59,7 +60,7 @@ class ActivationTrace:
         if match:
             pid, path, kind = match.groups()
             module = path.replace("/", "\\").rsplit("\\", 1)[-1].lower()
-            if module in ("windows.ui.xaml.dll", "xboxpcappce.exe", "xboxpcapp.exe"):
+            if module in ("windows.ui.xaml.dll", "microsoft.ui.xaml.dll", "xboxpcappce.exe", "xboxpcapp.exe"):
                 event = {"pid": int(pid, 16), "module": module, "kind": kind}
                 if event not in self.loads and len(self.loads) < 128:
                     self.loads.append(event)
@@ -73,6 +74,31 @@ class ActivationTrace:
         pid, tid, level, channel, function, message = event.groups()
         fact = {"pid": int(pid, 16), "tid": int(tid, 16),
                 "channel": channel, "function": function}
+        if channel == "pkglaunch" and function == "activate_route":
+            route = re.fullmatch(
+                r'route scheme=L"([a-z][a-z0-9+.-]{0,62})" '
+                r'app=L"([A-Za-z][A-Za-z0-9.]{0,63})" pid=([0-9]+) '
+                r'result=([0-9a-f]{8}) missing=(none|uwp-protocol-activation)',
+                message)
+            if route:
+                scheme, app, child, status, missing = route.groups()
+                fact.update(scheme=scheme, app_id=app, child_pid=int(child),
+                            hresult="0x" + status, missing=missing)
+                self.append_fact(self.protocol_results, fact)
+            return
+        if channel == "pkglaunch":
+            missing = re.fullmatch(
+                r'missing-iid=(\{[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\}) result=(80004002)',
+                message, re.IGNORECASE)
+            unsupported = re.fullmatch(
+                r'unsupported method=(LaunchUriWithOptionsAsync|LaunchFileAsync) result=(80004001)', message)
+            if missing:
+                fact.update(missing_iid=missing[1].lower(), hresult="0x" + missing[2])
+                self.append_fact(self.activation_results, fact)
+            elif unsupported:
+                fact.update(missing_method=unsupported[1], hresult="0x" + unsupported[2])
+                self.append_fact(self.activation_results, fact)
+            return
         if channel == "pkgactivate" and function == "trace_package_activation":
             completed = re.fullmatch(
                 r'operation=(RoGetActivationFactory|RoActivateInstance) '
@@ -155,8 +181,14 @@ class ActivationTrace:
     def verdict(self):
         pid_text = self.metadata.get("child_pid", "")
         pid = int(pid_text) if pid_text.isdecimal() else None
-        loaded = any(e["pid"] == pid and e["module"] == "windows.ui.xaml.dll"
+        loaded = any(e["pid"] == pid and e["module"] in ("windows.ui.xaml.dll", "microsoft.ui.xaml.dll")
                      for e in self.loads)
+        routes = [fact for fact in self.protocol_results if fact["pid"] == pid]
+        target_pids = {fact["child_pid"] for fact in routes
+                       if fact["hresult"] == "0x00000000" and fact["child_pid"] > 0}
+        target_loads = [fact for fact in self.loads if fact["pid"] in target_pids]
+        target_exits = [fact for fact in self.handoff_facts
+                        if fact["pid"] in target_pids and fact["operation"] == "process-exit-call"]
         return {
             "created": pid is not None and pid > 0,
             "resumed": pid is not None and self.metadata.get("resume_status") == "00000000",
@@ -171,6 +203,11 @@ class ActivationTrace:
             "sync_facts": self.sync_facts,
             "activation_facts": self.activation_facts,
             "activation_results": [fact for fact in self.activation_results if fact["pid"] == pid],
+            "protocol_results": routes,
+            "protocol_target_loads": target_loads,
+            "protocol_target_exit_calls": target_exits,
+            "protocol_target_state": "exit-call-observed" if target_exits else (
+                "unknown" if target_pids else "not-started"),
             "raw_trace_persisted": False,
             "trace_truncated": self.truncated,
         }
@@ -200,7 +237,11 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2):
                             exit_seen_at, exit_basis = now, "helper-process-exit"
                         elif "elapsed_ms" in trace.metadata and "exit_observed_utc" in trace.metadata:
                             exit_seen_at, exit_basis = now, "child-exit-record"
-                    if exit_seen_at is not None and now - exit_seen_at >= post_exit_seconds:
+                    # A direct CE exit is not an AppL exit. Keep draining within the
+                    # original finite budget when our exact Launcher recorded a child.
+                    handoff = any(fact["child_pid"] > 0 and fact["hresult"] == "0x00000000"
+                                  for fact in trace.verdict()["protocol_results"])
+                    if exit_seen_at is not None and not handoff and now - exit_seen_at >= post_exit_seconds:
                         drain_limited = True
                         trace.truncated = True
                         break
@@ -262,7 +303,7 @@ def main():
     ):
         if hashlib.sha256(Path(receipt[field]).read_bytes()).hexdigest() != receipt[digest]:
             raise ValueError(f"Receipt hash mismatch: {field}")
-    for field in ("graph", "framework_registration"):
+    for field in ("graph", "framework_registration", "protocol_table", "server_registration_table"):
         if field in receipt:
             if hashlib.sha256(Path(receipt[field]).read_bytes()).hexdigest() != receipt[field + "_sha256"]:
                 raise ValueError(f"Receipt hash mismatch: {field}")

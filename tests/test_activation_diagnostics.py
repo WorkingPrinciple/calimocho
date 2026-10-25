@@ -11,6 +11,64 @@ from tools.diagnose_package_activation import ActivationTrace, collect
 
 
 class ActivationDiagnosticsTests(unittest.TestCase):
+    def test_missing_launcher_interface_and_method_are_bounded_and_ce_pid_only(self):
+        trace = ActivationTrace()
+        trace.stdout("calimocho-activation child_pid 100")
+        iid = "{277151c3-9e3e-42f6-91a4-5dfdeb232451}"
+        trace.stderr("0064:0070:trace:pkglaunch:factory_query missing-iid=" + iid + " result=80004002")
+        trace.stderr("0064:0070:trace:pkglaunch:launch_uri_options "
+                     "unsupported method=LaunchUriWithOptionsAsync result=80004001")
+        trace.stderr("0068:0070:trace:pkglaunch:factory_query missing-iid=" + iid + " result=80004002")
+        trace.stderr("0064:0070:trace:pkglaunch:factory_query missing-iid=SECRET result=80004002")
+        trace.stderr("0064:0070:trace:pkglaunch:launch_uri_options "
+                     "unsupported method=SECRET result=80004001")
+        results = trace.verdict()["activation_results"]
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0]["missing_iid"], iid)
+        self.assertEqual(results[1]["missing_method"], "LaunchUriWithOptionsAsync")
+        self.assertNotIn("SECRET", str(trace.verdict()))
+
+    def test_protocol_route_is_exact_pid_bound_and_no_full_uri_is_retained(self):
+        trace = ActivationTrace()
+        trace.stdout("calimocho-activation child_pid 100")
+        route = ('0064:0070:trace:pkglaunch:activate_route route scheme=L"msxboxl" '
+                 'app=L"Microsoft.Xbox.AppL" pid=200 result=00000000 missing=none')
+        trace.stderr(route)
+        trace.stderr(route.replace("0064:", "0068:").replace("pid=200", "pid=300"))
+        trace.stderr('00c8:00cc:trace:loaddll:build_module Loaded L"C:\\Microsoft.UI.Xaml.dll" at 1234: native')
+        trace.stderr(route.replace('scheme=L"msxboxl"', 'scheme=L"msxboxl://SECRET"'))
+        verdict = trace.verdict()
+        self.assertEqual(len(verdict["protocol_results"]), 1)
+        self.assertEqual(verdict["protocol_results"][0]["child_pid"], 200)
+        self.assertEqual(verdict["protocol_target_loads"][0]["module"], "microsoft.ui.xaml.dll")
+        self.assertEqual(verdict["protocol_target_state"], "unknown")
+        self.assertNotIn("SECRET", str(verdict))
+        self.assertEqual(verdict["xaml"], "not-observed")
+
+    def test_both_exact_xaml_modules_are_retained_with_pid(self):
+        trace = ActivationTrace()
+        trace.stdout("calimocho-activation child_pid 100")
+        trace.stderr('0064:0070:trace:loaddll:build_module Loaded L"C:\\Microsoft.UI.Xaml.dll" at 1234: native')
+        self.assertEqual(trace.verdict()["xaml"], "loaded-in-child")
+        self.assertEqual(trace.verdict()["module_loads"][0]["pid"], 100)
+
+    def test_recorded_protocol_child_prevents_direct_ce_exit_cutoff(self):
+        script = (
+            "import subprocess,sys\n"
+            "print('calimocho-activation child_pid 100')\n"
+            "print('calimocho-activation exit_observed_utc 2026-10-25T00:00:00Z')\n"
+            "print('calimocho-activation elapsed_ms 91',flush=True)\n"
+            "print('0064:0070:trace:pkglaunch:activate_route route scheme=L\"msxboxl\" "
+            "app=L\"Microsoft.Xbox.AppL\" pid=200 result=00000000 missing=none',file=sys.stderr,flush=True)\n"
+            "subprocess.Popen([sys.executable,'-c','import time; time.sleep(0.35)'])\n"
+        )
+        result = collect([sys.executable, "-c", script], dict(os.environ), Path.cwd(),
+                         seconds=2, post_exit_seconds=0.05)
+        self.assertFalse(result["post_exit_drain_limited"])
+        self.assertFalse(result["collector_timeout"])
+        self.assertEqual(result["capture_end"], "stream-eof")
+        self.assertEqual(result["protocol_target_state"], "unknown")
+
     def test_completed_factory_result_is_exact_and_ce_pid_only(self):
         trace = ActivationTrace()
         trace.stdout("calimocho-activation child_pid 240")

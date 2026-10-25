@@ -1,0 +1,7 @@
+MODULE = windows.system.launcher.dll
+IMPORTS = combase uuid ntdll
+SOURCES = \
+	async.c \
+	async_private.idl \
+	launcher.idl \
+	main.c
