@@ -13,6 +13,15 @@ SOURCE = ROOT / "patches/wine/files/amd_ags_x64"
 
 
 class AGS54Tests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("x86_64-w64-mingw32-gcc"), "Requires installed MinGW")
+    def test_installed_probe_compiles_without_warnings(self):
+        with tempfile.TemporaryDirectory() as directory:
+            subprocess.run([
+                shutil.which("x86_64-w64-mingw32-gcc"), "-std=c11", "-Wall", "-Wextra",
+                "-Werror", str(ROOT / "tests/ags54_probe.c"), "-luuid",
+                "-o", str(Path(directory) / "probe.exe"),
+            ], check=True, capture_output=True, text=True, timeout=30)
+
     def test_generic_record_has_no_global_ags_override_or_inherited_pass(self):
         root = ROOT / "build/winehq-11.20/metal-port-11d-ags54-02"
         registry = root / "ags54-minidump.registry.local.UNQUALIFIED.json"

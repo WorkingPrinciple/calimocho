@@ -65,8 +65,31 @@ the generated Makefile directly, and the standalone build does not run make.
 Source and PE checks do not establish renderer/TLS regression acceptance or
 the DIRT5 title-screen result for this actual builtin. Passive runtime
 qualification needs the scheduler's bounded slot and existing non-overlap
-policy. The DIRT5 owner owns actual game admission. The new sibling remains
-unqualified until those observations are bound to its exact inventory.
+policy. The DIRT5 owner owns actual game admission.
+
+The scheduler subsequently granted a windowless interval. The installed
+`tests/ags54_probe.c` observed the actual builtin initialization, real
+standard D3D12 device creation and destruction (remaining references zero),
+and both minidump exports resolving exactly to dbghelp. Positive HTTPS
+returned 200. The expired-certificate check failed as expected with WinHTTP
+12157 and Wine certificate error 12037, without disabling certificate checks.
+Each owned server was stopped and waited, no process groups remained, and
+prefix open-file checks were clean. Foreground, payload and baseline hashes
+were unchanged.
+
+The first chained run completed AGS01, then encountered the scheduler's
+remaining Forza server before TLS02. An initial status message mistakenly
+described the whole chain as pre-spawn refusal. The retained AGS receipt was
+reconciled before proceeding, not replayed. The scheduler cleared its server
+and renewed the lane; only TLS02/03 ran afterward. A command-text false
+positive in the local runner was also corrected to check executable identity,
+not whether a Python/tool argument happened to mention `wineserver`.
+
+These three headless observations are frozen separately from the unchanged
+unqualified build record. Graphics remains blocked: no free display region
+passes the existing guard. A full-screen Dock window with alpha 1 was not
+silently declared transparent, and the user's ChatGPT window was not moved
+or closed. No actual DIRT5 title-screen result for this builtin exists yet.
 
 ## Reproduction
 
