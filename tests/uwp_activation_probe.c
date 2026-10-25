@@ -1,10 +1,12 @@
 /* Owned scheduled-window fixture. SPDX-License-Identifier: LGPL-2.1-or-later */
 #define COBJMACROS
 #define WIDL_using_Windows_Foundation
+#define WIDL_using_Windows_Foundation_Collections
 #define WIDL_using_Windows_ApplicationModel_Core
 #define WIDL_using_Windows_ApplicationModel_Activation
 #define WIDL_using_Windows_UI_Core
 #include <stdio.h>
+#include <stddef.h>
 #include "initguid.h"
 #include "windef.h"
 #include "winbase.h"
@@ -17,6 +19,11 @@
 #include "windows.ui.core.h"
 #include "wine/package.h"
 #undef Size
+C_ASSERT(offsetof(IStaticLifetimeVtbl, Reserved) == 6 * sizeof(void *));
+C_ASSERT(offsetof(IStaticLifetimeVtbl, GetCollection) == 7 * sizeof(void *));
+C_ASSERT(offsetof(IMap_HSTRING_IInspectableVtbl, Lookup) == 6 * sizeof(void *));
+C_ASSERT(offsetof(IMap_HSTRING_IInspectableVtbl, Insert) == 10 * sizeof(void *));
+C_ASSERT(offsetof(IMap_HSTRING_IInspectableVtbl, Remove) == 11 * sizeof(void *));
 
 static unsigned int failures, activated, dispatched;
 static ICoreWindow *window;
@@ -194,10 +201,78 @@ static const IFrameworkViewSourceVtbl source_vtable = {
     source_query, source_ref, source_ref, source_iids, source_name, source_trust, source_create,
 };
 static IFrameworkViewSource fixture_source = {&source_vtable};
-int main(void)
+static int static_lifetime_probe(void)
+{
+    static const GUID collection_iid =
+        {0x1b0d3570,0x0877,0x5ec2,{0x8a,0x2c,0x3b,0x95,0x39,0x50,0x6a,0xca}};
+    IStaticLifetime *lifetime = NULL;
+    IInspectable *collection = NULL, *second = NULL, *value = NULL;
+    IMap_HSTRING_IInspectable *map = NULL, *custom = NULL;
+    IMapView_HSTRING_IInspectable *view = NULL;
+    IUnknown *identity1 = NULL, *identity2 = NULL;
+    HSTRING name = NULL, key = NULL;
+    boolean replaced = TRUE, exists = TRUE;
+    UINT32 count = 99;
+    HRESULT hr;
+    check(SUCCEEDED(RoInitialize(RO_INIT_MULTITHREADED)));
+    WindowsCreateString(L"Windows.ApplicationModel.Core.CoreApplication", 45, &name);
+    hr = RoGetActivationFactory(name, &IID_IStaticLifetime, (void **)&lifetime);
+    check(hr == S_OK && lifetime);
+    WindowsDeleteString(name);
+    if (!lifetime) goto done;
+    check(IStaticLifetime_Reserved(lifetime) == E_NOTIMPL);
+    check(IStaticLifetime_GetCollection(lifetime, NULL) == E_POINTER);
+    check(IStaticLifetime_GetCollection(lifetime, &collection) == S_OK && collection);
+    check(IStaticLifetime_GetCollection(lifetime, &second) == S_OK && second);
+    if (!collection || !second) goto done;
+    check(IInspectable_QueryInterface(collection, &IID_IMap_HSTRING_IInspectable, (void **)&map) == S_OK);
+    check(IInspectable_QueryInterface(second, &collection_iid, (void **)&custom) == S_OK);
+    if (!map || !custom) goto done;
+    check(IMap_HSTRING_IInspectable_QueryInterface(map, &IID_IUnknown, (void **)&identity1) == S_OK);
+    check(IMap_HSTRING_IInspectable_QueryInterface(custom, &IID_IUnknown, (void **)&identity2) == S_OK);
+    check(identity1 == identity2);
+    WindowsCreateString(L"Calimocho.StaticLifetime.Fixture", 32, &key);
+    check(IMap_HSTRING_IInspectable_Clear(map) == S_OK);
+    check(IMap_HSTRING_IInspectable_Lookup(custom, key, &value) == E_BOUNDS && !value);
+    check(IMap_HSTRING_IInspectable_Insert(custom, key, (IInspectable *)lifetime, &replaced) == S_OK && !replaced);
+    check(IMap_HSTRING_IInspectable_HasKey(map, key, &exists) == S_OK && exists);
+    check(IMap_HSTRING_IInspectable_get_Size(map, &count) == S_OK && count == 1);
+    check(IMap_HSTRING_IInspectable_GetView(map, &view) == S_OK && view);
+    if (view)
+    {
+        check(IMapView_HSTRING_IInspectable_get_Size(view, &count) == S_OK && count == 1);
+        check(IMapView_HSTRING_IInspectable_Lookup(view, key, &value) == S_OK && value == (IInspectable *)lifetime);
+        if (value) { IInspectable_Release(value); value = NULL; }
+        IMapView_HSTRING_IInspectable_Release(view);
+        view = NULL;
+    }
+    check(IMap_HSTRING_IInspectable_Lookup(map, key, &value) == S_OK && value == (IInspectable *)lifetime);
+    if (value) { IInspectable_Release(value); value = NULL; }
+    check(IMap_HSTRING_IInspectable_Insert(map, key, second, &replaced) == S_OK && replaced);
+    check(IMap_HSTRING_IInspectable_Remove(custom, key) == S_OK);
+    check(IMap_HSTRING_IInspectable_Remove(custom, key) == E_BOUNDS);
+    check(IMap_HSTRING_IInspectable_Insert(map, key, (IInspectable *)lifetime, &replaced) == S_OK);
+    check(IMap_HSTRING_IInspectable_Clear(custom) == S_OK);
+    check(IMap_HSTRING_IInspectable_get_Size(map, &count) == S_OK && !count);
+done:
+    WindowsDeleteString(key);
+    if (identity1) IUnknown_Release(identity1);
+    if (identity2) IUnknown_Release(identity2);
+    if (custom) IMap_HSTRING_IInspectable_Release(custom);
+    if (map) IMap_HSTRING_IInspectable_Release(map);
+    if (second) IInspectable_Release(second);
+    if (collection) IInspectable_Release(collection);
+    if (lifetime) IStaticLifetime_Release(lifetime);
+    RoUninitialize();
+    printf("static-lifetime-fixture failures=%u\n", failures);
+    return failures ? 1 : 0;
+}
+
+int main(int argc, char **argv)
 {
     ICoreApplication *core = NULL;
     HSTRING name;
+    if (argc == 2 && !strcmp(argv[1], "--static-lifetime")) return static_lifetime_probe();
     check(RoInitialize(RO_INIT_SINGLETHREADED) == S_OK);
     WindowsCreateString(L"Windows.ApplicationModel.Core.CoreApplication", 45, &name);
     check(RoGetActivationFactory(name, &IID_ICoreApplication, (void **)&core) == S_OK);

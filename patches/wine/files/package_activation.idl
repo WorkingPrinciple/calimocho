@@ -2,6 +2,12 @@
 #pragma winrt ns_prefix
 import "windows.applicationmodel.activation.idl";
 import "windows.foundation.idl";
+[uuid(17b0e613-942a-422d-904c-f90dc71a7dae), object]
+interface IStaticLifetime : IInspectable
+{
+    HRESULT Reserved();
+    HRESULT GetCollection([out] IInspectable **value);
+}
 namespace Windows.ApplicationModel.Activation
 {
     [uuid(6095f4dd-b7c0-46ab-81fe-d90f36d00d24)]

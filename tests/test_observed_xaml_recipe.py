@@ -40,7 +40,13 @@ class ObservedXamlRecipeTests(unittest.TestCase):
                 "exit_code": 0, "timed_out": False, "cleanup_complete": True,
                 "output": str(output), "output_sha256": sha256(output),
             }))
-            with patch("tools.prepare_observed_xaml_recipe.subprocess.check_output", side_effect=self.git_output):
+            exists = Path.exists
+            def fixture_exists(path):
+                if str(path) == "/Users/dragoshont/xodus-runs/xbox-calimocho-packaged-20261025-011":
+                    return False
+                return exists(path)
+            with patch("tools.prepare_observed_xaml_recipe.subprocess.check_output", side_effect=self.git_output), \
+                    patch.object(Path, "exists", fixture_exists):
                 receipt_path = prepare(directory / "owned-synthetic-output", observation, "HEAD")
             receipt = json.loads(receipt_path.read_text())
             previous = json.loads(Path(receipt["predecessor_receipt"]).read_text())

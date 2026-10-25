@@ -11,6 +11,21 @@ from tools.diagnose_package_activation import ActivationTrace, collect
 
 
 class ActivationDiagnosticsTests(unittest.TestCase):
+    def test_static_collection_results_are_exact_child_bound_and_do_not_retain_keys(self):
+        trace = ActivationTrace()
+        trace.stdout("calimocho-activation child_pid 100")
+        trace.stderr('0064:0070:trace:pkglaunch:activate_route route scheme=L"msxboxl" '
+                     'app=L"Microsoft.Xbox.AppL" pid=200 result=00000000 missing=none')
+        trace.stderr("00c8:00cc:trace:pkgcore:lifetime_collection_get static-lifetime collection-result=00000000")
+        trace.stderr("00c8:00cc:trace:pkgcore:lifetime_reserved missing-method=StaticLifetime.Reserved result=80004001")
+        trace.stderr("00d0:00cc:trace:pkgcore:lifetime_collection_get static-lifetime collection-result=80004005")
+        trace.stderr("00c8:00cc:trace:pkgcore:lifetime_collection_get static-lifetime collection-result=00000000 SECRET")
+        verdict = trace.verdict()
+        self.assertEqual(len(verdict["protocol_target_activation_results"]), 2)
+        self.assertEqual(verdict["protocol_target_activation_results"][0]["operation"], "StaticLifetime.GetCollection")
+        self.assertEqual(verdict["protocol_target_activation_results"][1]["missing_method"], "StaticLifetime.Reserved")
+        self.assertNotIn("SECRET", str(verdict))
+
     def test_xaml_path_is_retained_only_for_exact_receipt_allowlist(self):
         path = r"C:\windows\system32\Windows.UI.Xaml.dll"
         trace = ActivationTrace({path: {"path": path, "source": "prefix-system32"}})

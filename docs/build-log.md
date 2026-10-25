@@ -2665,3 +2665,37 @@ Launcher fixture and actual Xbox cell008 remain unexecuted until the
 scheduler grants their exclusive lane. Neither compilation nor the
 deployed-inventory audit is a runtime, XAML, UI or game qualification.
 See [ADR-0040](ADR/0040-route-only-verified-package-protocols.md).
+
+### Actual011 and source-built012 static lifetime collection
+
+The actual011 redacted evidence has SHA-256
+`a4ac8feeaf870bad69ff29502642073a797222d2f7cb378ba679815007c50c6e`.
+Native Application, FrameworkViewSource and FrameworkView factories and
+activation succeeded. CoreApplication rejected IID17b0e613 with
+E_NOINTERFACE. The exact-image and admitted-token process observer recorded
+AppL's fail-fast exit0xC0000602. No SetWindow, Load, Run, Activated or window
+acceptance follows. The180-second cap was not reached; the final2-second
+post-target-exit drain cutoff is explicitly marked truncated.
+
+The VM metadata search found no public interface definition. Pinned
+Microsoft C++/WinRT source instead identifies IStaticLifetime and its
+string/object factory-cache collection. The012 source implements that ABI
+using Wine's real multi-threaded PropertySet map, retained for the process
+lifetime. The reserved slot reports E_NOTIMPL with an allowlisted fixed
+fingerprint. The collector also retains a PID-bound GetCollection HRESULT
+without retaining cache keys or values.
+
+The new isolated source build succeeded. Staging initially failed because
+the fixture lacked the generated collections namespace macro. That failure
+log is retained; the corrected fixture compiles, including explicit ABI slot
+assertions and map-view checks. Repeated staging preserves the previous
+candidate. All3915 deployed entries are bound, with six newly compiled
+modules relative to009. The engine dependencies and native XAML selection
+are retained. The76 focused host checks pass, but the headless native
+collection fixture and actual012 Xbox run remain unexecuted here.
+
+The012 handoff derives from011's observed558 supported native XAML
+mappings and frozen authenticated graph, with new runtime, helper, collector
+and Launcher import paths. It preserves sealed009/010/011 and does not
+rewrite or copy Microsoft binaries. See
+[ADR-0044](ADR/0044-retain-genuine-static-lifetime-factories.md).

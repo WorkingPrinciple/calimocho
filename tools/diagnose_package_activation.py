@@ -98,6 +98,7 @@ class ActivationTrace:
                 "SplashScreen", "AutomationHostProvider", "CustomProperties", "FlowDirection",
                 "PointerCursor", "PutPointerCursor", "GetAsyncKeyState", "GetKeyState",
                 "ReleasePointerCapture", "SetPointerCapture", "RunIdleAsync", "AsyncInfo.Id",
+                "StaticLifetime.Reserved",
             }
             events = {"AutomationProviderRequested", "CharacterReceived", "Closed", "InputEnabled",
                       "KeyDown", "KeyUp", "PointerCaptureLost", "PointerEntered", "PointerExited",
@@ -115,7 +116,11 @@ class ActivationTrace:
                     r'window category=package-view class=CalimochoCoreWindow '
                     r'(created=1 visible=0|visible=1|destroyed=1)', message)
                 delivery = re.fullmatch(r'activated kind=([04]) handlers=([0-9]{1,2}) result=([0-9a-f]{8})', message)
-                if window:
+                collection = re.fullmatch(r'static-lifetime collection-result=([0-9a-f]{8})', message)
+                if collection and channel == "pkgcore" and function == "lifetime_collection_get":
+                    fact.update(operation="StaticLifetime.GetCollection", hresult="0x" + collection[1])
+                    self.append_fact(self.activation_results, fact)
+                elif window:
                     fact.update(category="package-view", window_class="CalimochoCoreWindow", state=window[1])
                     self.append_fact(self.window_facts, fact)
                 elif delivery:

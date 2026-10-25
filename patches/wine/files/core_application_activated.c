@@ -191,6 +191,7 @@ struct core
     IActivationFactory IActivationFactory_iface;
     ICoreApplication ICoreApplication_iface;
     ICoreApplicationView ICoreApplicationView_iface;
+    IStaticLifetime IStaticLifetime_iface;
     LONG refs, running;
     DWORD thread;
     INT64 next_token;
@@ -207,6 +208,7 @@ static HRESULT WINAPI core_query(IActivationFactory *iface, REFIID iid, void **o
         || IsEqualGUID(iid, &IID_IActivationFactory) || IsEqualGUID(iid, &IID_IAgileObject))
         *out = iface;
     else if (IsEqualGUID(iid, &IID_ICoreApplication)) *out = &core.ICoreApplication_iface;
+    else if (IsEqualGUID(iid, &IID_IStaticLifetime)) *out = &core.IStaticLifetime_iface;
     else
     {
         TRACE("missing-iid=%s result=80004002\n", debugstr_guid(iid));
@@ -221,10 +223,11 @@ static HRESULT WINAPI core_iids(IActivationFactory *iface, ULONG *count, IID **o
 {
     if (!count || !out) return E_POINTER;
     *count = 0;
-    *out = CoTaskMemAlloc(sizeof(IID));
+    *out = CoTaskMemAlloc(2 * sizeof(IID));
     if (!*out) return E_OUTOFMEMORY;
-    **out = IID_ICoreApplication;
-    *count = 1;
+    (*out)[0] = IID_ICoreApplication;
+    (*out)[1] = IID_IStaticLifetime;
+    *count = 2;
     return S_OK;
 }
 static HRESULT WINAPI core_name(IActivationFactory *iface, HSTRING *out)
@@ -247,6 +250,115 @@ static const IActivationFactoryVtbl core_vtable = {
     core_query, core_addref, core_release, core_iids, core_name, core_trust, core_activate,
 };
 DEFINE_IINSPECTABLE(application, ICoreApplication, struct core, IActivationFactory_iface)
+DEFINE_IINSPECTABLE(lifetime, IStaticLifetime, struct core, IActivationFactory_iface)
+
+/* Microsoft's cppwinrt static collection is ABI-compatible with the string/object map. */
+static const GUID static_collection_iid =
+    {0x1b0d3570,0x0877,0x5ec2,{0x8a,0x2c,0x3b,0x95,0x39,0x50,0x6a,0xca}};
+static IMap_HSTRING_IInspectable *lifetime_map;
+static INIT_ONCE lifetime_once = INIT_ONCE_STATIC_INIT;
+static HRESULT lifetime_error = E_UNEXPECTED;
+static IMap_HSTRING_IInspectable lifetime_collection;
+
+static BOOL CALLBACK lifetime_initialize(INIT_ONCE *once, void *parameter, void **context)
+{
+    IInspectable *instance = NULL;
+    HSTRING name = NULL;
+    lifetime_error = WindowsCreateString(L"Windows.Foundation.Collections.PropertySet", 42, &name);
+    if (SUCCEEDED(lifetime_error)) lifetime_error = RoActivateInstance(name, &instance);
+    if (SUCCEEDED(lifetime_error))
+        lifetime_error = IInspectable_QueryInterface(instance, &IID_IMap_HSTRING_IInspectable, (void **)&lifetime_map);
+    if (instance) IInspectable_Release(instance);
+    WindowsDeleteString(name);
+    return TRUE; /* Retain the actual initialization HRESULT, never silently retry. */
+}
+static HRESULT WINAPI collection_query(IMap_HSTRING_IInspectable *iface, REFIID iid, void **out)
+{
+    if (!out) return E_POINTER;
+    *out = NULL;
+    if (IsEqualGUID(iid, &IID_IUnknown) || IsEqualGUID(iid, &IID_IInspectable)
+        || IsEqualGUID(iid, &IID_IAgileObject) || IsEqualGUID(iid, &IID_IMap_HSTRING_IInspectable)
+        || IsEqualGUID(iid, &static_collection_iid))
+    {
+        *out = iface;
+        IMap_HSTRING_IInspectable_AddRef(lifetime_map);
+        return S_OK;
+    }
+    TRACE("missing-iid=%s result=80004002\n", debugstr_guid(iid));
+    return E_NOINTERFACE;
+}
+static ULONG WINAPI collection_addref(IMap_HSTRING_IInspectable *iface)
+{ return IMap_HSTRING_IInspectable_AddRef(lifetime_map); }
+static ULONG WINAPI collection_release(IMap_HSTRING_IInspectable *iface)
+{ return IMap_HSTRING_IInspectable_Release(lifetime_map); }
+static HRESULT WINAPI collection_iids(IMap_HSTRING_IInspectable *iface, ULONG *count, IID **out)
+{
+    if (!count || !out) return E_POINTER;
+    *count = 0;
+    *out = CoTaskMemAlloc(2 * sizeof(IID));
+    if (!*out) return E_OUTOFMEMORY;
+    (*out)[0] = IID_IMap_HSTRING_IInspectable;
+    (*out)[1] = static_collection_iid;
+    *count = 2;
+    return S_OK;
+}
+static HRESULT WINAPI collection_name(IMap_HSTRING_IInspectable *iface, HSTRING *out)
+{ return out ? WindowsCreateString(L"Windows.Foundation.Collections.PropertySet", 42, out) : E_POINTER; }
+static HRESULT WINAPI collection_trust(IMap_HSTRING_IInspectable *iface, TrustLevel *out)
+{ if (!out) return E_POINTER; *out = BaseTrust; return S_OK; }
+static HRESULT WINAPI collection_lookup(IMap_HSTRING_IInspectable *iface, HSTRING key, IInspectable **out)
+{
+    if (!out) return E_POINTER;
+    *out = NULL;
+    return IMap_HSTRING_IInspectable_Lookup(lifetime_map, key, out);
+}
+static HRESULT WINAPI collection_size(IMap_HSTRING_IInspectable *iface, UINT32 *out)
+{ if (!out) return E_POINTER; return IMap_HSTRING_IInspectable_get_Size(lifetime_map, out); }
+static HRESULT WINAPI collection_has(IMap_HSTRING_IInspectable *iface, HSTRING key, boolean *out)
+{ if (!out) return E_POINTER; return IMap_HSTRING_IInspectable_HasKey(lifetime_map, key, out); }
+static HRESULT WINAPI collection_view(IMap_HSTRING_IInspectable *iface, IMapView_HSTRING_IInspectable **out)
+{ if (!out) return E_POINTER; *out = NULL; return IMap_HSTRING_IInspectable_GetView(lifetime_map, out); }
+static HRESULT WINAPI collection_insert(IMap_HSTRING_IInspectable *iface, HSTRING key,
+                                       IInspectable *value, boolean *replaced)
+{
+    if (!replaced) return E_POINTER;
+    return IMap_HSTRING_IInspectable_Insert(lifetime_map, key, value, replaced);
+}
+static HRESULT WINAPI collection_remove(IMap_HSTRING_IInspectable *iface, HSTRING key)
+{ return IMap_HSTRING_IInspectable_Remove(lifetime_map, key); }
+static HRESULT WINAPI collection_clear(IMap_HSTRING_IInspectable *iface)
+{ return IMap_HSTRING_IInspectable_Clear(lifetime_map); }
+static const IMap_HSTRING_IInspectableVtbl collection_vtable = {
+    collection_query, collection_addref, collection_release, collection_iids, collection_name, collection_trust,
+    collection_lookup, collection_size, collection_has, collection_view, collection_insert, collection_remove, collection_clear,
+};
+static IMap_HSTRING_IInspectable lifetime_collection = {&collection_vtable};
+static HRESULT WINAPI lifetime_reserved(IStaticLifetime *iface)
+{
+    TRACE("missing-method=StaticLifetime.Reserved result=80004001\n");
+    return E_NOTIMPL;
+}
+static HRESULT WINAPI lifetime_collection_get(IStaticLifetime *iface, IInspectable **out)
+{
+    if (!out) return E_POINTER;
+    *out = NULL;
+    if (!InitOnceExecuteOnce(&lifetime_once, lifetime_initialize, NULL, NULL))
+        return HRESULT_FROM_WIN32(GetLastError());
+    if (FAILED(lifetime_error))
+    {
+        TRACE("static-lifetime collection-result=%08lx\n", lifetime_error);
+        return lifetime_error;
+    }
+    *out = (IInspectable *)&lifetime_collection;
+    IInspectable_AddRef(*out);
+    TRACE("static-lifetime collection-result=00000000\n");
+    return S_OK;
+}
+static const IStaticLifetimeVtbl lifetime_vtable = {
+    lifetime_QueryInterface, lifetime_AddRef, lifetime_Release,
+    lifetime_GetIids, lifetime_GetRuntimeClassName, lifetime_GetTrustLevel,
+    lifetime_reserved, lifetime_collection_get,
+};
 
 static HRESULT WINAPI application_id(ICoreApplication *iface, HSTRING *out)
 {
@@ -307,7 +419,7 @@ static ULONG WINAPI view_release(ICoreApplicationView *iface) { return Interlock
 static HRESULT WINAPI view_iids(ICoreApplicationView *iface, ULONG *count, IID **out)
 {
     HRESULT hr = core_iids(&core.IActivationFactory_iface, count, out);
-    if (SUCCEEDED(hr)) **out = IID_ICoreApplicationView;
+    if (SUCCEEDED(hr)) { **out = IID_ICoreApplicationView; *count = 1; }
     return hr;
 }
 static HRESULT WINAPI view_name(ICoreApplicationView *iface, HSTRING *out)
@@ -523,6 +635,6 @@ static const ICoreApplicationVtbl application_vtable = {
     application_view, application_run, application_factories,
 };
 static struct core core = {
-    {&core_vtable}, {&application_vtable}, {&view_vtable}, 1,
+    {&core_vtable}, {&application_vtable}, {&view_vtable}, {&lifetime_vtable}, 1,
 };
 IActivationFactory *core_application_factory = &core.IActivationFactory_iface;

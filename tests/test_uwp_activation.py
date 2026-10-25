@@ -1,6 +1,8 @@
 from pathlib import Path
 import json
 import shutil
+import subprocess
+import hashlib
 import tempfile
 import unittest
 
@@ -33,7 +35,9 @@ class UwpActivationTests(unittest.TestCase):
             self.assertEqual(step["exit_code"], 0)
             self.assertFalse(step["timed_out"])
         for relative, digest in build["source_inputs"].items():
-            self.assertEqual(sha256(REPO / relative), digest)
+            frozen = json.loads((root / "cell009-receipt.json").read_text())
+            blob = subprocess.check_output(["git", "show", frozen["producer_commit"] + ":" + relative], cwd=REPO)
+            self.assertEqual(hashlib.sha256(blob).hexdigest(), digest)
 
     def test_record_is_process_owned_and_caller_is_server_derived(self):
         with tempfile.TemporaryDirectory() as temporary:
