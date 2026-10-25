@@ -3,6 +3,27 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: captured server identity for ALPC connects
+
+ADR-0061 adds required-user-SID and server-descriptor checking against an owned
+snapshot of the port creator's effective token. A mismatch returns
+STATUS_SERVER_SID_MISMATCH. The connecting client's identity cannot substitute
+for the server identity. The descriptor uses the real restricting-SID access
+checker, not a SID-name shortcut.
+
+The isolated `package-alpc-identity-01` source build completes. Sanitized host
+checks exercise the generated server handlers and the real identity/access
+helper separately. Runtime admission is still held: SCM service-token
+construction, authenticated message impersonation and dispatch remain unfinished.
+No cell027 runtime receipt has been frozen.
+
+The query-only native token extension authenticates locally to SHA-256
+`25ccc6591c9738b7692a5d52edb4dce90be241a2cea15124be5b6e24b4580ec4`.
+It establishes LocalService as owner and primary group, plus the eight-byte
+`Advapi  ` source name. Dynamic native source/logon identifiers are observations,
+not constants to copy into Wine. The measured Windows26300 binary remains
+distinct from the retained Windows26100 CoreMessaging candidate.
+
 ## 2026-10-25: real restricting-SID state and second access-check pass
 
 ADR-0060 replaces NtFilterToken's ignored restricting-SID input with

@@ -24,6 +24,10 @@
 #define STATUS_BUFFER_OVERFLOW 0x80000005u
 #define STATUS_PORT_MESSAGE_TOO_LONG 0xc000002fu
 #define STATUS_ACCESS_DENIED 0xc0000022u
+#define STATUS_INVALID_PARAMETER 0xc000000du
+#define STATUS_INVALID_SID 0xc0000078u
+#define STATUS_INVALID_SECURITY_DESCR 0xc0000079u
+#define STATUS_SERVER_SID_MISMATCH 0xc00002a0u
 #define STANDARD_RIGHTS_READ 0x20000
 #define STANDARD_RIGHTS_WRITE 0x20000
 #define STANDARD_RIGHTS_EXECUTE 0x20000
@@ -150,8 +154,27 @@ static unsigned get_req_data_size(void) {return request_size;}
 static void set_reply_data(const void *data,unsigned len) {
     assert(len<=reply_capacity&&len<=sizeof(reply_data));reply_size=len;memcpy(reply_data,data,len);
 }
+#ifdef ALPC_IDENTITY_TEST
+#define SecurityImpersonation 2
+struct sid {unsigned value;};
+struct token {struct object obj;unsigned identity;};
+static unsigned current_identity=0x1234;
+static struct token *thread_get_impersonation_token(void *thread) {return NULL;}
+static struct token *token_duplicate(struct token *src,unsigned primary,unsigned level,const void *sd,
+                                    const void *priv,unsigned count,const void *sids,unsigned n) {
+    struct token *token=calloc(1,sizeof(*token));assert(token);
+    token->obj.refcount=1;token->identity=current_identity;++objects;return token;
+}
+static int sid_valid_size(const struct sid *sid,unsigned size) {return size==sizeof(*sid);}
+static unsigned sid_len(const struct sid *sid) {return sizeof(*sid);}
+static int sd_is_valid(const struct security_descriptor *sd,unsigned size) {return size==sizeof(*sd);}
+static int token_alpc_identity(struct token *t,const struct sid *sid,const struct security_descriptor *sd,const void *map) {
+    return t->identity==(sid?sid->value:sd->unused);
+}
+#endif
 struct request {
     unsigned handle,flags,max_msg_len,connect_flags,msg_id,accept,callback_id,request,match_id;
+    unsigned identity_kind,identity_size;
     uint64_t context,msg_context;
 };
 struct reply {
@@ -177,6 +200,27 @@ int main(void) {
     unsigned conn,client,server,id;
     reply_capacity=sizeof(reply_data);
     reply=call(alpc_create_port,(struct request){0});conn=reply.handle;assert(!error&&conn);
+#ifdef ALPC_IDENTITY_TEST
+    current_identity=0x5678; /* A later caller's identity must not replace the creator snapshot. */
+    struct sid expected={0x1234};
+    request_data=&expected;request_size=sizeof(expected);
+    reply=call(alpc_connect_port,(struct request){.identity_kind=1,.identity_size=sizeof(expected)});
+    assert(!error&&reply.handle);close_handle(reply.handle);
+    expected.value=0x5678;
+    reply=call(alpc_connect_port,(struct request){.identity_kind=1,.identity_size=sizeof(expected)});
+    assert(error==STATUS_SERVER_SID_MISMATCH&&!reply.handle);
+    expected.value=0x1234;
+    reply=call(alpc_connect_port,(struct request){.identity_kind=2,.identity_size=sizeof(expected)});
+    assert(!error&&reply.handle);close_handle(reply.handle);
+    expected.value=0;
+    reply=call(alpc_connect_port,(struct request){.identity_kind=2,.identity_size=sizeof(expected)});
+    assert(error==STATUS_SERVER_SID_MISMATCH&&!reply.handle);
+    reply=call(alpc_connect_port,(struct request){.identity_kind=1,.identity_size=1});
+    assert(error==STATUS_INVALID_SID&&!reply.handle);
+    reply=call(alpc_connect_port,(struct request){.identity_kind=2,.identity_size=1});
+    assert(error==STATUS_INVALID_SECURITY_DESCR&&!reply.handle);
+    request_size=0;
+#endif
     client=connect_client(0);
     assert(!alpc_port_signaled(handles[client],NULL));
     id=receive_id(conn);

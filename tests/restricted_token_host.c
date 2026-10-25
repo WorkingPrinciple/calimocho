@@ -153,6 +153,15 @@ int main(void) {
     entry(&acl,ACCESS_ALLOWED_ACE_TYPE,user,GENERIC_ALL);
     assert(check(&source,&sd,&map,1)==1);
     assert(!check(&full,&sd,&map,1));
+#ifdef ALPC_IDENTITY_TEST
+    assert(token_alpc_identity(&source,&user,NULL,&map));
+    assert(!token_alpc_identity(&source,&other,NULL,&map));
+    assert(token_alpc_identity(&source,NULL,&sd,&map));
+    assert(!token_alpc_identity(&full,NULL,&sd,&map));
+    entry(&acl,ACCESS_ALLOWED_ACE_TYPE,restrictor,1);
+    assert(token_alpc_identity(&full,NULL,&sd,&map));
+    --acl.count;
+#endif
     assert(check(&write,&sd,&map,1)==1);
     assert(!check(&write,&sd,&map,2));
     assert(check(&write,&sd,&map,SYNCHRONIZE|READ_CONTROL)==(SYNCHRONIZE|READ_CONTROL));
