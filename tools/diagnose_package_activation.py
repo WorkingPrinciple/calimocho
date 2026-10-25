@@ -52,9 +52,16 @@ class CallDiagnostics:
         self.handles = deque(maxlen=4096)
         self.rpc = deque(maxlen=1024)
         self.handle_count = self.rpc_count = 0
+        self.exceptions = []
+        self.origins = deque(maxlen=128)
+        self.exception_limited = set()
+        self.exception_policy_pids = set()
 
     def observe(self, pid, tid, channel, function, message):
-        if channel not in ("pkgiface", "pkgrelay", "pkgwait", "pkgro", "pkgthread", "pkghandle", "pkgrpc"):
+        if channel == "pkgcore" and function == "application_run" and message == "exception-policy no-gpfault-dialog=1":
+            self.exception_policy_pids.add(pid)
+            return
+        if channel not in ("pkgiface", "pkgrelay", "pkgwait", "pkgro", "pkgthread", "pkghandle", "pkgrpc", "pkgexception"):
             return
         if pid not in self.counts:
             if len(self.counts) >= 8:
@@ -64,7 +71,42 @@ class CallDiagnostics:
             self.relays[pid] = deque(maxlen=300)
         self.sequence += 1
         fact = {"pid": pid, "tid": tid, "sequence": self.sequence}
-        if channel == "pkghandle" and function == "diagnostic_handle" and pid in self.running:
+        if channel == "pkgexception" and function == "diagnostic_exception" and pid in self.running:
+            if message == "exception limited=1":
+                self.exception_limited.add(pid)
+                return
+            match = re.fullmatch(
+                r"exception stage=unhandled-filter id=([0-9]{1,2}) code=([0-9a-f]{8}) flags=([0-9a-f]{8}) "
+                r"count=([0-9]{1,10}) module=([A-Za-z0-9_.-]{1,127}) offset=([0-9a-f]{1,16}) hresult=unknown", message)
+            parameter = re.fullmatch(
+                r"parameter id=([0-9]{1,2}) slot=([0-9]{1,2}) kind=(scalar|cpp-magic) value=([0-9a-f]{8})", message)
+            address = re.fullmatch(
+                r"parameter id=([0-9]{1,2}) slot=([0-9]{1,2}) kind=address module=([A-Za-z0-9_.-]{1,127}) offset=([0-9a-f]{1,16})", message)
+            if match and len(self.exceptions) < 256:
+                fact.update(id=int(match[1]), stage="unhandled-filter-entry", code="0x" + match[2],
+                            flags="0x" + match[3], parameter_count=int(match[4]),
+                            module=match[5], offset=match[6], hresult=None, parameters=[],
+                            relay_tail=[dict(row) for row in list(self.relays[pid])[-50:]],
+                            origin_candidates=[dict(row) for row in self.origins if row["pid"] == pid and row["tid"] == tid],
+                            basis="actual unhandled-filter entry, not necessarily final termination")
+                self.exceptions.append(fact)
+            elif parameter or address:
+                item = parameter or address
+                row = next((row for row in reversed(self.exceptions)
+                            if row["pid"] == pid and row["tid"] == tid and row["id"] == int(item[1])), None)
+                if row and int(item[2]) < 15 and len(row["parameters"]) < 15:
+                    value = {"slot": int(item[2]), "kind": item[3] if parameter else "address"}
+                    if parameter:
+                        value["value"] = "0x" + item[4]
+                    else:
+                        value.update(module=item[3], offset=item[4])
+                    row["parameters"].append(value)
+        elif channel == "pkgro" and function in ("RoOriginateError", "RoOriginateErrorW", "RoOriginateLanguageException"):
+            match = re.fullmatch(r"origin operation=(RoOriginateError|RoOriginateErrorW|RoOriginateLanguageException) hresult=([0-9a-f]{8})", message)
+            if match and function == match[1]:
+                fact.update(operation=match[1], hresult="0x" + match[2])
+                self.origins.append(fact)
+        elif channel == "pkghandle" and function == "diagnostic_handle" and pid in self.running:
             match = re.fullmatch(
                 r"handle operation=(NtCreateEvent|NtOpenEvent|NtOpenProcess|NtDuplicateObject|NtClose|NtCreateUserProcess|NtConnectPort|NtSecureConnectPort|NtAlpcConnectPort) "
                 r"phase=(enter|exit) result=([0-9a-f]{8}) handle=([0-9a-f]{1,8}) source=([0-9a-f]{1,8}) "
@@ -282,6 +324,10 @@ class CallDiagnostics:
             "handle_tail_overwritten": max(0, self.handle_count - self.handles.maxlen),
             "rpc_connection_attempts": select(self.rpc),
             "rpc_tail_overwritten": max(0, self.rpc_count - self.rpc.maxlen),
+            "unhandled_filter_exceptions": select(self.exceptions),
+            "exception_source_limited": bool(target_pids & self.exception_limited),
+            "winrt_error_origins": select(self.origins),
+            "no_gpfault_dialog_policy_observed": sorted(target_pids & self.exception_policy_pids),
             "basis": "instrumented calls, not a deadlock or unsignalled-event cause determination",
         }
 
@@ -768,7 +814,7 @@ def collect(argv, environment, cwd, seconds=60, post_exit_seconds=2,
                                 continue
                             line = part.decode("utf-8", errors="replace").rstrip("\r")
                             if seen > 8 * 1024 * 1024 and stream == "stderr" and not re.match(
-                                    r"^[0-9a-f]+:[0-9a-f]+:trace:(?:pkgiface|pkgrelay|pkgwait|pkgcore|pkgwindow|pkglaunch|pkgro|pkgthread|pkghandle|pkgrpc):",
+                                    r"^[0-9a-f]+:[0-9a-f]+:trace:(?:pkgiface|pkgrelay|pkgwait|pkgcore|pkgwindow|pkglaunch|pkgro|pkgthread|pkghandle|pkgrpc|pkgexception):",
                                     line, re.IGNORECASE):
                                 continue
                             getattr(trace, stream)(line)

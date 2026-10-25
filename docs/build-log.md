@@ -3011,3 +3011,40 @@ original native recipe,180-second cap and sealed015 predecessor.
 All210 deterministic host tests pass. The frozen receipt was sent to0ab
 for the once-only runtime observation, copying the coordinator. Actual016
 remains unobserved at this handoff.
+
+### Actual016: waited process is winedbg.exe
+
+Actual016 ran once and was cleaned by the runtime owner. Its unchanged
+runtime receipt SHA-256 is
+`ff89bbd19a1f2cd44633b591b363984bb9c16f160dc1a12384089c8532424746`;
+redacted output is
+`7b16d816bf0a37f749d6598aae3235357839df2d089d087ae57ab3a0d7e5efb8`.
+The pending wait was actual WaitAny, infinite/nonalertable. Event88 was
+unsignaled at entry; process94 queried successfully as Wine PID356,
+parent256, winedbg.exe, exit STATUS_PENDING/alive at entry.
+NtCreateUserProcess returned that process before the sampler attachments.
+Earlier event88 close rows show handle reuse; latest creation was unnamed.
+These are chronological candidates, not complete creator stacks.
+
+There were68 handle events and15 admitted relays, with no reached cap.
+No covered Run-scoped LPC/ALPC or actual RPC client-connect rows were
+observed. This is not a global no-IPC claim. Native Initialize entered
+without exit, windows remained0, and the180.194-second observation left
+target exit unknown. The exact debugger launch reason was not retained.
+
+Separate cleanup analysis SHA-256 is
+`68c830dc622146b567e3764241aeb7210d9e7fa6ae9fb5a090242f2a6201f000`.
+The owner reports exact016 stop0/7.265s, wait0/1.306s,11 recorded host
+PIDs absent, open-file check clear, and unchanged012-015. All three evidence
+hashes were independently checked read-only.
+
+### Cell017: actual unhandled-filter and exit discriminator
+
+The owner approved017 diagnostics. Exact Wine source shows Auto=0 can
+prompt and removing Debugger falls back to winedbg. The new source therefore
+binds fresh-prefix Auto=0 plus diagnostic-only SEM_NOGPFAULTERRORBOX at Run,
+restoring the prior error mode on return. See
+[ADR-0049](ADR/0049-observe-unhandled-exception-without-a-debugger.md).
+It records real unhandled-filter metadata, safe typed/redacted parameters,
+last50 admitted relay calls and separate WinRT error-origin HRESULTs.
+No C++ object layout or exception HRESULT is guessed.

@@ -63,11 +63,11 @@ def prepare(root, producer, cell=13):
         raise ValueError("Require compiled unexecuted state observer")
     if sha256(Path(record["output"])) != record["output_sha256"] or sha256(Path(record["source"])) != record["source_sha256"]:
         raise ValueError("State observer source or binary changed")
-    if cell not in (13, 14, 15, 16):
+    if cell not in (13, 14, 15, 16, 17):
         raise ValueError("Unsupported diagnostic cell")
     extra = SOURCES
     previous, digest = PREVIOUS, "d28d3873654eaf4c563db8cf64ef4b2368176729befb6c72eec847b128a9c39f"
-    if cell in (14, 15, 16):
+    if cell in (14, 15, 16, 17):
         previous = REPO / "build/winehq-11.20/package-uwp-state-01/cell013-receipt.json"
         digest = "a0cf124b6c1040de0cbe180a70c9969612314e95511281cc769d58ee752e0285"
         extra += ("tools/port_call_diagnostics.py", "patches/wine/files/package_call_diagnostics.h",
@@ -81,7 +81,7 @@ def prepare(root, producer, cell=13):
         for header, value in build["call_diagnostics"]["headers"].items():
             if sha256(Path(header)) != value:
                 raise ValueError("Diagnostic ABI header changed")
-    if cell in (15, 16):
+    if cell in (15, 16, 17):
         previous = REPO / "build/winehq-11.20/package-uwp-calltrace-01/cell014-receipt.json"
         digest = "30b6d6514d58ec6ee188768345673abea86d11d5a0254fce38db9f7484646b48"
         from tools.port_activation_wait_diagnostics import SOURCES as ACTIVATION_SOURCES
@@ -91,7 +91,7 @@ def prepare(root, producer, cell=13):
         for relative, value in build["activation_wait_diagnostics"]["files"].items():
             if sha256(root / "source" / relative) != value:
                 raise ValueError("Generated activation/wait source changed")
-    if cell == 16:
+    if cell in (16, 17):
         previous = REPO / "build/winehq-11.20/package-uwp-activation-waits-01/cell015-receipt.json"
         digest = "58eccd9ec5d9aba954eb80251efadb8d8117b2f49aba6088604e981b5b50a122"
         from tools.port_handle_provenance import SOURCES as HANDLE_SOURCES
@@ -105,6 +105,16 @@ def prepare(root, producer, cell=13):
         for relative, value in build["handle_provenance"]["files"].items():
             if sha256(root / "source" / relative) != value:
                 raise ValueError("Generated handle/IPC source changed")
+    if cell == 17:
+        previous = REPO / "build/winehq-11.20/package-uwp-handle-provenance-01/cell016-receipt.json"
+        digest = "b55779b754cacf0b091dac907c381a9dcf3133acdbe8169b8f18a226705d38d5"
+        from tools.port_exception_diagnostics import SOURCES as EXCEPTION_SOURCES
+        extra += EXCEPTION_SOURCES
+        if "exception_diagnostics" not in build:
+            raise ValueError("Cell017 requires actual exception source port")
+        for relative, value in build["exception_diagnostics"]["files"].items():
+            if sha256(root / "source" / relative) != value:
+                raise ValueError("Generated exception source changed")
     path = freeze(root, producer, cell=cell, predecessor=previous,
                   predecessor_sha256=digest, extra_sources=extra)
     receipt = json.loads(path.read_text())
@@ -132,7 +142,7 @@ def prepare(root, producer, cell=13):
         "Stack frames use basename plus module-relative offsets; unknown mappings are redacted",
         "Snapshot failures/truncation and debugger perturbation remain explicit; no inferred deadlock or UI acceptance",
     ]
-    if cell in (14, 15, 16):
+    if cell in (14, 15, 16, 17):
         receipt["call_diagnostics"] = build["call_diagnostics"]
         receipt["scope"] = "cell014 diagnostic-only complete owned COM vtables, sanitized native-XAML relay and actual wait pairs"
         receipt["preconditions"] += [
@@ -148,7 +158,7 @@ def prepare(root, producer, cell=13):
             "Wait object type and event state are read-only observations before actual wait, not a proven cause",
             "Collector retains fixed diagnostic grammar past ordinary8MiB cutoff; no argument strings, object names or absolute addresses",
         ]
-    if cell in (15, 16):
+    if cell in (15, 16, 17):
         receipt["scope"] = "cell015 public activation entry/result/provider, actual wait object state and thread creation/liveness"
         receipt["activation_wait_diagnostics"] = build["activation_wait_diagnostics"]
         receipt["limitations"] += [
@@ -161,7 +171,7 @@ def prepare(root, producer, cell=13):
             "Creator return-slot metadata is not a recovered full stack or proven semantic call chain; remote-process thread creation is outside this in-process scope",
             "Snapshot alive means observed thread exit status; pending wait entries are correlated separately, not guessed OS thread-state enums",
         ]
-    if cell == 16:
+    if cell in (16, 17):
         receipt["scope"] = "cell016 process-handle identity, event/process creation provenance and IPC attempts"
         receipt["handle_provenance"] = build["handle_provenance"]
         receipt["limitations"] += [
@@ -176,6 +186,31 @@ def prepare(root, producer, cell=13):
             "RPC OpenClientConnection is the actual transport attempt,1024 retained entry/exit events; endpoints and binding strings excluded",
             "No process/broker, event, RPC service or success behavior is synthesized; absent covered calls do not prove absence of all IPC",
         ]
+    if cell == 17:
+        receipt["scope"] = "cell017 real unhandled-filter exception, no debugger dialog and actual target exit"
+        receipt["exception_diagnostics"] = build["exception_diagnostics"]
+        registration = root / "aedebug-CELL017-FROZEN.reg"
+        registration.write_bytes((
+            "Windows Registry Editor Version 5.00\r\n\r\n"
+            "[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug]\r\n"
+            '"Auto"="0"\r\n').encode("utf-16"))
+        from tools.prepare_verified_activation import dos
+        receipt["aedebug_registration"] = str(registration)
+        receipt["aedebug_registration_sha256"] = sha256(registration)
+        receipt["aedebug_registration_argv"] = receipt["activation_argv"][:3] + ["regedit", "/S", dos(registration)]
+        receipt["preconditions"] += [
+            "Before target activation import aedebug_registration_argv only into this fresh017 prefix; record import exit and Auto=0 readback",
+            "CoreApplication.Run diagnostic source sets SEM_NOGPFAULTERRORBOX and restores previous error mode if Run returns",
+            "Observe real target-handle exit/code or preserve unknown at180s; do not launch debugger manually",
+        ]
+        receipt["limitations"] += [
+            "Exact Wine source defaults to winedbg when Debugger is absent; Auto=0 alone can prompt, so scoped no-GPFault error mode bypasses debugger/dialog",
+            "Unhandled-filter entry is actual unhandled dispatch, not proof the application filter will terminate; target exit is separate evidence",
+            "First32 exception records retain code/flags/image-relative address, typed scalar parameters and redacted/image-relative pointer parameters",
+            "C++ object layout is not guessed; HRESULT unknown unless separately observed RoOriginateError/LanguageException, same-thread origin candidates are not definitive exception decoding",
+            "Last50 retained admitted relay calls are bound at exception entry; no private exception object, strings or absolute addresses",
+            "Fresh private prefix registry change is reversible by removing017 prefix; sealed012-016 and existing prefixes untouched",
+        ]
     path.write_text(json.dumps(receipt, indent=2) + "\n")
     return path
 
@@ -186,7 +221,7 @@ if __name__ == "__main__":
     parser.add_argument("--producer-commit")
     parser.add_argument("--compile-only", action="store_true")
     parser.add_argument("--resume", action="store_true")
-    parser.add_argument("--cell", type=int, choices=(13, 14, 15, 16), default=13)
+    parser.add_argument("--cell", type=int, choices=(13, 14, 15, 16, 17), default=13)
     args = parser.parse_args()
     if args.compile_only:
         print(json.dumps(compile_observer(args.root, args.resume), indent=2))
