@@ -2698,7 +2698,7 @@ The012 handoff derives from011's observed558 supported native XAML
 mappings and frozen authenticated graph, with new runtime, helper, collector
 and Launcher import paths. It preserves sealed009/010/011 and does not
 rewrite or copy Microsoft binaries. See
-[ADR-0044](ADR/0044-retain-genuine-static-lifetime-factories.md).
+[the lifetime ABI decision](ADR/0050-use-the-observed-native-coreapplication-lifetime-abi.md).
 
 The012 receipt is frozen at SHA-256
 `d28d3873654eaf4c563db8cf64ef4b2368176729befb6c72eec847b128a9c39f`,
@@ -3127,3 +3127,35 @@ The VM evidence owner reports a19-slot interface in version10.0.26100.9711
 That preliminary report is not yet full slot/ownership acceptance.
 No guessed padding, interface success, native replay or prefix mutation
 has occurred during this investigation.
+
+### Cell018 source fix: observed nineteen-slot lifetime interface
+
+The completed read-only Windows evidence resolves the ABI shape and
+callback/token ownership. Its derived-facts JSON SHA-256 was independently
+verified as
+`8c02195d96ddc0ee346be0019d40c2c9a04ffd5b4c7a243311e89207b2dc88b5`.
+[ADR-0050](ADR/0050-use-the-observed-native-coreapplication-lifetime-abi.md)
+replaces the incomplete public-header assumption, retaining genuine
+PropertySet storage at slots6/7.
+
+The new table has nineteen typed entries. Slot11 retains callbacks with
+AddRef and returns a unique nonzero INT64 token. Slot12 removes by token
+and balances the reference, with successful absent-token removal.
+Unknown slots8/9/10/13-18 clear their observed output width and return
+logged E_NOTIMPL. No event delivery or apartment marshaling is invented.
+Suspending/Resuming failures also clear token outputs.
+
+The isolated `package-uwp-lifetime19-01` source build and stage succeeded
+with the unchanged activation/wait/provenance/exception diagnostic modes.
+The diagnostic header now comes from the current IDL: all133 typed slots
+are covered, including nineteen lifetime entries. The extended Windows
+fixture and target state observer compiled. No Wine ran here.
+
+All219 deterministic host tests passed. New tests compile and execute the
+actual callback implementation on the host, checking32-entry exhaustion,
+token uniqueness, repeated removal, balanced references and one-byte,
+four-byte and pointer-sized output canaries. Historical014 still checks
+its frozen122-slot shape, not the new table.
+
+Native018 progress remains unobserved until the exclusive runtime owner
+executes the newly frozen recipe once in its fresh private prefix.

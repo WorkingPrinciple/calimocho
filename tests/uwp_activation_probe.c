@@ -21,11 +21,32 @@
 #undef Size
 C_ASSERT(offsetof(IStaticLifetimeVtbl, Reserved) == 6 * sizeof(void *));
 C_ASSERT(offsetof(IStaticLifetimeVtbl, GetCollection) == 7 * sizeof(void *));
+C_ASSERT(offsetof(IStaticLifetimeVtbl, AddCallback) == 11 * sizeof(void *));
+C_ASSERT(offsetof(IStaticLifetimeVtbl, RemoveCallback) == 12 * sizeof(void *));
+C_ASSERT(sizeof(IStaticLifetimeVtbl) == 19 * sizeof(void *));
 C_ASSERT(offsetof(IMap_HSTRING_IInspectableVtbl, Lookup) == 6 * sizeof(void *));
 C_ASSERT(offsetof(IMap_HSTRING_IInspectableVtbl, Insert) == 10 * sizeof(void *));
 C_ASSERT(offsetof(IMap_HSTRING_IInspectableVtbl, Remove) == 11 * sizeof(void *));
 
 static unsigned int failures, activated, dispatched;
+static LONG lifetime_callback_refs = 1;
+static HRESULT WINAPI lifetime_callback_query(IUnknown *iface, REFIID iid, void **out)
+{
+    if (!out) return E_POINTER;
+    *out = NULL;
+    if (!IsEqualGUID(iid, &IID_IUnknown)) return E_NOINTERFACE;
+    *out = iface;
+    InterlockedIncrement(&lifetime_callback_refs);
+    return S_OK;
+}
+static ULONG WINAPI lifetime_callback_addref(IUnknown *iface)
+{ return InterlockedIncrement(&lifetime_callback_refs); }
+static ULONG WINAPI lifetime_callback_release(IUnknown *iface)
+{ return InterlockedDecrement(&lifetime_callback_refs); }
+static const IUnknownVtbl lifetime_callback_vtable = {
+    lifetime_callback_query, lifetime_callback_addref, lifetime_callback_release,
+};
+static IUnknown lifetime_callback = {&lifetime_callback_vtable};
 static ICoreWindow *window;
 static ICoreDispatcher *dispatcher;
 static IAsyncAction *action;
@@ -220,7 +241,19 @@ static int static_lifetime_probe(void)
     check(hr == S_OK && lifetime);
     WindowsDeleteString(name);
     if (!lifetime) goto done;
-    check(IStaticLifetime_Reserved(lifetime) == E_NOTIMPL);
+    check(IStaticLifetime_Reserved(lifetime, NULL) == E_POINTER);
+    {
+        IInspectable *alias = NULL;
+        INT64 callback_token = 0;
+        const IUnknownVtbl *before = lifetime_callback.lpVtbl;
+        check(IStaticLifetime_Reserved(lifetime, &alias) == S_OK && alias);
+        if (alias) IInspectable_Release(alias);
+        check(IStaticLifetime_AddCallback(lifetime, &lifetime_callback, &callback_token) == S_OK);
+        check(callback_token != 0 && lifetime_callback_refs == 2 && lifetime_callback.lpVtbl == before);
+        check(IStaticLifetime_RemoveCallback(lifetime, callback_token) == S_OK && lifetime_callback_refs == 1);
+        check(IStaticLifetime_RemoveCallback(lifetime, callback_token) == S_OK && lifetime_callback_refs == 1);
+        check(IStaticLifetime_AddCallback(lifetime, NULL, &callback_token) == E_POINTER && callback_token == 0);
+    }
     check(IStaticLifetime_GetCollection(lifetime, NULL) == E_POINTER);
     check(IStaticLifetime_GetCollection(lifetime, &collection) == S_OK && collection);
     check(IStaticLifetime_GetCollection(lifetime, &second) == S_OK && second);

@@ -106,6 +106,17 @@ int main(void)
         self.emit(trace, "pkgrelay", "diagnostic_relay",
                   f"relay module=combase export=RoGetActivationFactory caller=Windows.UI.Xaml.dll offset={offset:x}", pid)
 
+    def test_private_lifetime_unknown_slot_fingerprints_are_explicit_and_allowlisted(self):
+        trace = self.trace()
+        slots = (8, 9, 10, 13, 14, 15, 16, 17, 18)
+        for slot in (*slots, 19):
+            self.emit(trace, "pkgcore", "lifetime_unknown",
+                      f"missing-method=StaticLifetime.Slot{slot} result=80004001")
+        rows = trace.verdict()["protocol_target_activation_results"]
+        self.assertEqual([row["missing_method"] for row in rows],
+                         ["StaticLifetime.Slot%d" % slot for slot in slots])
+        self.assertTrue(all(row["hresult"] == "0x80004001" for row in rows))
+
     def test_query_interface_exact_iid_result_and_return_kind(self):
         trace = self.trace()
         for phase in ("enter", "exit"):
@@ -208,7 +219,10 @@ int main(void)
         coverage = build["call_diagnostics"]["interfaces"]
         self.assertEqual(sum(map(len, coverage.values())), 122)
         for label, names in coverage.items():
-            self.assertEqual(set(names), CallDiagnostics.COMMON | CallDiagnostics.METHODS[label])
+            expected = CallDiagnostics.COMMON | CallDiagnostics.METHODS[label]
+            if label == "StaticLifetime":
+                expected = CallDiagnostics.COMMON | {"Reserved", "GetCollection"}
+            self.assertEqual(set(names), expected)
         generated, names = wrappers(BASE / "build/include/windows.ui.core.h", "ICoreWindow", "window_vtable", "CoreWindow")
         self.assertEqual(len(names), 58)
         for name in names:

@@ -5,8 +5,19 @@ import "windows.foundation.idl";
 [uuid(17b0e613-942a-422d-904c-f90dc71a7dae), object]
 interface IStaticLifetime : IInspectable
 {
-    HRESULT Reserved();
+    HRESULT Reserved([out] IInspectable **value);
     HRESULT GetCollection([out] IInspectable **value);
+    HRESULT Slot8(UINT32 index, [out] IInspectable **value);
+    HRESULT Slot9(UINT32 index, [out] IInspectable **value);
+    HRESULT Slot10([out] IInspectable **value);
+    HRESULT AddCallback([in] IUnknown *callback, [out] INT64 *token);
+    HRESULT RemoveCallback(INT64 token);
+    HRESULT Slot13(UINT32 index, [out] IInspectable **value);
+    HRESULT Slot14([out] boolean *value);
+    HRESULT Slot15([in] const GUID *key, [out] IInspectable **value);
+    HRESULT Slot16(UINT32 index, [out] IInspectable **value);
+    HRESULT Slot17([in] IUnknown *object, [out] UINT32 *value);
+    HRESULT Slot18(UINT32 index, [out] IInspectable **value);
 }
 namespace Windows.ApplicationModel.Activation
 {

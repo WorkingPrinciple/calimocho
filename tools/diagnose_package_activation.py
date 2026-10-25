@@ -23,7 +23,8 @@ class CallDiagnostics:
         "CoreFactory": frozenset(("ActivateInstance",)),
         "CoreApplication": frozenset("get_Id add_Suspending remove_Suspending add_Resuming remove_Resuming get_Properties GetCurrentView Run RunWithActivationFactories".split()),
         "CoreApplicationView": frozenset("get_CoreWindow add_Activated remove_Activated get_IsMain get_IsHosted".split()),
-        "StaticLifetime": frozenset(("Reserved", "GetCollection")),
+        "StaticLifetime": frozenset(("Reserved", "GetCollection", "AddCallback", "RemoveCallback",
+                                     "Slot8", "Slot9", "Slot10", "Slot13", "Slot14", "Slot15", "Slot16", "Slot17", "Slot18")),
         "StaticCollection": frozenset("Lookup get_Size HasKey GetView Insert Remove Clear".split()),
         "CoreDispatcher": frozenset("get_HasThreadAccess ProcessEvents RunAsync RunIdleAsync".split()),
         "CoreWindow": frozenset("get_AutomationHostProvider get_Bounds get_CustomProperties get_Dispatcher get_FlowDirection put_FlowDirection get_IsInputEnabled put_IsInputEnabled get_PointerCursor put_PointerCursor get_PointerPosition get_Visible Activate Close GetAsyncKeyState GetKeyState ReleasePointerCapture SetPointerCapture".split())
@@ -433,7 +434,7 @@ class ActivationTrace:
             missing_iid = re.fullmatch(
                 r'missing-iid=(\{[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\}) result=80004002',
                 message, re.IGNORECASE)
-            missing_method = re.fullmatch(r'missing-method=([A-Za-z.]{1,64}) result=80004001', message)
+            missing_method = re.fullmatch(r'missing-method=([A-Za-z0-9.]{1,64}) result=80004001', message)
             methods = {
                 "Suspending", "RemoveSuspending", "Resuming", "RemoveResuming", "Properties",
                 "RunWithActivationFactories", "CoreWindow.GetForCurrentThread", "CreateCoreWindow",
@@ -447,6 +448,7 @@ class ActivationTrace:
                       "PointerMoved", "PointerPressed", "PointerReleased", "TouchHitTesting",
                       "PointerWheelChanged", "VisibilityChanged"}
             methods |= events | {"Remove" + name for name in events}
+            methods |= {"StaticLifetime.Slot%d" % slot for slot in (8, 9, 10, 13, 14, 15, 16, 17, 18)}
             if missing_iid:
                 fact.update(missing_iid=missing_iid[1].lower(), hresult="0x80004002")
                 self.append_fact(self.activation_results, fact)

@@ -2,6 +2,7 @@
 from pathlib import Path
 import re
 import shutil
+import subprocess
 
 from tools.build_launcher_overlay import REPO
 from tools.port_uwp_activation import replace
@@ -82,11 +83,21 @@ def port(source):
     for relative in ("dlls/ntdll/relay.c", "dlls/ntdll/ntdll.spec", "dlls/ntdll/unix/sync.c", "dlls/ntdll/loader.c"):
         shutil.copy2(BASE / "source" / relative, source / relative)
     include = BASE / "build/include"
+    lifetime_header = source.parent / "diagnostic-abi/package_activation.h"
+    lifetime_header.parent.mkdir(exist_ok=True)
+    from tools.build_gameinput_overlay import WINE
+    result = subprocess.run([
+        str(WINE / "build/tools/widl/widl"), "-h", "-o", str(lifetime_header),
+        "-I", str(source / "include"), str(source / "dlls/twinapi.appcore/package_activation.idl"),
+    ], capture_output=True, text=True, timeout=60)
+    (lifetime_header.parent / "widl.log").write_text(result.stdout + result.stderr)
+    if result.returncode:
+        raise RuntimeError("Current lifetime ABI header generation failed; see diagnostic-abi/widl.log")
     instrument(source, "dlls/twinapi.appcore/core_application.c", (
         ("IActivationFactory", "core_vtable", include / "activation.h", "CoreFactory"),
         ("ICoreApplication", "application_vtable", include / "windows.applicationmodel.core.h", "CoreApplication"),
         ("ICoreApplicationView", "view_vtable", include / "windows.applicationmodel.core.h", "CoreApplicationView"),
-        ("IStaticLifetime", "lifetime_vtable", BASE / "build/dlls/twinapi.appcore/package_activation.h", "StaticLifetime"),
+        ("IStaticLifetime", "lifetime_vtable", lifetime_header, "StaticLifetime"),
         ("IMap_HSTRING_IInspectable", "collection_vtable", include / "windows.foundation.h", "StaticCollection"),
     ), inputs, coverage)
     instrument(source, "dlls/windows.ui/corewindow_host.c", (

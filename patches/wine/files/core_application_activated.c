@@ -196,6 +196,7 @@ struct core
     DWORD thread;
     INT64 next_token;
     struct { INT64 token; activated_handler *handler; } handlers[32];
+    struct { INT64 token; IUnknown *callback; } lifetime_callbacks[32];
 };
 static struct core core;
 static SRWLOCK handler_lock = SRWLOCK_INIT;
@@ -360,11 +361,6 @@ static const IMap_HSTRING_IInspectableVtbl collection_vtable = {
     collection_lookup, collection_size, collection_has, collection_view, collection_insert, collection_remove, collection_clear,
 };
 static IMap_HSTRING_IInspectable lifetime_collection = {&collection_vtable};
-static HRESULT WINAPI lifetime_reserved(IStaticLifetime *iface)
-{
-    TRACE("missing-method=StaticLifetime.Reserved result=80004001\n");
-    return E_NOTIMPL;
-}
 static HRESULT WINAPI lifetime_collection_get(IStaticLifetime *iface, IInspectable **out)
 {
     HRESULT hr;
@@ -389,10 +385,87 @@ static HRESULT WINAPI lifetime_collection_get(IStaticLifetime *iface, IInspectab
     progress("StaticLifetime.GetCollection", "exit", S_OK);
     return S_OK;
 }
+static HRESULT WINAPI lifetime_reserved(IStaticLifetime *iface, IInspectable **out)
+{ return lifetime_collection_get(iface, out); }
+static HRESULT lifetime_unknown(const char *slot, IInspectable **out)
+{
+    if (!out) return E_POINTER;
+    *out = NULL;
+    TRACE("missing-method=StaticLifetime.%s result=80004001\n", slot);
+    return E_NOTIMPL;
+}
+static HRESULT WINAPI lifetime_slot8(IStaticLifetime *iface, UINT32 index, IInspectable **out)
+{ return lifetime_unknown("Slot8", out); }
+static HRESULT WINAPI lifetime_slot9(IStaticLifetime *iface, UINT32 index, IInspectable **out)
+{ return lifetime_unknown("Slot9", out); }
+static HRESULT WINAPI lifetime_slot10(IStaticLifetime *iface, IInspectable **out)
+{ return lifetime_unknown("Slot10", out); }
+static HRESULT WINAPI lifetime_add_callback(IStaticLifetime *iface, IUnknown *callback, INT64 *token)
+{
+    unsigned int i;
+    if (!token) return E_POINTER;
+    *token = 0;
+    if (!callback) return E_POINTER;
+    /* Never call external reference-count methods while holding the list lock. */
+    IUnknown_AddRef(callback);
+    AcquireSRWLockExclusive(&handler_lock);
+    for (i = 0; i < ARRAY_SIZE(core.lifetime_callbacks); ++i)
+        if (!core.lifetime_callbacks[i].callback) break;
+    if (i == ARRAY_SIZE(core.lifetime_callbacks) || core.next_token == INT64_MAX)
+    {
+        ReleaseSRWLockExclusive(&handler_lock);
+        IUnknown_Release(callback);
+        return E_OUTOFMEMORY;
+    }
+    core.lifetime_callbacks[i].callback = callback;
+    core.lifetime_callbacks[i].token = *token = ++core.next_token;
+    ReleaseSRWLockExclusive(&handler_lock);
+    return S_OK;
+}
+static HRESULT WINAPI lifetime_remove_callback(IStaticLifetime *iface, INT64 token)
+{
+    IUnknown *callback = NULL;
+    unsigned int i;
+    AcquireSRWLockExclusive(&handler_lock);
+    for (i = 0; i < ARRAY_SIZE(core.lifetime_callbacks); ++i)
+        if (core.lifetime_callbacks[i].callback && core.lifetime_callbacks[i].token == token)
+        {
+            callback = core.lifetime_callbacks[i].callback;
+            core.lifetime_callbacks[i].callback = NULL;
+            break;
+        }
+    ReleaseSRWLockExclusive(&handler_lock);
+    if (callback) IUnknown_Release(callback);
+    return S_OK;
+}
+static HRESULT WINAPI lifetime_slot13(IStaticLifetime *iface, UINT32 index, IInspectable **out)
+{ return lifetime_unknown("Slot13", out); }
+static HRESULT WINAPI lifetime_slot14(IStaticLifetime *iface, boolean *out)
+{
+    if (!out) return E_POINTER;
+    *out = FALSE;
+    TRACE("missing-method=StaticLifetime.Slot14 result=80004001\n");
+    return E_NOTIMPL;
+}
+static HRESULT WINAPI lifetime_slot15(IStaticLifetime *iface, const GUID *key, IInspectable **out)
+{ return lifetime_unknown("Slot15", out); }
+static HRESULT WINAPI lifetime_slot16(IStaticLifetime *iface, UINT32 index, IInspectable **out)
+{ return lifetime_unknown("Slot16", out); }
+static HRESULT WINAPI lifetime_slot17(IStaticLifetime *iface, IUnknown *object, UINT32 *out)
+{
+    if (!out) return E_POINTER;
+    *out = 0;
+    TRACE("missing-method=StaticLifetime.Slot17 result=80004001\n");
+    return E_NOTIMPL;
+}
+static HRESULT WINAPI lifetime_slot18(IStaticLifetime *iface, UINT32 index, IInspectable **out)
+{ return lifetime_unknown("Slot18", out); }
 static const IStaticLifetimeVtbl lifetime_vtable = {
     lifetime_QueryInterface, lifetime_AddRef, lifetime_Release,
     lifetime_GetIids, lifetime_GetRuntimeClassName, lifetime_GetTrustLevel,
     lifetime_reserved, lifetime_collection_get,
+    lifetime_slot8, lifetime_slot9, lifetime_slot10, lifetime_add_callback, lifetime_remove_callback,
+    lifetime_slot13, lifetime_slot14, lifetime_slot15, lifetime_slot16, lifetime_slot17, lifetime_slot18,
 };
 
 static HRESULT WINAPI application_id(ICoreApplication *iface, HSTRING *out)
@@ -412,12 +485,12 @@ static HRESULT unsupported(const char *method)
 }
 static HRESULT WINAPI application_suspending(ICoreApplication *iface,
     __FIEventHandler_1_Windows__CApplicationModel__CSuspendingEventArgs *handler, EventRegistrationToken *token)
-{ return unsupported("Suspending"); }
+{ if (token) token->value = 0; return token ? unsupported("Suspending") : E_POINTER; }
 static HRESULT WINAPI application_remove_suspending(ICoreApplication *iface, EventRegistrationToken token)
 { return unsupported("RemoveSuspending"); }
 static HRESULT WINAPI application_resuming(ICoreApplication *iface,
     __FIEventHandler_1_IInspectable *handler, EventRegistrationToken *token)
-{ return unsupported("Resuming"); }
+{ if (token) token->value = 0; return token ? unsupported("Resuming") : E_POINTER; }
 static HRESULT WINAPI application_remove_resuming(ICoreApplication *iface, EventRegistrationToken token)
 { return unsupported("RemoveResuming"); }
 static HRESULT WINAPI application_properties(ICoreApplication *iface, IPropertySet **out)
@@ -671,6 +744,14 @@ static HRESULT WINAPI application_run(ICoreApplication *iface, IFrameworkViewSou
         token.value = core.handlers[i].token;
         ReleaseSRWLockShared(&handler_lock);
         view_remove_activated(&core.ICoreApplicationView_iface, token);
+    }
+    for (i = 0; i < ARRAY_SIZE(core.lifetime_callbacks); ++i)
+    {
+        INT64 token;
+        AcquireSRWLockShared(&handler_lock);
+        token = core.lifetime_callbacks[i].token;
+        ReleaseSRWLockShared(&handler_lock);
+        lifetime_remove_callback(&core.IStaticLifetime_iface, token);
     }
     if (window)
     {
