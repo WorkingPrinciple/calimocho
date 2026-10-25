@@ -3,6 +3,18 @@
 Live notes from the build investigation. Will become structured docs once
 the recipe is reliable.
 
+## 2026-10-25: real privileged token session/integrity setters
+
+ADR-0063 replaces successful no-op setters with access- and privilege-checked
+state changes. Integrity queries return the stored mandatory label instead of
+always reporting high integrity. Unprivileged setter behavior remains
+unqualified and fails closed.
+
+`package-token-security-01` compiles the source client/server integration.
+The sanitizer harness checks actual generated query/setter bodies for rights,
+privilege and input failures, assignment failure, stored values and modification
+IDs. No service token is installed and no runtime receipt is admitted.
+
 ## 2026-10-25: owned token owner, group and source identity
 
 ADR-0062 adds independently selected token owner and primary group, including
