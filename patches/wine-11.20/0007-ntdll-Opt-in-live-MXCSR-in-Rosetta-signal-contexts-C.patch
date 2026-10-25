@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: calimocho <calimocho@local>
+Date: Mon, 26 Oct 2026 00:36:46 +0200
+Subject: [PATCH 07/13] ntdll: Opt-in live MXCSR in Rosetta signal contexts (CW
+ Hack 24256)
+
+Off by default; enabled only when CALIMOCHO_FIX_ROSETTA_MXCSR=1.
+---
+ dlls/ntdll/unix/signal_x86_64.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+diff --git a/dlls/ntdll/unix/signal_x86_64.c b/dlls/ntdll/unix/signal_x86_64.c
+index 1b3da35..fd3f57a 100644
+--- a/dlls/ntdll/unix/signal_x86_64.c
++++ b/dlls/ntdll/unix/signal_x86_64.c
+@@ -89,6 +89,12 @@ WINE_DECLARE_DEBUG_CHANNEL(seh);
+ 
+ #include "dwarf.h"
+ 
++#ifdef __APPLE__
++/* CW Hack 24256 */
++#include <sys/sysctl.h>
++static BOOL is_rosetta2;
++#endif
++
+ static USHORT cs32_sel;  /* selector for %cs in 32-bit mode */
+ static USHORT cs64_sel;  /* selector for %cs in 64-bit mode */
+ static USHORT ds64_sel;  /* selector for %ds/%es/%ss in 64-bit mode */
+@@ -889,6 +895,13 @@ static void save_context( struct thread_data *data, struct xcontext *xcontext,
+ 
+         context->ContextFlags |= CONTEXT_FLOATING_POINT;
+         memcpy( &context->FltSave, FPU_sig(sigcontext), sizeof(context->FltSave) );
++#ifdef __APPLE__
++        /* CW Hack 24256: mxcsr in signal contexts is incorrect in Rosetta.
++           In Rosetta only, the actual value of the register from within the
++           handler is correct (on Intel it has some default value). */
++        if (is_rosetta2)
++            __asm__ volatile( "stmxcsr %0" : "=m" (context->FltSave.MxCsr) );
++#endif
+         context->MxCsr = context->FltSave.MxCsr;
+         if (xstate_extended_features && (xs = XState_sig(FPU_sig(sigcontext))))
+         {
+@@ -2793,6 +2806,18 @@ void signal_init_process( TEB *teb )
+     WOW_TEB *wow_teb = get_wow_teb( teb );
+     void *ptr;
+ 
++#ifdef __APPLE__
++    /* CW Hack 24256 (opt-in: CALIMOCHO_FIX_ROSETTA_MXCSR=1). sysctl and getenv are not
++     * signal-safe, so decide here, before any signal is handled. */
++    {
++        const char *fix = getenv( "CALIMOCHO_FIX_ROSETTA_MXCSR" );
++        int ret = 0;
++        size_t size = sizeof(ret);
++        if (fix && !strcmp( fix, "1" ))
++            is_rosetta2 = sysctlbyname( "sysctl.proc_translated", &ret, &size, NULL, 0 ) == -1 ? 0 : ret;
++    }
++#endif
++
+     if (user_shared_data->XState.Size) xstate_size = user_shared_data->XState.Size - sizeof(XSAVE_FORMAT);
+     frame_size = offsetof( struct syscall_frame, xstate ) + xstate_size;
+     xstate_extended_features = user_shared_data->XState.EnabledFeatures & ~(UINT64)3;

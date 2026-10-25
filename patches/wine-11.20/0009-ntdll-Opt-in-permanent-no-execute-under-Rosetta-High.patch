@@ -1,0 +1,75 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: calimocho <calimocho@local>
+Date: Mon, 26 Oct 2026 00:37:42 +0200
+Subject: [PATCH 09/13] ntdll: Opt-in permanent no-execute under Rosetta
+ (Highball 0013 port)
+
+Default is Wine's normal behaviour. CALIMOCHO_FIX_NX_ALWAYS=1 keeps no-execute
+permanently on when the process is translated; WINE_DISABLE_NX_COMPAT remains an
+explicit override.
+---
+ dlls/ntdll/unix/process.c | 37 +++++++++++++++++++++++++++++++++++--
+ 1 file changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/dlls/ntdll/unix/process.c b/dlls/ntdll/unix/process.c
+index 9dad6c3..f0a72ba 100644
+--- a/dlls/ntdll/unix/process.c
++++ b/dlls/ntdll/unix/process.c
+@@ -75,6 +75,39 @@ WINE_DEFAULT_DEBUG_CHANNEL(process);
+ 
+ static ULONG execute_flags = MEM_EXECUTE_OPTION_DISABLE;
+ 
++/* Under Rosetta every page that is writable and executable costs a Mach round
++ * trip on first touch, and turning no-execute off makes every readable mapping
++ * executable, so a process that does it crawls. With CALIMOCHO_FIX_NX_ALWAYS=1,
++ * keep no-execute permanently on under Rosetta, as the Windows AlwaysOn policy
++ * does. WINE_DISABLE_NX_COMPAT stays an explicit override on any host: "0" lets
++ * a process turn no-execute off, any other value keeps it permanently on.
++ * Without either variable this is Wine's normal behaviour. */
++static ULONG get_execute_flags(void)
++{
++    static int always_on = -1;
++
++    if (always_on == -1)
++    {
++        const char *env = getenv( "WINE_DISABLE_NX_COMPAT" );
++        const char *fix = getenv( "CALIMOCHO_FIX_NX_ALWAYS" );
++
++        if (env) always_on = strcmp( env, "0" ) != 0;
++        else if (fix && !strcmp( fix, "1" ))
++        {
++            int translated = 0;
++#ifdef __APPLE__
++            size_t size = sizeof(translated);
++            if (sysctlbyname( "sysctl.proc_translated", &translated, &size, NULL, 0 ) == -1)
++                translated = 0;
++#endif
++            always_on = translated;
++        }
++        else always_on = 0;
++        if (always_on) TRACE( "no-execute is permanently on\n" );
++    }
++    return always_on ? execute_flags | MEM_EXECUTE_OPTION_PERMANENT : execute_flags;
++}
++
+ static UINT process_error_mode;
+ ULONG process_cookie = 0xdeadbeef;
+ 
+@@ -1478,7 +1511,7 @@ NTSTATUS WINAPI NtQueryInformationProcess( HANDLE handle, PROCESSINFOCLASS class
+                              MEM_EXECUTE_OPTION_DISABLE_THUNK_EMULATION |
+                              MEM_EXECUTE_OPTION_PERMANENT;
+         else
+-            *(ULONG *)info = execute_flags;
++            *(ULONG *)info = get_execute_flags();
+         break;
+ 
+     case ProcessPriorityClass:
+@@ -1764,7 +1797,7 @@ NTSTATUS WINAPI NtSetInformationProcess( HANDLE handle, PROCESSINFOCLASS class,
+ 
+     case ProcessExecuteFlags:
+         if ((is_win64 && !is_wow64()) || size != sizeof(ULONG)) return STATUS_INVALID_PARAMETER;
+-        if (execute_flags & MEM_EXECUTE_OPTION_PERMANENT) return STATUS_ACCESS_DENIED;
++        if (get_execute_flags() & MEM_EXECUTE_OPTION_PERMANENT) return STATUS_ACCESS_DENIED;
+         else
+         {
+             BOOL enable;

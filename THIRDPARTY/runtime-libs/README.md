@@ -1,5 +1,11 @@
 # Runtime dylib attribution
 
+> **Historical (Phase 1 engine, 2026-06).** Engine releases
+> `11.20-4.0b3-NN` do not use this list: they bundle source-built
+> FreeType, GnuTLS, nettle, GMP, libtasn1 and MoltenVK, listed in
+> [LICENSE](../../LICENSE) with full texts under `licenses/` in each
+> release.
+
 The following dynamic libraries are bundled inside calimocho's engine
 under `out/engine/lib/external/runtime/` (and inside
 `Calimocho.app/Contents/Resources/Engine/lib/external/runtime/` once

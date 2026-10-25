@@ -1,0 +1,227 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: calimocho <calimocho@local>
+Date: Mon, 26 Oct 2026 00:37:34 +0200
+Subject: [PATCH 08/13] ntdll, kernelbase: Opt-in handing of %gs:0x20 to fiber
+ threads on macOS (Highball 0008/0009 port)
+
+Off by default; enabled only when CALIMOCHO_FIX_FIBER_GS=1. A per-thread flag in
+amd64_thread_data gates every swap, so the pthread QoS slot is never touched otherwise.
+---
+ dlls/kernelbase/thread.c        | 35 +++++++++++++++--
+ dlls/ntdll/unix/signal_x86_64.c | 66 +++++++++++++++++++++++++++++++++
+ 2 files changed, 98 insertions(+), 3 deletions(-)
+
+diff --git a/dlls/kernelbase/thread.c b/dlls/kernelbase/thread.c
+index 92ef073..78b2f11 100644
+--- a/dlls/kernelbase/thread.c
++++ b/dlls/kernelbase/thread.c
+@@ -1119,6 +1119,35 @@ LPVOID WINAPI DECLSPEC_HOTPATCH CreateFiberEx( SIZE_T stack_commit, SIZE_T stack
+ }
+ 
+ 
++
++/* Highball 0008: on macOS the %gs base is the host thread block, not the TEB, and GetCurrentFiber()
++ * is an intrinsic reading %gs:0x20 directly. Keep that slot in step with Tib.FiberData (the unix
++ * side swaps it with the pthread QoS value at every PE/unix crossing). Where %gs maps to the TEB
++ * the store writes the same address as the assignment. */
++#ifdef __x86_64__
++static BOOL fiber_gs_fix(void)
++{
++    static int enabled = -1;
++
++    if (enabled < 0)
++    {
++        WCHAR value[2];
++        enabled = GetEnvironmentVariableW( L"CALIMOCHO_FIX_FIBER_GS", value, ARRAY_SIZE(value) ) == 1 && value[0] == '1';
++    }
++    return enabled;
++}
++#endif
++
++static inline void set_teb_fiber_data( void *fiber )
++{
++    NtCurrentTeb()->Tib.FiberData = fiber;
++#ifdef __x86_64__
++    /* Opt-in (CALIMOCHO_FIX_FIBER_GS=1). A NULL fiber means the thread stops being a fiber: the
++     * unix side gives the slot back to the host QoS value at the next crossing, so leave it alone here. */
++    if (fiber && fiber_gs_fix()) __asm__ volatile ("movq %0,%%gs:%c1" :: "r" (fiber), "n" (FIELD_OFFSET(TEB, Tib.FiberData)));
++#endif
++}
++
+ /***********************************************************************
+  *           ConvertFiberToThread   (kernelbase.@)
+  */
+@@ -1132,7 +1161,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH ConvertFiberToThread(void)
+         return FALSE;
+     }
+     relocate_thread_actctx_stack( &NtCurrentTeb()->ActivationContextStack );
+-    NtCurrentTeb()->Tib.FiberData = NULL;
++    set_teb_fiber_data( NULL );
+     NtCurrentTeb()->HasFiberData = FALSE;
+     HeapFree( GetProcessHeap(), 0, fiber );
+     return TRUE;
+@@ -1175,7 +1204,7 @@ LPVOID WINAPI DECLSPEC_HOTPATCH ConvertThreadToFiberEx( LPVOID param, DWORD flag
+     fiber->flags            = flags;
+     fiber->fls_slots        = NtCurrentTeb()->FlsSlots;
+     relocate_thread_actctx_stack( &fiber->actctx.stack_space );
+-    NtCurrentTeb()->Tib.FiberData = fiber;
++    set_teb_fiber_data( fiber );
+     NtCurrentTeb()->HasFiberData = TRUE;
+     return fiber;
+ }
+@@ -1226,7 +1255,7 @@ void WINAPI DECLSPEC_HOTPATCH SwitchToFiber( LPVOID fiber )
+     /* stack_allocation and stack_base never change */
+ 
+     /* FIXME: should save floating point context if requested in fiber->flags */
+-    NtCurrentTeb()->Tib.FiberData     = new_fiber;
++    set_teb_fiber_data( new_fiber );
+     NtCurrentTeb()->Tib.ExceptionList = new_fiber->except;
+     NtCurrentTeb()->Tib.StackBase     = new_fiber->stack_base;
+     NtCurrentTeb()->Tib.StackLimit    = new_fiber->stack_limit;
+diff --git a/dlls/ntdll/unix/signal_x86_64.c b/dlls/ntdll/unix/signal_x86_64.c
+index fd3f57a..4db2846 100644
+--- a/dlls/ntdll/unix/signal_x86_64.c
++++ b/dlls/ntdll/unix/signal_x86_64.c
+@@ -93,6 +93,7 @@ WINE_DECLARE_DEBUG_CHANNEL(seh);
+ /* CW Hack 24256 */
+ #include <sys/sysctl.h>
+ static BOOL is_rosetta2;
++static BOOL fiber_gs_fix;
+ #endif
+ 
+ static USHORT cs32_sel;  /* selector for %cs in 32-bit mode */
+@@ -522,6 +523,9 @@ struct amd64_thread_data
+     DWORD                 fs;            /* 0338 WOW TEB selector */
+     DWORD                 mxcsr;         /* 033c Unix-side mxcsr register */
+     char                  syscall_dispatch; /* 0340 */
++    char                  fiber_gs;      /* 0341 macOS: hand %gs:0x20 to fiber threads (CALIMOCHO_FIX_FIBER_GS=1) */
++    DWORD_PTR             host_qos;      /* 0348 macOS: the pthread QoS slot value, %gs:0x20, while PE code owns that slot (Highball 0009) */
++    DWORD_PTR             host_slot13;   /* 0350 macOS: pthread TSD slot 13 (%gs:0x68) while PE code owns it as LastErrorValue (Highball 0011) */
+ };
+ 
+ C_ASSERT( sizeof(struct amd64_thread_data) <= sizeof(((struct teb_data *)0)->cpu_data) );
+@@ -531,6 +535,10 @@ C_ASSERT( offsetof( TEB, GdiTebBatch ) + offsetof( struct amd64_thread_data, ins
+ C_ASSERT( offsetof( TEB, GdiTebBatch ) + offsetof( struct amd64_thread_data, fs ) == 0x338 );
+ C_ASSERT( offsetof( TEB, GdiTebBatch ) + offsetof( struct amd64_thread_data, mxcsr ) == 0x33c );
+ C_ASSERT( offsetof( TEB, GdiTebBatch ) + offsetof( struct amd64_thread_data, syscall_dispatch ) == 0x340 );
++C_ASSERT( offsetof( TEB, GdiTebBatch ) + offsetof( struct amd64_thread_data, fiber_gs ) == 0x341 );
++C_ASSERT( offsetof( TEB, GdiTebBatch ) + offsetof( struct amd64_thread_data, host_qos ) == 0x348 );
++C_ASSERT( offsetof( TEB, SameTebFlags ) == 0x17ee );
++C_ASSERT( offsetof( TEB, GdiTebBatch ) + offsetof( struct amd64_thread_data, host_slot13 ) == 0x350 );
+ 
+ static inline struct amd64_thread_data *amd64_thread_data( struct thread_data *data )
+ {
+@@ -1697,6 +1705,15 @@ __ASM_GLOBAL_FUNC( call_user_mode_callback,
+                    "jz 1f\n\t"
+                    "xchgq %rcx,%r10\n"
+                    "1:\n\t"
++#ifdef __APPLE__
++                   "cmpb $0,0x341(%r13)\n\t"      /* amd64_thread_data()->fiber_gs: opt-in */
++                   "jz 7f\n\t"
++                   "testb $4,0x17ee(%r13)\n\t"     /* teb->HasFiberData: only fiber threads hand the slot to PE */
++                   "jz 7f\n\t"
++                   "movq 0x20(%r13),%rax\n\t"      /* teb->Tib.FiberData: PE code owns %gs:0x20 from here */
++                   "movq %rax,%gs:0x20\n"
++                   "7:\n\t"
++#endif
+                    "xor %rbx,%rbx\n\t"
+                    "xor %r12,%r12\n\t"
+                    "xor %r13,%r13\n\t"
+@@ -1711,6 +1728,13 @@ __ASM_GLOBAL_FUNC( call_user_mode_callback,
+ extern void DECLSPEC_NORETURN user_mode_callback_return( void *ret_ptr, ULONG ret_len,
+                                                          NTSTATUS status, TEB *teb );
+ __ASM_GLOBAL_FUNC( user_mode_callback_return,
++#ifdef __APPLE__
++                   "cmpb $0,0x341(%rcx)\n\t"      /* amd64_thread_data()->fiber_gs: opt-in */
++                   "jz 6f\n\t"
++                   "movq 0x348(%rcx),%r10\n\t" /* amd64_thread_data()->host_qos: unix code owns %gs:0x20 again */
++                   "movq %r10,%gs:0x20\n"
++                   "6:\n\t"
++#endif
+                    "movq 0x378(%rcx),%r10\n\t" /* thread_data->syscall_frame */
+                    "movq 0xa0(%r10),%r11\n\t"  /* frame->prev_frame */
+                    "movq %r11,0x378(%rcx)\n\t" /* syscall_frame = prev_frame */
+@@ -2815,6 +2839,8 @@ void signal_init_process( TEB *teb )
+         size_t size = sizeof(ret);
+         if (fix && !strcmp( fix, "1" ))
+             is_rosetta2 = sysctlbyname( "sysctl.proc_translated", &ret, &size, NULL, 0 ) == -1 ? 0 : ret;
++        fix = getenv( "CALIMOCHO_FIX_FIBER_GS" );
++        fiber_gs_fix = fix && !strcmp( fix, "1" );
+     }
+ #endif
+ 
+@@ -2930,6 +2956,13 @@ void init_syscall_frame( LPTHREAD_START_ROUTINE entry, void *arg, TEB *teb )
+     __asm__ volatile ("movq %0,%%gs:%c1" :: "r" (teb->Tib.Self), "n" (FIELD_OFFSET(TEB, Tib.Self)));
+     __asm__ volatile ("movq %0,%%gs:%c1" :: "r" (teb->ThreadLocalStoragePointer), "n" (FIELD_OFFSET(TEB, ThreadLocalStoragePointer)));
+     __asm__ volatile ("movq %0,%%gs:%c1" :: "r" (teb->Peb), "n" (FIELD_OFFSET(TEB, Peb)));
++    /* %gs:0x20 is where PE code reads Tib.FiberData (GetCurrentFiber() is an intrinsic), and on
++     * macOS it is the pthread QoS class slot that libdispatch and pthread read. Both cannot hold
++     * the slot at once, so it is swapped at every crossing: unix code gets the host value back
++     * on entry (the dispatchers, user_mode_callback_return), PE code gets Tib.FiberData on
++     * return (__wine_syscall_dispatcher_return, call_user_mode_callback). Keep the host value. */
++    __asm__ volatile ("movq %%gs:%c1,%0" : "=r" (thread_data->host_qos) : "n" (FIELD_OFFSET(TEB, Tib.FiberData)));
++    thread_data->fiber_gs = fiber_gs_fix;
+     thread_data->pthread_teb = mac_thread_gsbase();
+     teb->Instrumentation[0] = thread_data->pthread_teb;
+ #else
+@@ -3079,6 +3112,13 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
+                    __ASM_CFI_REG_IS_AT2(rbp, rcx, 0x98, 0x01)
+                    "movq %gs:0x30,%r13\n\t"        /* teb */
+                    "movl %eax,0xb0(%rcx)\n\t"      /* frame->syscall_id */
++#ifdef __APPLE__
++                   "cmpb $0,0x341(%r13)\n\t"      /* amd64_thread_data()->fiber_gs: opt-in */
++                   "jz 6f\n\t"
++                   "movq 0x348(%r13),%r15\n\t"     /* amd64_thread_data()->host_qos */
++                   "movq %r15,%gs:0x20\n"          /* unix code sees the pthread QoS slot again */
++                   "6:\n\t"
++#endif
+                    /* Legends of Runeterra hooks the first system call return instruction, and
+                     * depends on us returning to it. Adjust the return address accordingly. */
+                    "subq $0xb,0x70(%rcx)\n\t"
+@@ -3210,6 +3250,16 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
+                    __ASM_CFI(".cfi_remember_state\n\t")
+                    __ASM_CFI_CFA_IS_AT2(rcx, 0xa8, 0x01) /* frame->syscall_cfa */
+                    "leaq 0x70(%rcx),%rsp\n\t"      /* %rsp > frame means no longer inside syscall */
++#ifdef __APPLE__
++                   "movq %gs:0x30,%r15\n\t"        /* teb */
++                   "cmpb $0,0x341(%r15)\n\t"      /* amd64_thread_data()->fiber_gs: opt-in */
++                   "jz 7f\n\t"
++                   "testb $4,0x17ee(%r15)\n\t"     /* teb->HasFiberData */
++                   "jz 7f\n\t"
++                   "movq 0x20(%r15),%r15\n\t"      /* teb->Tib.FiberData */
++                   "movq %r15,%gs:0x20\n"          /* PE code reads GetCurrentFiber() here; %r15 is restored below (Highball 0009) */
++                   "7:\n\t"
++#endif
+ #if defined(__linux__) || defined(__FreeBSD__)
+                    "movb $1,0x340(%r13)\n\t"       /* amd64_thread_data()->syscall_dispatch */
+                    "movw 0x338(%r13),%dx\n"        /* amd64_thread_data()->fs */
+@@ -3430,6 +3480,13 @@ __ASM_GLOBAL_FUNC( __wine_unix_call_dispatcher,
+                    "movq %rbp,0x98(%rcx)\n\t"
+                    __ASM_CFI_REG_IS_AT2(rbp, rcx, 0x98, 0x01)
+                    "movq %gs:0x30,%r13\n\t"
++#ifdef __APPLE__
++                   "cmpb $0,0x341(%r13)\n\t"      /* amd64_thread_data()->fiber_gs: opt-in */
++                   "jz 6f\n\t"
++                   "movq 0x348(%r13),%rax\n\t"     /* amd64_thread_data()->host_qos */
++                   "movq %rax,%gs:0x20\n"          /* unix code sees the pthread QoS slot again */
++                   "6:\n\t"
++#endif
+                    "stmxcsr 0xd8(%rcx)\n\t"        /* frame->xsave.MxCsr */
+                    "movdqa %xmm6,0x1c0(%rcx)\n\t"
+                    "movdqa %xmm7,0x1d0(%rcx)\n\t"
+@@ -3522,6 +3579,15 @@ __ASM_GLOBAL_FUNC( __wine_unix_call_dispatcher,
+                    "movw %dx,%ss\n\t"
+ # endif
+                    "1:\n\t"
++#endif
++#ifdef __APPLE__
++                   "cmpb $0,0x341(%r13)\n\t"      /* amd64_thread_data()->fiber_gs: opt-in */
++                   "jz 7f\n\t"
++                   "testb $4,0x17ee(%r13)\n\t"     /* teb->HasFiberData */
++                   "jz 7f\n\t"
++                   "movq 0x20(%r13),%rdx\n\t"      /* teb->Tib.FiberData: PE code owns %gs:0x20 again (%rdx is volatile for the PE caller) */
++                   "movq %rdx,%gs:0x20\n"
++                   "7:\n\t"
+ #endif
+                    "movq 0x58(%rcx),%r13\n\t"
+                    "movq 0x28(%rcx),%rdi\n\t"

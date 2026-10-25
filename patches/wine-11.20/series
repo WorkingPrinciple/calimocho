@@ -3,3 +3,11 @@
 0003-concrt140-Implement-_Concurrent_queue_iterator_base_.patch
 0004-winebus.sys-Keep-hidraw-gamepads-when-SDL-is-unavail.patch
 0005-ntdll-Resolve-.-GLOBALROOT-DOS-path-prefixes.patch
+0006-ntdll-Opt-in-retoggle-of-execute-on-stale-Rosetta-W-.patch
+0007-ntdll-Opt-in-live-MXCSR-in-Rosetta-signal-contexts-C.patch
+0008-ntdll-kernelbase-Opt-in-handing-of-gs-0x20-to-fiber-.patch
+0009-ntdll-Opt-in-permanent-no-execute-under-Rosetta-High.patch
+0010-ntdll-Opt-in-exactly-once-release-of-threadpool-I-O-.patch
+0011-winemac.drv-Opt-in-copy-of-the-app-icon-callback-rep.patch
+0012-win32u-Publish-the-D3DMetal-GPU-identity-override-in.patch
+0013-winecoreaudio.drv-Add-an-opt-in-process-scoped-outpu.patch

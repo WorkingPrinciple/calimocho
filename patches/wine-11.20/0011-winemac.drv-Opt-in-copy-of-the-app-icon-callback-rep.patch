@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: calimocho <calimocho@local>
+Date: Mon, 26 Oct 2026 00:38:59 +0200
+Subject: [PATCH 11/13] winemac.drv: Opt-in copy of the app icon callback reply
+ before nested callbacks reuse it
+
+Off by default; enabled only when CALIMOCHO_FIX_ICON_REPLY=1.
+---
+ dlls/winemac.drv/image.c | 32 +++++++++++++++++++++++++++-----
+ 1 file changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/dlls/winemac.drv/image.c b/dlls/winemac.drv/image.c
+index 7fb45f3..0c47e79 100644
+--- a/dlls/winemac.drv/image.c
++++ b/dlls/winemac.drv/image.c
+@@ -242,6 +242,20 @@ cleanup:
+ }
+ 
+ 
++/* Opt-in (CALIMOCHO_FIX_ICON_REPLY=1): copy the icon callback reply before nested
++ * callbacks can reuse its user stack. Read once. */
++static BOOL icon_reply_fix(void)
++{
++    static int enabled = -1;
++
++    if (enabled < 0)
++    {
++        const char *fix = getenv("CALIMOCHO_FIX_ICON_REPLY");
++        enabled = fix && !strcmp(fix, "1");
++    }
++    return enabled;
++}
++
+ /***********************************************************************
+  *              create_app_icon_images
+  */
+@@ -249,21 +263,29 @@ CFArrayRef create_app_icon_images(void)
+ {
+     struct dispatch_callback_params params = {.callback = app_icon_callback};
+     CFMutableArrayRef images = NULL;
+-    struct app_icon_entry *entries;
++    struct app_icon_entry copy[64], *entries, *reply;
+     ULONG ret_len;
+     unsigned count;
+     int i;
+ 
+     TRACE("()\n");
+ 
+-    if (KeUserDispatchCallback(&params, sizeof(params), (void**)&entries, &ret_len) ||
+-        (ret_len % sizeof(*entries)))
++    if (KeUserDispatchCallback(&params, sizeof(params), (void**)&reply, &ret_len) ||
++        (ret_len % sizeof(*reply)) || (icon_reply_fix() && ret_len > sizeof(copy)))
+     {
+         WARN("incorrect callback result\n");
+         return NULL;
+     }
+-    count = ret_len / sizeof(*entries);
+-    if (!count || !entries) return NULL;
++    count = ret_len / sizeof(*reply);
++    if (!count || !reply) return NULL;
++
++    entries = reply;
++    if (icon_reply_fix())
++    {
++        /* Nested user callbacks can reuse the callback reply's user stack. */
++        memcpy(copy, reply, ret_len);
++        entries = copy;
++    }
+ 
+     images = CFArrayCreateMutable(NULL, count, &kCFTypeArrayCallBacks);
+     if (!images)

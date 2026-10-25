@@ -1,0 +1,223 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: calimocho <calimocho@local>
+Date: Mon, 26 Oct 2026 00:39:00 +0200
+Subject: [PATCH 12/13] win32u: Publish the D3DMetal GPU identity override in
+ the GPU registry and D3DKMT
+
+Inert unless both D3DM_VENDOR_ID and D3DM_DEVICE_ID are set.
+---
+ dlls/win32u/d3dkmt.c    | 91 +++++++++++++++++++++++++++++++++++++++++
+ dlls/win32u/sysparams.c | 61 +++++++++++++++++++++++++++
+ 2 files changed, 152 insertions(+)
+
+diff --git a/dlls/win32u/d3dkmt.c b/dlls/win32u/d3dkmt.c
+index 4801745..eb6f3a3 100644
+--- a/dlls/win32u/d3dkmt.c
++++ b/dlls/win32u/d3dkmt.c
+@@ -21,6 +21,7 @@
+ #endif
+ 
+ #include "config.h"
++#include <stdlib.h>
+ 
+ #include <assert.h>
+ #include <pthread.h>
+@@ -801,6 +802,95 @@ NTSTATUS WINAPI NtGdiDdDDIQueryAdapterInfo( D3DKMT_QUERYADAPTERINFO *desc )
+         *value = FALSE;
+         return STATUS_SUCCESS;
+     }
++    case KMTQAITYPE_UMD_DRIVER_VERSION:
++    {
++        /* games read the user-mode driver version here; mirror the display Class key. */
++        LARGE_INTEGER *value = desc->pPrivateDriverData;
++        const char *vendor = getenv( "D3DM_VENDOR_ID" ), *device = getenv( "D3DM_DEVICE_ID" );
++        unsigned int a = 35, b = 0, c = 10, d = 1000;
++
++        if (!vendor || !*vendor || !device || !*device) goto not_handled;
++        if (desc->PrivateDriverDataSize < sizeof(*value))
++            return STATUS_INVALID_PARAMETER;
++        if (strtoul( vendor, NULL, 0 ) == 0x10de) { a = 32; b = 0; c = 16; d = 1656; }
++        if (strtoul( vendor, NULL, 0 ) == 0x1002) { a = 32; b = 0; c = 26005; d = 1001; }
++        value->QuadPart = ((ULONGLONG)a << 48) | ((ULONGLONG)b << 32) | ((ULONGLONG)c << 16) | d;
++        return STATUS_SUCCESS;
++    }
++    case KMTQAITYPE_ADAPTERREGISTRYINFO:
++    {
++        struct { WCHAR AdapterString[MAX_PATH], BiosString[MAX_PATH], DacType[MAX_PATH], ChipType[MAX_PATH]; }
++            *value = desc->pPrivateDriverData;  /* D3DKMT_ADAPTERREGISTRYINFO */
++        const char *name = getenv( "D3DM_DEVICE_DESCRIPTION" );
++        unsigned int i;
++
++        if (!getenv( "D3DM_VENDOR_ID" ) || !getenv( "D3DM_DEVICE_ID" )) goto not_handled;
++        if (desc->PrivateDriverDataSize < sizeof(*value))
++            return STATUS_INVALID_PARAMETER;
++        memset( value, 0, sizeof(*value) );
++        if (!name || !*name) name = "Wine Adapter";
++        for (i = 0; name[i] && i < MAX_PATH - 1; i++)
++            value->AdapterString[i] = value->ChipType[i] = (unsigned char)name[i];
++        memcpy( value->BiosString, L"BIOS", sizeof(L"BIOS") );
++        memcpy( value->DacType, L"Internal", sizeof(L"Internal") );
++        return STATUS_SUCCESS;
++    }
++    case KMTQAITYPE_QUERYREGISTRY:
++    {
++        /* D3DDDI_QUERYREGISTRY_INFO; games read the adapter driver key (DriverVersion etc). */
++        struct qr_info
++        {
++            UINT QueryType, QueryFlags;
++            WCHAR ValueName[MAX_PATH];
++            ULONG ValueType, PhysicalAdapterIndex, OutputValueSize, Status;
++            union { DWORD OutputDword; UINT64 OutputQword; WCHAR OutputString[1]; BYTE OutputBinary[1]; };
++        } *info = desc->pPrivateDriverData;
++        char buffer[4096];
++        KEY_VALUE_PARTIAL_INFORMATION *value = (void *)buffer;
++        ULONG header = offsetof( struct qr_info, OutputDword ), avail, size = 0, type = 0;
++        HKEY key = 0;
++
++        if (desc->PrivateDriverDataSize < header) return STATUS_INVALID_PARAMETER;
++        avail = desc->PrivateDriverDataSize - header;
++        info->ValueName[MAX_PATH - 1] = 0;
++        info->Status = 2; /* D3DDDI_QUERYREGISTRY_STATUS_FAIL */
++        info->OutputValueSize = 0;
++        if (info->QueryType == 1 /* ADAPTERKEY */)
++            key = reg_open_ascii_key( NULL, "\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Class\\"
++                                      "{4D36E968-E325-11CE-BFC1-08002BE10318}\\0000" );
++        if (key)
++        {
++            if (query_reg_value( key, info->ValueName, value, sizeof(buffer) ))
++            {
++                size = value->DataLength;
++                type = value->Type;
++            }
++            NtClose( key );
++        }
++        else if (info->QueryType == 2 || info->QueryType == 3 /* DRIVERSTOREPATH / DRIVERIMAGEPATH */)
++        {
++            static const char store[] = "C:\\windows\\system32";
++            WCHAR *out = (WCHAR *)value->Data;
++            unsigned int i;
++            for (i = 0; i < sizeof(store); i++) out[i] = (unsigned char)store[i];
++            size = sizeof(store) * sizeof(WCHAR);
++            type = REG_SZ;
++        }
++        if (size)
++        {
++            info->OutputValueSize = size;
++            if (size > avail) info->Status = 1; /* BUFFER_OVERFLOW */
++            else
++            {
++                memcpy( &info->OutputDword, value->Data, size );
++                info->Status = 0; /* SUCCESS */
++            }
++        }
++        TRACE( "QUERYREGISTRY type %u name %s valuetype %u avail %u -> status %u size %u regtype %u\n",
++               info->QueryType, debugstr_w(info->ValueName), (UINT)info->ValueType, (UINT)avail,
++               (UINT)info->Status, (UINT)size, (UINT)type );
++        return STATUS_SUCCESS;
++    }
+     case KMTQAITYPE_DRIVERVERSION:
+     {
+         D3DKMT_DRIVERVERSION *value = desc->pPrivateDriverData;
+@@ -812,6 +902,7 @@ NTSTATUS WINAPI NtGdiDdDDIQueryAdapterInfo( D3DKMT_QUERYADAPTERINFO *desc )
+         return STATUS_SUCCESS;
+     }
+     default:
++    not_handled:
+     {
+         FIXME( "type %d not handled.\n", desc->Type );
+         return STATUS_NOT_IMPLEMENTED;
+diff --git a/dlls/win32u/sysparams.c b/dlls/win32u/sysparams.c
+index 7095e41..6079569 100644
+--- a/dlls/win32u/sysparams.c
++++ b/dlls/win32u/sysparams.c
+@@ -1138,8 +1138,35 @@ static BOOL read_gpu_from_registry( struct gpu *gpu )
+     return TRUE;
+ }
+ 
++/* GPU identity override shared with D3DMetal (D3DM_VENDOR_ID etc). */
++static BOOL gpu_identity_override( struct pci_id *pci, const char **name )
++{
++    const char *vendor = getenv( "D3DM_VENDOR_ID" ), *device = getenv( "D3DM_DEVICE_ID" );
++    const char *subsys = getenv( "D3DM_DEVICE_SUBSYS" ), *revision = getenv( "D3DM_DEVICE_REVISION" );
++    const char *desc = getenv( "D3DM_DEVICE_DESCRIPTION" );
++
++    if (!vendor || !device || !*vendor || !*device) return FALSE;
++    pci->vendor = strtoul( vendor, NULL, 0 );
++    pci->device = strtoul( device, NULL, 0 );
++    pci->subsystem = subsys && *subsys ? strtoul( subsys, NULL, 0 ) : 0;
++    pci->revision = revision && *revision ? strtoul( revision, NULL, 0 ) : 0;
++    if (name && desc && *desc) *name = desc;
++    return pci->vendor && pci->device;
++}
++
++static const char *gpu_override_driver_version( UINT16 vendor )
++{
++    struct pci_id pci;
++    if (!gpu_identity_override( &pci, NULL ) || pci.vendor != vendor) return NULL;
++    if (vendor == 0x10de) return "32.0.16.1656";  /* the value D3DMetal writes to the display Class key */
++    if (vendor == 0x1002) return "32.0.26005.1001";  /* Adrenalin 26.5.1 */
++    return NULL;
++}
++
+ static const char* driver_vendor_to_version( UINT16 vendor )
+ {
++    const char *override = gpu_override_driver_version( vendor );
++    if (override) return override;
+     /* The last seven digits are the driver number. */
+     switch (vendor)
+     {
+@@ -1653,6 +1680,13 @@ static BOOL write_gpu_to_registry( const struct gpu *gpu, const struct pci_id *p
+     set_reg_value( hkey, memory_sizeW, REG_DWORD, &value, sizeof(value) );
+ 
+     set_reg_ascii_value( hkey, "DriverVersion", driver_vendor_to_version( pci->vendor ) );
++    if (gpu_override_driver_version( pci->vendor ))
++    {
++        char match[64];
++        snprintf( match, sizeof(match), "pci\\ven_%04x&dev_%04x", pci->vendor, pci->device );
++        set_reg_ascii_value( hkey, "MatchingDeviceId", match );
++        set_reg_ascii_value( hkey, "ProviderName", driver_vendor_to_name( pci->vendor ) );
++    }
+     NtClose( hkey );
+ 
+ 
+@@ -1664,6 +1698,21 @@ static BOOL write_gpu_to_registry( const struct gpu *gpu, const struct pci_id *p
+     if (hkey)
+     {
+         UINT64 ver = 0x230000000f1ff4; /* Some version in the future. */
++        if (gpu_override_driver_version( pci->vendor ))
++        {
++            UINT64 mem = memory_size;
++            DWORD id;
++            ver = pci->vendor == 0x1002 ? (32ull << 48) | (26005ull << 16) | 1001
++                                        : (32ull << 48) | (0ull << 32) | (16ull << 16) | 1656;
++            asciiz_to_unicode( bufferW, "DedicatedVideoMemory" );
++            set_reg_value( hkey, bufferW, REG_QWORD, &mem, sizeof(mem) );
++            asciiz_to_unicode( bufferW, "SubSysId" );
++            id = pci->subsystem;
++            set_reg_value( hkey, bufferW, REG_DWORD, &id, sizeof(id) );
++            asciiz_to_unicode( bufferW, "RevisionId" );
++            id = pci->revision;
++            set_reg_value( hkey, bufferW, REG_DWORD, &id, sizeof(id) );
++        }
+ 
+         asciiz_to_unicode( bufferW, "AdapterLuid" );
+         set_reg_value( hkey, bufferW, REG_QWORD, &gpu->luid, sizeof(gpu->luid) );
+@@ -1774,6 +1823,18 @@ static void add_gpu( const char *name, const struct pci_id *pci_id, const GUID *
+     if (!pci_id->vendor && !pci_id->device && vulkan_gpu) pci_id = &vulkan_gpu->pci_id;
+     if (!pci_id->vendor && !pci_id->device && opengl_gpu) pci_id = &opengl_gpu->pci_id;
+ 
++    {
++        static struct pci_id override_pci;
++        const char *override_name = name;
++        if (gpu->index == 0 && gpu_identity_override( &override_pci, &override_name ))
++        {
++            TRACE( "GPU identity override %04x:%04x %s\n", override_pci.vendor, override_pci.device,
++                   debugstr_a(override_name) );
++            pci_id = &override_pci;
++            name = override_name;
++        }
++    }
++
+     name = gpu_device_name( pci_id->vendor, pci_id->device, name );
+     if (!strcmp( name, "Wine Adapter" ) && vulkan_gpu) name = vulkan_gpu->name;
+     if (!strcmp( name, "Wine Adapter" ) && opengl_gpu) name = opengl_gpu->name;

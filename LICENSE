@@ -1,95 +1,125 @@
-# calimocho — License Summary
+Calimocho
+=========
 
-> **TL;DR**: calimocho is free for personal and other non-commercial use.
-> You may NOT sell it, charge for support around it, or include it in a
-> paid product. This is because Apple's Game Porting Toolkit license
-> (which governs the bundled `D3DMetal.framework`) restricts distribution
-> to non-commercial purposes.
+Copyright (c) 2026 the Calimocho authors (see the git history for a
+complete list)
 
-## Calimocho's own scripts and docs
+Calimocho is free software; you can redistribute it and/or modify it
+under the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation; either version 2.1 of the License, or (at
+your option) any later version.
 
-The shell scripts, install logic, build automation, and documentation in this
-repository are licensed under the **GNU Lesser General Public License
-version 2.1 or later** (LGPL-2.1-or-later) — the same license as Wine itself.
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
 
-See https://www.gnu.org/licenses/lgpl-2.1.html for the canonical text.
+A copy of the GNU Lesser General Public License is included in the file
+COPYING.LIB. If you did not receive this copy, write to the Free
+Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+02110-1301, USA.
 
-## Bundled dependencies (engine release 11.20-4.0b3-01)
 
-| Component | Source | License |
+What this licence covers
+------------------------
+
+The licence above covers Calimocho's own work: the Wine patches in
+patches/, the build and packaging scripts, the native-GS loader helper
+(tools/native_gs_localtime.c) and the documentation.
+
+Engine releases also contain software from other projects. Each keeps
+its own licence. The full licence texts ship in every release under
+licenses/, and SOURCE.md in every release says where to get the
+corresponding source.
+
+
+Components under open-source licences
+-------------------------------------
+
+| Component | Upstream | Licence |
 |---|---|---|
-| **Wine 11.20** | https://dl.winehq.org/wine/source/11.x/wine-11.20.tar.xz | LGPL-2.1-or-later |
-| **Libraries vendored in Wine's `libs/`** (vkd3d, FAudio, mpg123, lcms2, libpng, libjpeg, libtiff, libxml2, libxslt, zlib, musl, capstone, ...) | Wine source tree | Their own licences, kept in the Wine source tree; vkd3d is LGPL-2.1-or-later |
-| **D3DMetal integration patch** (derived from CodeWeavers' CrossOver 26.3.0 source) | https://www.codeweavers.com/crossover/source | LGPL-2.1-or-later |
-| **Calimocho Wine patches** (`patches/wine-11.20/`) | this repository | LGPL-2.1-or-later |
-| **FreeType 2.13.3** | https://download.savannah.gnu.org/releases/freetype/ | FTL or GPL-2.0 |
-| **GnuTLS 3.8.13, nettle 4.0, GMP 6.3.0, libtasn1 4.21.0** | https://www.gnutls.org/, https://www.lysator.liu.se/~nisse/nettle/, https://gmplib.org/, https://www.gnu.org/software/libtasn1/ | LGPL (see `licenses/` in the engine) |
-| **MoltenVK 1.4.2** (+ SPIRV-Cross, SPIRV-Tools, Vulkan-Headers, cereal, Volk) | https://github.com/KhronosGroup/MoltenVK | Apache 2.0 (components: their own permissive licences) |
-| **Apple D3DMetal.framework 4.0b3** | Apple Game Porting Toolkit 4.0 beta 3 | **Apple GPTK SLA** ⚠️ not covered by the LGPL |
-| **Apple /redist components** (`libd3dshared.dylib`, Direct3D PE modules) | Same | **Apple GPTK SLA** ⚠️ not covered by the LGPL |
-| **xxHash** *(inside D3DMetal)* | https://github.com/Cyan4973/xxHash | BSD-2-Clause |
+| Wine 11.20 | https://www.winehq.org/ | LGPL-2.1-or-later |
+| Libraries vendored in Wine's libs/ (vkd3d, FAudio, mpg123, lcms2, libpng, libjpeg, libtiff, libxml2, libxslt, zlib, musl, capstone, ...) | Wine source tree | Their own licences, kept in the Wine source tree; vkd3d is LGPL-2.1-or-later |
+| D3DMetal integration patch, derived from CodeWeavers' CrossOver 26.3.0 source | https://www.codeweavers.com/crossover/source | LGPL-2.1-or-later |
+| FreeType 2.13.3 | https://freetype.org/ | FTL or GPL-2.0; Calimocho distributes it under the FTL (licenses/freetype/ELECTED.txt) |
+| GnuTLS 3.8.13 | https://www.gnutls.org/ | LGPL-2.1-or-later (library) |
+| libtasn1 4.21.0 | https://www.gnu.org/software/libtasn1/ | LGPL-2.1-or-later (library) |
+| nettle 4.0 | https://www.lysator.liu.se/~nisse/nettle/ | LGPL-3.0-or-later or GPL-2.0-or-later |
+| GMP 6.3.0 | https://gmplib.org/ | LGPL-3.0-or-later or GPL-2.0-or-later |
+| MoltenVK 1.4.2, with SPIRV-Cross, SPIRV-Tools, SPIRV-Headers, Vulkan-Headers, Vulkan-Tools, cereal and Volk | https://github.com/KhronosGroup/MoltenVK | Apache-2.0; the components keep their own licences |
 
-DXVK is **not** included in this engine release (Apple's D3DMetal
-handles Direct3D 10, 11 and 12).
+Highball tsshim, used only by the Forza Horizon 6 profile:
 
-The Apple GPTK License Agreement is reproduced verbatim in
-`THIRDPARTY/Apple-GPTK/License.rtf`. The text shipped with GPTK 4.0 beta 3
-is byte-identical to that file (EA18380, dated 2023-08-17).
+| Component | Upstream | Licence |
+|---|---|---|
+| d3d12 tsshim (lib/wine/x86_64-windows/d3d12_tsshim.dll), built from commit 1512223fff145eae3b4c9fb588edf86758bc756b | https://github.com/gauthierpiarrette/highball | GPL-3.0 |
 
-See also [NOTICE](NOTICE) and [TRADEMARKS.md](TRADEMARKS.md).
+Calimocho's only change to the tsshim is its export name in d3d12.def,
+d3d12_tsshim.dll instead of d3d12.dll. The shim is inactive unless the
+Forza Horizon 6 profile copies it into that game's prefix. Its source
+and licence ship in licenses/highball-tsshim/ and in the source
+tarball.
 
-## ⚠️ The non-commercial restriction (Apple GPTK SLA §2A iii + §2C)
+These licences do not restrict commercial use. They do require that
+you pass on the licence texts and make the corresponding source
+available when you redistribute the binaries.
 
-Apple grants a non-commercial, non-exclusive, non-transferable license to
-install, use, and distribute D3DMetal and Redistributables.
-The Framework may be distributed *separately* from the rest of GPTK.
-This is what makes calimocho legal.
+Portions of this software are copyright © 1996-2024 The FreeType
+Project (www.freetype.org).  All rights reserved.
 
-The license is **strictly non-commercial**.
 
-You may NOT:
-- ❌ Sell calimocho or any product/service incorporating it
-- ❌ Charge for technical support around calimocho
-- ❌ Bundle it in a paid app, subscription, or hosted service
-- ❌ Use it in a service-bureau, time-sharing, or paid hosted-gaming offering
-- ❌ Modify, decompile, or reverse-engineer the D3DMetal binary
+Apple D3DMetal (not covered by the LGPL)
+----------------------------------------
 
-You MAY:
-- ✅ Use it personally for free on your own Mac
-- ✅ Share with family, friends, colleagues at no charge
-- ✅ Redistribute through forks, mirrors, free package managers
-- ✅ Accept donations (GitHub Sponsors / Patreon) to maintain the project
-- ✅ Use it in classroom / research / educational contexts
+Apple's D3DMetal, from the Game Porting Toolkit, is closed source and
+has a restrictive licence. Engine releases include these Apple files,
+unmodified:
 
-## Why CrossOver can charge for the same components
+- D3DMetal.framework
+- libd3dshared.dylib
+- the Direct3D PE modules under lib/wine/x86_64-windows that come from
+  the Game Porting Toolkit
 
-CodeWeavers has a separate commercial agreement with Apple (they're named on
-Apple's GPTK page as a recommended commercial solution). That contract is
-private; we can't replicate it.
+D3DMetal contains xxHash (https://github.com/Cyan4973/xxHash),
+BSD-2-Clause. Its licence text ships in licenses/xxhash/LICENSE.
 
-If you can afford [CrossOver](https://www.codeweavers.com/crossover) ($74/yr),
-buying it is the right way to fund the people whose work makes calimocho
-possible.
+They are distributed under the Apple Game Porting Toolkit licence,
+reproduced in THIRDPARTY/Apple-GPTK/License.rtf and in
+licenses/apple-gptk/ in every release. In that licence:
 
-## Trademarks
+- Section 2A(iii) allows you to "distribute the Apple Software solely
+  for non-commercial purposes and in accordance with this Agreement,
+  including Section 2C".
+- Section 2A requires that you "reproduce on each copy of the Apple
+  Software or portion thereof, all copyright or other proprietary
+  notices contained on the original".
+- Section 2C says "the Framework in its entirety or any part of the
+  Redistributables may be distributed separately from the Apple
+  Software" and "all distribution of the Apple Software, including the
+  Framework in its entirety and any individual Redistributables, are
+  subject to the non-commercial restriction in Section 2(A)(iii)".
+- Section 2C also says "You may not rent, lease, lend, host, sell, or
+  sublicense (except as expressly set forth in Section 2A) the Apple
+  Software or any services, in whole or in part". It bars use for
+  service bureau, time-sharing or similar services, and bars use on
+  non-Apple-branded devices.
+- Section 2D forbids you to "decompile, reverse engineer, disassemble,
+  attempt to derive the source code of, decrypt, modify, or create
+  derivative works of the Apple Software".
 
-- "CrossOver", "CodeWeavers" — trademarks of CodeWeavers, Inc.
-- "Apple", "macOS", "Game Porting Toolkit", "D3DMetal" — trademarks of Apple Inc.
-- "Wine" — trademark of the Wine project.
-- "Steam" — trademark of Valve Corporation.
+What this means:
 
-Nominative fair use. No affiliation, endorsement, or sponsorship implied.
+- Calimocho is distributed free of charge, for non-commercial use.
+- A release that contains the Apple files may only be redistributed
+  non-commercially, unmodified, and with Apple's notices intact.
+- If you want to distribute Calimocho commercially, remove the Apple
+  files. Everything that remains is under the open-source licences
+  above.
+- The non-commercial condition comes from Apple's licence and applies
+  only to the Apple files. It is not an additional restriction on the
+  LGPL-licensed components.
 
-## Compliance
+The Calimocho authors are not lawyers, and nothing here is legal
+advice. For a binding interpretation, read Apple's licence in full.
 
-- **User**: read the README, install for personal use, enjoy.
-- **Fork maintainer**: keep this LICENSE + THIRDPARTY/ intact; don't strip
-  the non-commercial notice from any release containing D3DMetal.
-- **Want to commercialize?** Don't include D3DMetal. Build a calimocho variant
-  with only upstream-LGPL components (Wine + vkd3d-proton + DXVK + MoltenVK).
-  DX12 perf will be lower, but the license becomes fully permissive.
-
-## Disclaimer
-
-We are not lawyers; nothing here is legal advice. For binding interpretation,
-read Apple's full GPTK SLA and consult a qualified attorney.
+See also NOTICE (credits) and TRADEMARKS.md.

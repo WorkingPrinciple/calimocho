@@ -41,7 +41,7 @@ APPLE_UNIX_LINKS = ("d3d10", "d3d11", "d3d12", "d3d12core", "dxgi")
 FORBIDDEN_LINKAGE = ("/Users/", "/opt/homebrew", "/usr/local", "/private/", "/tmp/")
 
 
-def pins():
+def pins(args=None):
     return json.loads((REPO / "versions.json").read_text())["release_engine"]
 
 
@@ -127,7 +127,7 @@ def toolchain():
 # --------------------------------------------------------------------- build
 
 def build(args):
-    pin = pins()
+    pin = pins(args)
     work = ensure_outside_repo_sources(args.work)
     archive = Path(args.wine_archive).resolve(strict=True)
     if sha256(archive) != pin["wine"]["sha256"]:
@@ -146,15 +146,15 @@ def build(args):
         stream.extractall(work, filter="data")
     source = work / f"wine-{pin['wine']['version']}"
     receipt["pristine_tree_sha256"] = tree_hash(source)
-    series = REPO / pin["patch_series"]
-    for name in series.read_text().split():
-        patch = series.parent / name
-        expected = pin["patches"].get(name)
-        if expected is None or sha256(patch) != expected:
-            raise ValueError(f"Patch {name} is not pinned in versions.json")
-        run(["/usr/bin/patch", "-p1", "--batch", "--forward", "--no-backup-if-mismatch",
-             "-i", str(patch)], cwd=source)
-        receipt["patches"].append({"name": name, "sha256": expected})
+    for series, pinned in [(REPO / pin["patch_series"], pin["patches"])]:
+        for name in series.read_text().split():
+            patch = series.parent / name
+            expected = pinned.get(name)
+            if expected is None or sha256(patch) != expected:
+                raise ValueError(f"Patch {name} is not pinned in versions.json")
+            run(["/usr/bin/patch", "-p1", "--batch", "--forward", "--no-backup-if-mismatch",
+                 "-i", str(patch)], cwd=source)
+            receipt["patches"].append({"name": name, "sha256": expected})
     leftovers = [p for p in source.rglob("*") if p.suffix in (".rej", ".orig")]
     if leftovers:
         raise ValueError(f"Patch left rejects or backups: {leftovers[:5]}")
@@ -295,8 +295,51 @@ def copy_apple(args, pin, root):
         run(["codesign", "--verify", "--strict", str(path)])
 
 
+def build_tsshim(pin, root, work, receipt):
+    """Build Highball's GPL-3.0 tsshim d3d12.dll in front of Apple's unmodified d3d12.dll."""
+    import urllib.request
+    shim = pin["tsshim"]
+    directory = work / "tsshim"
+    directory.mkdir(exist_ok=True)
+    for name, item in shim["files"].items():
+        target = directory / name
+        if not target.exists():
+            urllib.request.urlretrieve(item["url"], target)
+        if sha256(target) != item["sha256"]:
+            raise ValueError(f"tsshim {name} differs from the pinned upstream file")
+    # Wine 11 matches builtin modules by their export name, so the shim gets its own export
+    # name; Apple's d3d12.dll keeps its bytes and only lives under another file name.
+    definition = (directory / "d3d12.def").read_text()
+    if not definition.startswith("LIBRARY d3d12.dll\n"):
+        raise ValueError("Unexpected tsshim definition header")
+    (directory / "d3d12-calimocho.def").write_text(
+        definition.replace("LIBRARY d3d12.dll\n", f"LIBRARY {shim['tsshim_export_name']}\n", 1))
+    built = directory / "d3d12.dll"
+    run(["x86_64-w64-mingw32-gcc", "-shared", "-O2", "-Wall", "-static-libgcc", "-o", str(built),
+         str(directory / "d3d12.c"), str(directory / "d3d12-calimocho.def")],
+        log=directory / "compile.log")
+    run([str(work / "build/tools/winebuild/winebuild"), "--builtin", str(built)])
+    # Apple's d3d12.dll stays where it is. The shim is a separate builtin that only takes over
+    # when a title profile copies it into the prefix as system32\d3d12.dll (Wine resolves the
+    # placeholder by export name) and points HB_D3D12_REAL at Apple's file.
+    windows = root / "lib/wine/x86_64-windows"
+    shutil.copy2(built, windows / shim["tsshim_export_name"])
+    licence = root / "licenses/highball-tsshim"
+    licence.mkdir(parents=True)
+    for name in ("d3d12.c", "d3d12.def", "LICENSE"):
+        shutil.copy2(directory / name, licence / name)
+    (licence / "CHANGES.md").write_text(
+        f"Built from {shim['repository']} commit {shim['commit']} (GPL-3.0).\n"
+        f"Calimocho change: the export name in d3d12.def is {shim['tsshim_export_name']} "
+        "instead of d3d12.dll, and the shim is installed under that name, so Wine still "
+        "loads Apple's unmodified d3d12.dll by default. A title profile enables the shim by "
+        "copying it into the prefix as system32\\d3d12.dll and setting HB_D3D12_REAL to the "
+        "Windows path of the engine's lib/wine/x86_64-windows/d3d12.dll.\n")
+    receipt["tsshim_sha256"] = sha256(windows / shim["tsshim_export_name"])
+
+
 def assemble(args):
-    pin = pins()
+    pin = pins(args)
     work = Path(args.work).resolve(strict=True)
     receipt = json.loads((work / "build-receipt.json").read_text())
     if receipt.get("status") != "built":
@@ -319,8 +362,10 @@ def assemble(args):
     for name in dependencies:
         rewrite_dependency(unix / name, set(dependencies))
     copy_apple(args, pin, root)
+    if "tsshim" in pin:
+        build_tsshim(pin, root, work, receipt)
     copy_licences(args, pin, root, moltenvk)
-    for document in ("NOTICE", "TRADEMARKS.md"):
+    for document in ("NOTICE", "TRADEMARKS.md", "LICENSE", "COPYING.LIB"):
         shutil.copy2(REPO / document, root / document)
     (root / "SOURCE.md").write_text(source_document(pin))
     leaks = []
@@ -343,6 +388,15 @@ def copy_licences(args, pin, root, moltenvk):
     (licences / "wine").mkdir(parents=True, exist_ok=True)
     for name in ("COPYING.LIB", "LICENSE", "AUTHORS"):
         shutil.copy2(wine / name, licences / "wine" / name)
+    # Libraries Wine vendors under libs/ and compiles into the shipped modules keep their own terms.
+    for library in sorted((wine / "libs").iterdir()):
+        texts = [f for f in sorted(library.glob("*")) if f.is_file()
+                 and re.match(r"(LICEN[CS]E|COPYING|COPYRIGHT)", f.name, re.I)]
+        if texts:
+            destination = licences / "wine/libs" / library.name
+            destination.mkdir(parents=True, exist_ok=True)
+            for text in texts:
+                shutil.copy2(text, destination / text.name)
     archives = Path(args.dependency_archives).resolve(strict=True)
     for item in pin["dependency_sources"]:
         archive = archives / Path(item["url"]).name
@@ -361,11 +415,28 @@ def copy_licences(args, pin, root, moltenvk):
     destination = licences / "moltenvk"
     destination.mkdir(parents=True, exist_ok=True)
     shutil.copy2(mvk_source / "LICENSE", destination / "LICENSE")
-    for external in sorted((mvk_source / "External").glob("*")):
+    externals = sorted((mvk_source / "External").glob("*"))
+    externals.append(mvk_source / "External/SPIRV-Tools/external/spirv-headers")
+    for external in externals:
+        name = "SPIRV-Headers" if external.name == "spirv-headers" else external.name
         for candidate in ("LICENSE", "LICENSE.txt", "LICENSE.md"):
             if (external / candidate).is_file():
-                shutil.copy2(external / candidate, destination / f"{external.name}-{candidate}")
+                shutil.copy2(external / candidate, destination / f"{name}-{candidate}")
                 break
+        if (external / "LICENSES").is_dir():
+            shutil.copytree(external / "LICENSES", destination / f"{name}-LICENSES", dirs_exist_ok=True)
+    (destination / "NOTICE-STATUS.txt").write_text(
+        "MoltenVK v1.4.2 and the components above ship no Apache-2.0 NOTICE file; "
+        "their LICENSE texts are reproduced here.\n")
+    # xxHash is compiled into Apple's D3DMetal; Apple ships its licence inside the framework.
+    xxhash = root / "lib/external/D3DMetal.framework/Versions/A/Resources/LICENSE"
+    if xxhash.is_file():
+        (licences / "xxhash").mkdir(exist_ok=True)
+        shutil.copy2(xxhash, licences / "xxhash/LICENSE")
+    (licences / "freetype/ELECTED.txt").write_text(
+        "Calimocho distributes FreeType under the FreeType License (FTL.TXT), one of the two "
+        "licences FreeType offers. Portions of this software are copyright \u00a9 1996-2024 The "
+        "FreeType Project (www.freetype.org). All rights reserved.\n")
 
 
 def source_document(pin):
@@ -423,6 +494,8 @@ def write_engine_manifest(pin, root, receipt):
                          "metal_private_api": pin["moltenvk"]["metal_private_api"]},
         },
         "paths": {"wine": "bin/wine", "wineserver": "bin/wineserver"},
+        "opt_ins": {name: {k: v for k, v in item.items() if not k.startswith("_")}
+                    for name, item in pin.get("opt_ins", {}).items()},
         "environment": pin["environment"],
         "signing": {"team_id": pin["signing"]["team_id"],
                     "authority": pin["signing"]["authority"]},
@@ -433,13 +506,13 @@ def write_engine_manifest(pin, root, receipt):
     }
     (root / "calimocho-engine.json").write_text(json.dumps(manifest, indent=2) + "\n")
     # One-line version marker read by generic folder-engine importers.
-    (root / "VERSION").write_text(f"{pin['engine_id']}\n")
+    (root / "VERSION").write_text(f"{pin['version']}\n")
 
 
 # ---------------------------------------------------------------------- sign
 
 def sign(args):
-    pin = pins()
+    pin = pins(args)
     root = Path(args.root).resolve(strict=True)
     identity = pin["signing"]["identity_sha1"]
     entitlements = REPO / pin["signing"]["entitlements"]
@@ -500,7 +573,7 @@ def write_manifest(root):
 
 
 def package(args):
-    pin = pins()
+    pin = pins(args)
     root = Path(args.root).resolve(strict=True)
     verify_signatures(root, pin)
     write_manifest(root)
@@ -517,6 +590,10 @@ def package(args):
         stream.add(args.wine_archive, f"{prefix}/{Path(args.wine_archive).name}")
         for relative in pin["source_bundle_files"]:
             stream.add(REPO / relative, f"{prefix}/{relative}")
+        shim = root / "licenses/highball-tsshim"
+        if shim.is_dir():
+            for path in sorted(shim.iterdir()):
+                stream.add(path, f"{prefix}/highball-tsshim/{path.name}")
         for item in pin["dependency_sources"]:
             name = Path(item["url"]).name
             path = Path(args.dependency_archives).resolve(strict=True) / name
@@ -528,7 +605,7 @@ def package(args):
 
 
 def verify(args):
-    pin = pins()
+    pin = pins(args)
     archive = Path(args.archive).resolve(strict=True)
     with tempfile.TemporaryDirectory(dir=args.scratch) as scratch:
         run(["ditto", "-x", "-k", str(archive), scratch])
@@ -556,12 +633,13 @@ def verify(args):
 
 def registry(args):
     """Render the current Ode registry format for one installed engine."""
-    pin = pins()
+    pin = pins(args)
     root = Path(args.root).resolve(strict=True)
     manifest = json.loads((root / "calimocho-engine.json").read_text())
 
     def expand(value):
-        return value.replace("${ENGINE_ROOT}", str(root))
+        return (value.replace("${ENGINE_ROOT_WINDOWS}", str(root).replace("/", "\\"))
+                .replace("${ENGINE_ROOT}", str(root)))
 
     engine = {
         "name": manifest["engine_id"],
@@ -574,6 +652,8 @@ def registry(args):
         "sha256": sha256(root / "bin/wine"),
         "wineserver_sha256": sha256(root / "bin/wineserver"),
         "environment": {key: expand(value) for key, value in manifest["environment"].items()},
+        # A per-title opt-in (for example the FH6 profile) only for test registries.
+        **({"name": f"{manifest['engine_id']}-{args.opt_in}"} if args.opt_in else {}),
         "provider": manifest["provider"],
         "renderer": f"apple-{pin['apple_gptk']['version']}",
         "source_url": pin["source_repository"],
@@ -582,6 +662,10 @@ def registry(args):
         "license_note": "Wine and bundled libraries: LGPL (see SOURCE.md). Apple GPTK "
                         "components: Apple SLA, non-commercial distribution only.",
     }
+    if args.opt_in:
+        opt_in = manifest["opt_ins"][args.opt_in]
+        engine["environment"].update({key: expand(value) for key, value in opt_in["environment"].items()})
+        engine.pop("provider")
     document = {"schema_version": 1, "host_architecture": "arm64", "blocked": [], "engines": [engine]}
     Path(args.output).write_text(json.dumps(document, indent=2) + "\n")
     print(f"{args.output}\n{sha256(Path(args.output))}")
@@ -624,6 +708,7 @@ def main():
     p.add_argument("--output", required=True)
     p.add_argument("--smoke-status", choices=("pass", "fail", "not-run"), required=True)
     p.add_argument("--smoke-evidence")
+    p.add_argument("--opt-in", help="add a title opt-in environment (test registry, no provider)")
     p.set_defaults(func=registry)
     args = parser.parse_args()
     try:

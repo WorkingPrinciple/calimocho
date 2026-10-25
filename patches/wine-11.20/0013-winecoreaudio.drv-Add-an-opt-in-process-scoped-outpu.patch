@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: calimocho <calimocho@local>
+Date: Mon, 26 Oct 2026 00:39:00 +0200
+Subject: [PATCH 13/13] winecoreaudio.drv: Add an opt-in process-scoped output
+ mute
+
+Inert unless XODUS_MUTE_AUDIO=1.
+---
+ dlls/winecoreaudio.drv/coreaudio.c | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/dlls/winecoreaudio.drv/coreaudio.c b/dlls/winecoreaudio.drv/coreaudio.c
+index 0ec10fe..ed9b061 100644
+--- a/dlls/winecoreaudio.drv/coreaudio.c
++++ b/dlls/winecoreaudio.drv/coreaudio.c
+@@ -366,6 +366,17 @@ static void silence_buffer(struct coreaudio_stream *stream, BYTE *buffer, UINT32
+ }
+ 
+ /* CA is pulling data from us */
++static int ca_process_muted(void)
++{
++    static int muted = -1;
++    if(muted < 0){
++        const char *v = getenv("XODUS_MUTE_AUDIO");
++        muted = v && v[0] == '1';
++        if(muted) WARN("Process audio output muted by XODUS_MUTE_AUDIO=1\n");
++    }
++    return muted;
++}
++
+ static OSStatus ca_render_cb(void *user, AudioUnitRenderActionFlags *flags,
+         const AudioTimeStamp *ts, UInt32 bus, UInt32 nframes,
+         AudioBufferList *data)
+@@ -397,6 +408,12 @@ static OSStatus ca_render_cb(void *user, AudioUnitRenderActionFlags *flags,
+     if(nframes > to_copy_frames)
+         silence_buffer(stream, ((BYTE *)data->mBuffers[0].mData) + to_copy_bytes, nframes - to_copy_frames);
+ 
++    /* Process-scoped mute (XODUS_MUTE_AUDIO=1): the stream keeps consuming
++     * data at its normal rate, but this process's output is silent. Device
++     * and system volume are not touched. */
++    if(ca_process_muted() && to_copy_frames)
++        silence_buffer(stream, data->mBuffers[0].mData, to_copy_frames);
++
+     os_unfair_lock_unlock(&stream->lock);
+ 
+     return noErr;

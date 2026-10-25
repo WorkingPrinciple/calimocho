@@ -1,0 +1,79 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: calimocho <calimocho@local>
+Date: Mon, 26 Oct 2026 00:36:38 +0200
+Subject: [PATCH 06/13] ntdll: Opt-in retoggle of execute on stale Rosetta W|X
+ and X faults (CW Hacks 24945/25719)
+
+Off by default; enabled only when CALIMOCHO_FIX_ROSETTA_WX=1.
+---
+ dlls/ntdll/unix/virtual.c | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)
+
+diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
+index 2e9d901..7bf1f56 100644
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -3232,12 +3232,25 @@ done:
+ /***********************************************************************
+  *           virtual_init
+  */
++#ifdef __APPLE__
++/* Under Rosetta a write or execute fault on a page that is already writable+executable
++ * (or executable) can be a stale translation; toggling execute forces a re-translation.
++ * Read once in virtual_init(), before any fault can be handled. */
++static BOOL rosetta_wx_fix;
++#endif
++
+ void virtual_init(void)
+ {
+     void * const low_64k = (void *)0x10000;
+     const struct preload_info **preload_info_ptr = dlsym( RTLD_DEFAULT, "wine_main_preload_info" );
+     const struct preload_info *preload_info = preload_info_ptr ? *preload_info_ptr : NULL;
+     pthread_mutexattr_t attr;
++#ifdef __APPLE__
++    {
++        const char *fix = getenv( "CALIMOCHO_FIX_ROSETTA_WX" );
++        rosetta_wx_fix = fix && !strcmp( fix, "1" );
++    }
++#endif
+ 
+     pthread_key_create( &thread_data_key, NULL );
+     pthread_mutexattr_init( &attr );
+@@ -4282,6 +4295,27 @@ NTSTATUS virtual_handle_fault( struct thread_data *data, EXCEPTION_RECORD *rec,
+         WARN( "treating read fault in a readable page as a write fault, addr %p\n", addr );
+         err = EXCEPTION_WRITE_FAULT;
+     }
++
++    /* CW Hack 24945 (opt-in: CALIMOCHO_FIX_ROSETTA_WX=1) */
++    if (rosetta_wx_fix && err == EXCEPTION_WRITE_FAULT &&
++        ((get_unix_prot( vprot ) & (PROT_WRITE | PROT_EXEC)) == (PROT_WRITE | PROT_EXEC)))
++    {
++        FIXME( "HACK: write fault on a w|x page, addr %p\n", addr );
++        mprotect_range( page, host_page_size, 0, VPROT_EXEC );
++        mprotect_range( page, host_page_size, VPROT_EXEC, 0 );
++        ret = STATUS_SUCCESS;
++        goto done;
++    }
++
++    /* CW Hack 25719 (opt-in: CALIMOCHO_FIX_ROSETTA_WX=1) */
++    if (rosetta_wx_fix && err == EXCEPTION_EXECUTE_FAULT && (get_unix_prot( vprot ) & PROT_EXEC))
++    {
++        FIXME( "HACK: exec fault on executable page, addr %p\n", addr );
++        mprotect_range( page, host_page_size, 0, VPROT_EXEC );
++        mprotect_range( page, host_page_size, VPROT_EXEC, 0 );
++        ret = STATUS_SUCCESS;
++        goto done;
++    }
+ #endif
+ 
+     if (!is_inside_signal_stack( data, stack ) && (vprot & VPROT_GUARD))
+@@ -4318,6 +4352,9 @@ NTSTATUS virtual_handle_fault( struct thread_data *data, EXCEPTION_RECORD *rec,
+                 ret = STATUS_SUCCESS;
+         }
+     }
++#ifdef __APPLE__
++done:
++#endif
+     mutex_unlock( &virtual_mutex );
+     rec->ExceptionCode = ret;
+     return ret;

@@ -37,6 +37,9 @@ without renumbering.
    (`CFBundleShortVersionString` = `4.0b3`). The counter is ours and
    resets when either upstream version changes. Xode's own product
    version (0.11.4 beta) is separate.
+   *Amended 2026-10-26 by the owner:* the version string is
+   `0.<Wine major+minor>.<Apple GPTK major>.<our build>` (build 2 is
+   `0.1120.4.2`). The engine ID keeps the `11.20-4.0b3-NN` form.
 2. **Build from committed source.** `tools/release_engine.py build`
    extracts the official `wine-11.20.tar.xz` (sha256-pinned; the same
    file tree as the `wine-11.20` git tag) and applies the patch series

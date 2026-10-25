@@ -1,85 +1,81 @@
 calimocho — Wine attribution and LGPL written offer
 =====================================================
 
-This product contains a modified version of **Wine 11.0**.
+Calimocho engine releases (11.20-4.0b3-NN) contain a modified version
+of **Wine 11.20**.
 
 Wine is free software licensed under the GNU Lesser General Public
 License, version 2.1 or (at your option) any later version. The full
-license text is available at:
+licence text is in COPYING.LIB at the root of this repository and of
+every engine release, and at:
 
     https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
 
 Upstream
 --------
 
-Wine is developed by the Wine project (https://www.winehq.org/). The
-specific source tree calimocho builds from is the LGPL "FOSS code"
-distribution published by CodeWeavers (https://www.codeweavers.com/),
-who back the majority of upstream Wine development on macOS.
+Wine is developed by the Wine project (https://www.winehq.org/).
+Calimocho builds from the official WineHQ source tarball:
 
-The exact upstream tarball used to produce this binary is pinned in
-the calimocho repository at:
+    versions.json -> release_engine.wine.url
+    versions.json -> release_engine.wine.sha256
 
-    versions.json -> cx_sources.url
-    versions.json -> cx_sources.sha256
+(wine-11.20.tar.xz; the same file tree as git tag wine-11.20, commit
+7298a818b79446bae153b8d5aa27235ab3703bf9).
 
-You can verify and re-download it with:
-
-    jq -r '.cx_sources.url'    versions.json   # the URL
-    jq -r '.cx_sources.sha256' versions.json   # the expected sha256
+Patch 0001 ports the macOS D3DMetal integration from CodeWeavers'
+LGPL CrossOver 26.3.0 source drop (https://www.codeweavers.com/crossover/source,
+versions.json -> release_engine.cw_donor). The ported files keep
+CodeWeavers' copyright notices.
 
 Modifications
 -------------
 
-calimocho does not modify Wine source files in-tree. All
-modifications are kept as standalone unified-diff patches under:
+Calimocho does not modify Wine source files in this repository. All
+changes are unified-diff patches applied in order from:
 
-    scripts/patches/
+    patches/wine-11.20/series
 
-in the calimocho git repository, and are applied at build time by
-`scripts/patch-sources.sh`. Each calimocho release tag (vX.Y.Z) in
-git pins the exact patch set that produced that release's binary.
+by `tools/release_engine.py build`. Each engine release tag
+(engine-11.20-4.0b3-NN) pins the exact patch set that produced that
+release.
 
 Corresponding source
 --------------------
 
-The complete corresponding source for the Wine portion of this
-binary is, by construction:
+The complete corresponding source for the LGPL parts of an engine
+release is:
 
-    (1) the CodeWeavers tarball at versions.json -> cx_sources.url
-        (verified against versions.json -> cx_sources.sha256), PLUS
+    (1) the Wine tarball pinned above, PLUS
+    (2) patches/wine-11.20/ and tools/ at the matching engine tag in
+        https://github.com/WorkingPrinciple/calimocho, PLUS
+    (3) the FreeType, GMP, nettle, libtasn1 and GnuTLS tarballs pinned
+        in versions.json -> release_engine.dependency_sources.
 
-    (2) the patches under scripts/patches/ at the calimocho git
-        tag matching this binary release, available at
-        https://github.com/dragoshont/calimocho
-
-This satisfies the "corresponding source" requirement of LGPL §6.
+Each release ships next to `<engine-id>-source.tar`, which holds all
+of these, and `SOURCE.md` inside the engine lists them again.
 
 Written offer (LGPL §6(b))
 --------------------------
 
-For any binary release of calimocho, for a period of at least three
-(3) years from the date of that release, the calimocho maintainer
-offers to provide the complete corresponding source code for the
-Wine portion on a physical medium (USB stick, mailed at our cost) to
-anyone who requests it. To request, open an issue at:
+For at least three (3) years from the date of each engine release, the
+Calimocho maintainer offers the complete corresponding source of its
+LGPL components to anyone who asks, at no charge beyond the cost of
+physically performing the transfer. Ask by opening an issue at:
 
-    https://github.com/dragoshont/calimocho/issues
+    https://github.com/WorkingPrinciple/calimocho/issues
 
-with the title "LGPL source request: vX.Y.Z" and a postal address.
-This offer is valid to any third party in possession of the binary.
+with the title "LGPL source request: <engine-id>". This offer is valid
+to any third party in possession of the binary.
 
 Other components
 ----------------
 
-The Apple Game Porting Toolkit components bundled with calimocho
-(D3DMetal.framework and libd3dshared.dylib) are governed by Apple's
-Game Porting Toolkit Software License Agreement, the text of which
-ships verbatim at:
+The Apple Game Porting Toolkit components in engine releases
+(D3DMetal.framework, libd3dshared.dylib and the Direct3D PE modules)
+are governed by Apple's Game Porting Toolkit licence, reproduced at:
 
     THIRDPARTY/Apple-GPTK/License.rtf
 
-The bundled runtime dylibs (FreeType, GnuTLS, libdbus, SDL2, and
-their transitive closure) are attributed in:
-
-    THIRDPARTY/runtime-libs/README.md
+All other bundled components and their licence texts are listed in
+LICENSE and shipped under licenses/ in every engine release.
