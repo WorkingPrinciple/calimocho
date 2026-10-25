@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "requirement": "REQ-108",
+  "authorization": "COR-148",
+  "kind": "diagnostic-only-not-a-fix",
+  "engineName": "calimocho-wine11.20-fh6-opcode-diag-01",
+  "provider": "calimocho",
+  "qualified": false,
+  "registry": {
+    "path": "build/fh6-opcode-01/fh6-opcode.registry.FROZEN-v2.json",
+    "sha256": "b21f9b4d3f55ace3ff583738d7d53f99281cffd25d3a849fdb5086cdca0ef89d",
+    "baselineSha256": "170ca4ad08a5274b614e74bf740866ef219a97fdc7855270c5d8fa03192ed609",
+    "wineSha256": "f6d0546fad2d0dafaa09a9fe6cabe75bb070567df6b0933ecd3622dcb6349194",
+    "wineserverSha256": "e3ec4e7e76cee273f17d5fa3459902642f73d6921e94c576aa74e8cdbdcd7da1",
+    "wineDebug": "-all,+seh,+loaddll,+syscall"
+  },
+  "receipt": {
+    "path": "build/fh6-opcode-01/receipt-v2.json",
+    "sha256": "9086685a1da510c86ab45aa5342615e39d7e1e06d2e9d08a56d6552ac6f9710a"
+  },
+  "overlay": {
+    "path": "build/fh6-opcode-01/install/lib/wine/x86_64-unix/ntdll.so",
+    "sha256": "b654840831f5ffb5f66fddcd078667135368c0177ad764efc25e69e2acc4a278",
+    "baselineSha256": "44fac088ab22c9bd438d0908d1ab5dad5944fd9a279378209b0e78b360ec224a",
+    "declaredDifferences": ["lib/wine/x86_64-unix/ntdll.so"],
+    "undeclaredDifferences": [],
+    "signing": "ad-hoc hardened runtime; codesign --verify --strict exit 0"
+  },
+  "source": {
+    "transformer": "tools/instrument_fh6.py",
+    "transformerSha256": "0ef843b2ee80097b54373c64c219e5f944ff75d190e58482487bebda055f5555",
+    "beforeSha256": "e13bf9d17104fcdb2c85096242aba00a9d8ff929803c3371c743defae92074b6",
+    "afterSha256": "1773701d671dd96e7162bc4e23f51193e6535c6184002b1c03d52c56e6c4c14e",
+    "change": "Read at most 16 fault-time bytes using virtual_uninterrupted_read_memory on invalid-opcode traps when seh tracing is enabled. No exception context, dispatch, syscall table or game code changes."
+  },
+  "validation": {
+    "unitCommand": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_instrument_fh6.py' -v",
+    "unitTestsPassed": 2,
+    "compileExitCode": 0,
+    "configureLogSha256": "4bda41c6c3566c076d3cd0c65e9bd4bb3f2eed023a1d34af9d1847d8cba28f58",
+    "buildLogSha256": "5b5fe66d312ec30ced0436b9e1c573d26d6fb936fdee88b52f175629c8fa54b8",
+    "incrementalBuildLogSha256": "b9472af4969976f065dc4a962ac12d347b1f09df41235c59e09fb88437e99c97",
+    "installEntrySetsEqual": true,
+    "usrLocalDependencyCount": 0,
+    "preAdmissionInspection": "Integrity checks clear; PROVIDER_NOT_ADMITTED",
+    "smokeTest": "not-run",
+    "gameRun": "not-run"
+  }
+}
