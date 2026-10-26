@@ -14,7 +14,7 @@
     }
   },
   "gptk_redist": {
-    "_doc": "Apple GPTK Redistributables (D3DMetal.framework + libd3dshared.dylib + License.rtf). Re-distributed by calimocho per Apple GPTK SLA section 2A(iii) + 2C — see ADR-0011 and docs/ADR/0005-bundle-gptk-d3dmetal.md.",
+    "_doc": "Apple GPTK Redistributables (D3DMetal.framework + libd3dshared.dylib + License.rtf). Re-distributed by calimocho per Apple GPTK SLA section 2A(iii) + 2C \u2014 see ADR-0011 and docs/ADR/0005-bundle-gptk-d3dmetal.md.",
     "gptk_version": "3.0",
     "gcenx_upstream_tag": "Game-Porting-Toolkit-3.0-3",
     "calimocho_repack": 1,
@@ -29,20 +29,72 @@
   },
   "whisky": {
     "_doc": "Watched for un-archive (AGENTS rule #3 says if Whisky resumes active development, we reposition or archive calimocho).",
-    "_not_a_build_dep": "calimocho does not depend on Whisky at runtime (ADR-0008) — this entry exists only for upstream-watch.yml.",
+    "_not_a_build_dep": "calimocho does not depend on Whisky at runtime (ADR-0008) \u2014 this entry exists only for upstream-watch.yml.",
     "repo": "Whisky-App/Whisky",
     "expected_archived": true,
     "last_known_release": "v2.3.5"
   },
   "release_engine": {
-    "_doc": "Pins for the Calimocho engine release built by tools/release_engine.py. Version is 0.<Wine major+minor>.<Apple GPTK major>.<our build number> (owner, 2026-10-26); any rebuild, including a new GPTK beta, bumps the last number. The engine ID keeps the readable <Wine>-<Apple D3DMetal>-<build> form. See docs/ADR/0079-forza-opt-ins-in-the-general-engine.md and docs/release/11.20-4.0b3-04.md.",
-    "version": "0.1120.4.4",
-    "engine_id": "calimocho-11.20-4.0b3-04",
-    "patch_counter": "04",
+    "_doc": "Pins for the Calimocho engine release built by tools/release_engine.py. Version is 0.<Wine major+minor>.<Apple GPTK major>.<our build number> (owner, 2026-10-26); any rebuild, including a new GPTK beta, bumps the last number. The engine ID keeps the readable <Wine>-<Apple D3DMetal>-<build> form. See docs/ADR/0079-forza-opt-ins-in-the-general-engine.md and docs/release/11.20-4.0b3-05.md.",
+    "version": "0.1120.4.5",
+    "engine_id": "calimocho-11.20-4.0b3-05",
+    "patch_counter": "05",
     "source_repository": "https://github.com/WorkingPrinciple/calimocho",
-    "source_tag": "engine-0.1120.4.4",
-    "install_location": "~/Library/Application Support/Xode/Engines/calimocho-11.20-4.0b3-04",
+    "source_tag": "engine-0.1120.4.5",
+    "install_location": "~/Library/Application Support/Xode/Engines/calimocho-11.20-4.0b3-05",
     "configure_prefix": "/opt/calimocho",
+    "toolchain": {
+      "_doc": "Exact build toolchain (ADR-0081). tools/release_engine.py build and assemble refuse to run unless xcodebuild -version, the SDK and every tool's version line and SHA-256 match. build_freetype.py and build_tls.py use the same Xcode clang. Tool paths are informational.",
+      "xcode": "27.1 (27A9275)",
+      "sdk": "27.0 (26A425)",
+      "tools": {
+        "clang": {
+          "version": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+          "sha256": "ee029330bf58ab6e481385f4237cc54602eaa8b81526242e5c5ab5b76e8c5a7e",
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang"
+        },
+        "make": {
+          "version": "GNU Make 3.81",
+          "sha256": "dc25a33fa9e7c584dbba692e46e890ec89d909ec134451b744b7dd0cb0b7c554",
+          "path": "/Applications/Xcode.app/Contents/Developer/usr/bin/make"
+        },
+        "ld": {
+          "version": "@(#)PROGRAM:ld PROJECT:ld-27037.1",
+          "sha256": "809ad9e3c137cdf6d997b4e67dd3dd2589f6bb5de612dc298504e87bc4936c7e",
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld"
+        },
+        "bison": {
+          "version": "bison (GNU Bison) 3.8.2",
+          "sha256": "ebe405dcd39870aca6b766c9ea4059c502892556cca41cae64d2eede48790245",
+          "path": "/opt/homebrew/Cellar/bison/3.8.2/bin/bison"
+        },
+        "flex": {
+          "version": "flex 2.6.4",
+          "sha256": "34129c71a01a74f7f3b2443521519b2e5447553fa187f5fcafaaf8c42cc192e2",
+          "path": "/usr/bin/flex"
+        },
+        "x86_64-w64-mingw32-gcc": {
+          "version": "x86_64-w64-mingw32-gcc (GCC) 16.2.0",
+          "sha256": "79708a2ac50166252c813e9f9cd38ef8c03aa82d68949aabd97cad53224fae80",
+          "path": "/opt/homebrew/Cellar/mingw-w64/14.0.0_3/toolchain-x86_64/bin/x86_64-w64-mingw32-gcc"
+        },
+        "x86_64-w64-mingw32-ld": {
+          "version": "GNU ld (GNU Binutils) 2.47.20260726",
+          "sha256": "7548a92bc617896817361c7c6aac807e406bc07db213126a387bce2604090935",
+          "path": "/opt/homebrew/Cellar/mingw-w64/14.0.0_3/toolchain-x86_64/bin/x86_64-w64-mingw32-ld"
+        },
+        "i686-w64-mingw32-gcc": {
+          "version": "i686-w64-mingw32-gcc (GCC) 16.2.0",
+          "sha256": "1cf45b5db53734e2c0b389ef411431bf92886957af14b5ea8d6ef0c2cd068625",
+          "path": "/opt/homebrew/Cellar/mingw-w64/14.0.0_3/toolchain-i686/bin/i686-w64-mingw32-gcc"
+        },
+        "i686-w64-mingw32-ld": {
+          "version": "GNU ld (GNU Binutils) 2.47.20260726",
+          "sha256": "4f45fc09af9030b0b40383e3ec3c4034205241377706dc93dd64f8cf730273a2",
+          "path": "/opt/homebrew/Cellar/mingw-w64/14.0.0_3/toolchain-i686/bin/i686-w64-mingw32-ld"
+        }
+      }
+    },
     "wine": {
       "version": "11.20",
       "url": "https://dl.winehq.org/wine/source/11.x/wine-11.20.tar.xz",
@@ -227,7 +279,7 @@
       "TRADEMARKS.md",
       "COPYING.LIB",
       "scripts/entitlements/wine-loader.plist",
-      "docs/release/11.20-4.0b3-04.md"
+      "docs/release/11.20-4.0b3-05.md"
     ],
     "tsshim": {
       "_doc": "Highball tsshim (timestamp queries, shader-model fallback, MSAA depth resolve, append-aligned input layouts in front of D3DMetal d3d12). GPL-3.0. Built here with export and file name tsshim_export_name. Apple's d3d12.dll is never patched and stays the engine default. The FH6 profile enables the shim per prefix: copy lib/wine/x86_64-windows/d3d12_tsshim.dll to drive_c/windows/system32/d3d12.dll after any prefix update, and set HB_D3D12_REAL to the Windows path (Z:...) of the engine's lib/wine/x86_64-windows/d3d12.dll.",

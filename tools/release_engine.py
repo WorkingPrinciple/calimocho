@@ -39,6 +39,7 @@ REPO = Path(__file__).resolve().parents[1]
 MACHO_MAGIC = {b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca"}
 APPLE_UNIX_LINKS = ("d3d10", "d3d11", "d3d12", "d3d12core", "dxgi")
 FORBIDDEN_LINKAGE = ("/Users/", "/opt/homebrew", "/usr/local", "/private/", "/tmp/")
+PE_LDFLAGS = "-Wl,--no-insert-timestamp"
 
 
 def pins(args=None):
@@ -85,6 +86,40 @@ def output(command):
     return subprocess.check_output(command, text=True, timeout=120)
 
 
+def pe_header(data):
+    """Return (TimeDateStamp offset, CheckSum offset) of a PE image, or None."""
+    if data[:2] != b"MZ" or len(data) < 0x40:
+        return None
+    pe = int.from_bytes(data[0x3C:0x40], "little")
+    if data[pe:pe + 4] != b"PE\0\0":
+        return None
+    return pe + 8, pe + 24 + 64
+
+
+def check_pe_policy(root, apple_modules):
+    """Our PE modules must carry TimeDateStamp 0 (ADR-0081).
+
+    The CheckSum stays as GNU ld wrote it. Wine's install step (winebuild --builtin) marks the
+    DOS stub afterwards, so it no longer matches the file bytes, as in every upstream Wine build;
+    with the timestamp fixed it is deterministic, and the double build proves that.
+    """
+    problems, checked = [], 0
+    for path in sorted(root.glob("lib/wine/*-windows/*")):
+        if path.is_symlink() or not path.is_file() or path.name in apple_modules:
+            continue
+        data = path.read_bytes()
+        header = pe_header(data)
+        if header is None:
+            continue
+        stamp = int.from_bytes(data[header[0]:header[0] + 4], "little")
+        if stamp != 0:
+            problems.append(f"{path.relative_to(root)}: TimeDateStamp {stamp:#x}")
+        checked += 1
+    if problems:
+        raise ValueError("PE modules carry a link timestamp:\n" + "\n".join(problems[:40]))
+    return checked
+
+
 def is_macho(path):
     if path.is_symlink() or not path.is_file():
         return False
@@ -109,19 +144,44 @@ def ensure_outside_repo_sources(path):
 
 def toolchain():
     tools = {}
-    for name in ("clang", "make"):
-        resolved = Path(output(["xcrun", "--find", name]).strip()).resolve()
-        tools[name] = {"path": str(resolved), "sha256": sha256(resolved)}
+
+    def record(name, path, version_command):
+        resolved = Path(path).resolve(strict=True)
+        result = subprocess.run([str(resolved), *version_command], capture_output=True, text=True)
+        tools[name] = {"path": str(resolved), "sha256": sha256(resolved),
+                       "version": (result.stdout or result.stderr).splitlines()[0].strip()}
+
+    for name, flag in (("clang", ["--version"]), ("make", ["--version"]), ("ld", ["-v"])):
+        record(name, output(["xcrun", "--find", name]).strip(), flag)
     for name in ("bison", "flex", "x86_64-w64-mingw32-gcc", "i686-w64-mingw32-gcc"):
         found = shutil.which(name, path=f"/opt/homebrew/opt/bison/bin:{os.environ['PATH']}")
         if not found:
             raise ValueError(f"Required build tool missing: {name}")
-        resolved = Path(found).resolve()
-        tools[name] = {"path": str(resolved), "sha256": sha256(resolved),
-                       "version": output([str(resolved), "--version"]).splitlines()[0]}
+        record(name, found, ["--version"])
+        if name.endswith("mingw32-gcc"):
+            linker = output([found, "-print-prog-name=ld"]).strip()
+            record(name.replace("-gcc", "-ld"), shutil.which(linker) or linker, ["--version"])
+    xcode = output(["xcodebuild", "-version"]).split()
     return {"tools": tools,
-            "clang_version": output(["/usr/bin/clang", "--version"]).splitlines()[0],
-            "sdk_version": output(["xcrun", "--show-sdk-version"]).strip()}
+            "xcode": f"{xcode[1]} ({xcode[-1]})",
+            "sdk": f"{output(['xcrun', '--show-sdk-version']).strip()} "
+                   f"({output(['xcrun', '--show-sdk-build-version']).strip()})"}
+
+
+def check_toolchain(pin, found):
+    """Fail unless the build machine has exactly the toolchain pinned in versions.json."""
+    wanted = pin["toolchain"]
+    problems = [f"{key}: {found[key]} (pinned {wanted[key]})"
+                for key in ("xcode", "sdk") if found[key] != wanted[key]]
+    for name, item in wanted["tools"].items():
+        have = found["tools"].get(name)
+        if have is None:
+            problems.append(f"{name}: missing")
+            continue
+        problems += [f"{name} {field}: {have[field]} (pinned {item[field]})"
+                     for field in ("version", "sha256") if have[field] != item[field]]
+    if problems:
+        raise ValueError("Toolchain differs from versions.json:\n" + "\n".join(problems))
 
 
 # --------------------------------------------------------------------- build
@@ -136,11 +196,13 @@ def build(args):
     tls = Path(args.tls).resolve(strict=True)
     moltenvk = moltenvk_library(Path(args.moltenvk).resolve(strict=True), pin)
     work.mkdir(parents=True, exist_ok=False)
+    tools = toolchain()
+    check_toolchain(pin, tools)
     commit = output(["git", "-C", str(REPO), "rev-parse", "HEAD"]).strip()
     clean = not output(["git", "-C", str(REPO), "status", "--porcelain", "--untracked-files=no"]).strip()
     receipt = {"version": pin["version"], "wine": pin["wine"], "patches": [],
                "source_commit": commit, "source_tree_clean": clean,
-               "toolchain": toolchain(), "steps": [], "status": "incomplete"}
+               "toolchain": tools, "steps": [], "status": "incomplete"}
 
     def save():
         (work / "build-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
@@ -170,11 +232,15 @@ def build(args):
     environment = {k: v for k, v in os.environ.items()
                    if not k.startswith(("WINE", "CX_", "DYLD_", "MVK_", "PKG_CONFIG"))
                    and k not in {"CC", "CXX", "CFLAGS", "CPPFLAGS", "CXXFLAGS", "LDFLAGS",
-                                 "CPATH", "LIBRARY_PATH", "CONFIG_SITE", "CROSSCFLAGS"}}
+                                 "CPATH", "LIBRARY_PATH", "CONFIG_SITE", "CROSSCFLAGS",
+                                 "CROSSLDFLAGS", "SOURCE_DATE_EPOCH"}}
     environment.update(
         PATH=f"/opt/homebrew/opt/bison/bin:{environment['PATH']}",
         CC="/usr/bin/clang -arch x86_64", CXX="/usr/bin/clang++ -arch x86_64",
         CFLAGS=f"-O2 {prefix_map}", CROSSCFLAGS=f"-O2 {prefix_map}",
+        # PE modules: TimeDateStamp 0 instead of the link time, so the CheckSum that GNU ld
+        # computes over the image is deterministic too (ADR-0081).
+        CROSSLDFLAGS=PE_LDFLAGS,
         LC_ALL="C", CONFIG_SITE="/dev/null",
         PKG_CONFIG_LIBDIR=f"{tls / 'lib/pkgconfig'}:{freetype / 'lib/pkgconfig'}",
         CPPFLAGS=f"-I{freetype / 'include/freetype2'}",
@@ -187,8 +253,9 @@ def build(args):
         DYLD_FALLBACK_LIBRARY_PATH=f"{moltenvk.parent}:{tls / 'lib'}:{freetype / 'lib'}:/usr/lib",
     )
     receipt["environment"] = {k: environment[k] for k in (
-        "CC", "CXX", "CFLAGS", "CROSSCFLAGS", "CPPFLAGS", "LDFLAGS", "PKG_CONFIG_LIBDIR",
-        "ac_cv_lib_soname_MoltenVK", "ac_cv_lib_soname_gnutls", "ac_cv_lib_soname_freetype")}
+        "CC", "CXX", "CFLAGS", "CROSSCFLAGS", "CROSSLDFLAGS", "CPPFLAGS", "LDFLAGS",
+        "PKG_CONFIG_LIBDIR", "ac_cv_lib_soname_MoltenVK", "ac_cv_lib_soname_gnutls",
+        "ac_cv_lib_soname_freetype")}
     receipt["inputs"] = {"freetype_prefix": str(freetype), "tls_prefix": str(tls),
                          "moltenvk_library": str(moltenvk), "moltenvk_sha256": sha256(moltenvk)}
     jobs = str(args.jobs)
@@ -209,6 +276,11 @@ def build(args):
             for name, value in pin["configure_sonames"].items():
                 if f'#define {name} "{value}"' not in config.splitlines():
                     raise ValueError(f"configure did not select {name} {value}")
+            makefile = (directory / "Makefile").read_text().splitlines()
+            for arch in ("x86_64", "i386"):
+                line = next((l for l in makefile if l.startswith(f"{arch}_LDFLAGS =")), "")
+                if PE_LDFLAGS not in line:
+                    raise ValueError(f"configure dropped {PE_LDFLAGS} from {arch}_LDFLAGS")
 
     helper = directory / "loader/libnative-gs-localtime.dylib"
     run(["/usr/bin/clang", "-arch", "x86_64", "-dynamiclib", "-O2", "-Wall", "-Wextra", "-Werror",
@@ -318,10 +390,12 @@ def build_tsshim(pin, root, work, receipt):
     (directory / "d3d12-calimocho.def").write_text(
         definition.replace("LIBRARY d3d12.dll\n", f"LIBRARY {shim['tsshim_export_name']}\n", 1))
     built = directory / "d3d12.dll"
+    # Relative output name: GNU ld derives the auto image base from it, so an absolute work
+    # path would make the image base differ between build directories.
     run(["x86_64-w64-mingw32-gcc", "-shared", "-O2", "-Wall", "-static-libgcc", "-s",
-         f"-ffile-prefix-map={directory}/=tsshim/", "-o", str(built),
-         str(directory / "d3d12.c"), str(directory / "d3d12-calimocho.def")],
-        log=directory / "compile.log")
+         PE_LDFLAGS, "-ffile-prefix-map=" + f"{directory}/=tsshim/", "-o", built.name,
+         "d3d12.c", "d3d12-calimocho.def"],
+        cwd=directory, log=directory / "compile.log")
     run([str(work / "build/tools/winebuild/winebuild"), "--builtin", str(built)])
     # Apple's d3d12.dll stays where it is. The shim is a separate builtin that only takes over
     # when a title profile copies it into the prefix as system32\d3d12.dll (Wine resolves the
@@ -344,6 +418,7 @@ def build_tsshim(pin, root, work, receipt):
 
 def assemble(args):
     pin = pins(args)
+    check_toolchain(pin, toolchain())
     work = Path(args.work).resolve(strict=True)
     receipt = json.loads((work / "build-receipt.json").read_text())
     if receipt.get("status") != "built":
@@ -384,6 +459,7 @@ def assemble(args):
         leaks += [f"{path.relative_to(root)}: {marker}" for marker in FORBIDDEN_LINKAGE if marker in text]
     if leaks:
         raise ValueError("Absolute build paths remain in load commands:\n" + "\n".join(leaks))
+    print(f"PE modules with TimeDateStamp 0: {check_pe_policy(root, set(pin['apple_gptk']['pe_modules']))}")
     write_engine_manifest(pin, root, receipt)
     print(f"Assembled {root}")
 
@@ -617,7 +693,7 @@ def verify_signatures(root, pin):
 # Pins and files that decide the bytes of the shipped binaries. Reusing a signed build is
 # only allowed when none of them changed since that build's source commit.
 BINARY_PINS = ("wine", "patches", "dependency_sources", "moltenvk", "tsshim", "apple_gptk",
-               "cw_donor", "signing", "environment", "opt_ins", "freetype_credit_years")
+               "toolchain", "cw_donor", "signing", "environment", "opt_ins", "freetype_credit_years")
 BINARY_INPUTS = ("patches", "tools/port_d3dmetal.py", "tools/native_gs_localtime.c",
                  "tools/build_freetype.py", "tools/build_tls.py", "tools/build_moltenvk.py",
                  "scripts/entitlements")
