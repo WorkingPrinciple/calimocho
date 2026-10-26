@@ -11,3 +11,5 @@
 0011-winemac.drv-Opt-in-copy-of-the-app-icon-callback-rep.patch
 0012-win32u-Publish-the-D3DMetal-GPU-identity-override-in.patch
 0013-winecoreaudio.drv-Add-an-opt-in-process-scoped-outpu.patch
+0014-windows.web-Implement-IVector-IJsonValue-and-IIterab.patch
+0015-winebus.sys-Normalize-the-Xbox-One-S-Bluetooth-LE-in.patch
