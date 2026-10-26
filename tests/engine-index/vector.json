@@ -1,5 +1,5 @@
 {
-  "description": "Known-answer vector for calimocho-engine-index/1 in a DSSE v1 envelope (ADR-0082). Run every case with the named trust file, optional prior state, now, X Ode version and installed Calimocho version; valid cases must yield exactly 'eligible' and 'new_state'.",
+  "description": "Known-answer vector for calimocho-engine-index/1 in a DSSE v1 envelope (ADR-0082). Run every case with the named trust file, optional prior state, now, X Ode version and installed Calimocho version; valid cases must yield exactly 'eligible' and 'new_state'. Invalid cases carry a stable 'reason' code for other implementations and 'error', a regular expression over this reference tool's message.",
   "test_key": {
     "source": "RFC 8032 section 7.1, TEST 1",
     "warning": "Public test key. Never trust it.",
@@ -30,12 +30,14 @@
       ],
       "new_state": {
         "schema": "calimocho-engine-index-state/1",
-        "epoch": 1,
-        "index_version": 1,
-        "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
-        "keyids": [
-          "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
-        ],
+        "high_water": {
+          "epoch": 1,
+          "index_version": 1,
+          "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
+          "keyids": [
+            "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
+          ]
+        },
         "revoked_engines": []
       },
       "trust": "trust.test.json",
@@ -84,12 +86,14 @@
       "envelope": "envelope.json",
       "state": {
         "schema": "calimocho-engine-index-state/1",
-        "epoch": 1,
-        "index_version": 1,
-        "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
-        "keyids": [
-          "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
-        ],
+        "high_water": {
+          "epoch": 1,
+          "index_version": 1,
+          "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
+          "keyids": [
+            "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
+          ]
+        },
         "revoked_engines": []
       },
       "expect": "valid",
@@ -98,12 +102,14 @@
       ],
       "new_state": {
         "schema": "calimocho-engine-index-state/1",
-        "epoch": 1,
-        "index_version": 1,
-        "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
-        "keyids": [
-          "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
-        ],
+        "high_water": {
+          "epoch": 1,
+          "index_version": 1,
+          "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
+          "keyids": [
+            "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
+          ]
+        },
         "revoked_engines": []
       },
       "trust": "trust.test.json",
@@ -114,12 +120,14 @@
       "envelope": "envelope-v2.json",
       "state": {
         "schema": "calimocho-engine-index-state/1",
-        "epoch": 1,
-        "index_version": 1,
-        "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
-        "keyids": [
-          "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
-        ],
+        "high_water": {
+          "epoch": 1,
+          "index_version": 1,
+          "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
+          "keyids": [
+            "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
+          ]
+        },
         "revoked_engines": []
       },
       "expect": "valid",
@@ -128,12 +136,14 @@
       ],
       "new_state": {
         "schema": "calimocho-engine-index-state/1",
-        "epoch": 1,
-        "index_version": 2,
-        "payload_sha256": "68e403b722a0a744360e895e433e2ef68819364ddb4b9b0b09f7a9f4841aa2d5",
-        "keyids": [
-          "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
-        ],
+        "high_water": {
+          "epoch": 1,
+          "index_version": 2,
+          "payload_sha256": "68e403b722a0a744360e895e433e2ef68819364ddb4b9b0b09f7a9f4841aa2d5",
+          "keyids": [
+            "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
+          ]
+        },
         "revoked_engines": []
       },
       "trust": "trust.test.json",
@@ -144,12 +154,14 @@
       "envelope": "envelope.json",
       "state": {
         "schema": "calimocho-engine-index-state/1",
-        "epoch": 1,
-        "index_version": 1,
-        "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
-        "keyids": [
-          "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
-        ],
+        "high_water": {
+          "epoch": 1,
+          "index_version": 1,
+          "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
+          "keyids": [
+            "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
+          ]
+        },
         "revoked_engines": [
           {
             "engine_id": "calimocho-11.20-4.0b3-06",
@@ -159,6 +171,23 @@
       },
       "expect": "valid",
       "eligible": [],
+      "new_state": {
+        "schema": "calimocho-engine-index-state/1",
+        "high_water": {
+          "epoch": 1,
+          "index_version": 1,
+          "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
+          "keyids": [
+            "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
+          ]
+        },
+        "revoked_engines": [
+          {
+            "engine_id": "calimocho-11.20-4.0b3-06",
+            "reason": "test revocation"
+          }
+        ]
+      },
       "trust": "trust.test.json",
       "now": "2026-10-27T00:00:00Z"
     },
@@ -171,17 +200,19 @@
       "now": "2026-10-27T00:00:00Z"
     },
     {
-      "name": "state from revoked key is discarded",
+      "name": "high-water from revoked key is discarded",
       "envelope": "envelope.json",
       "trust": "trust-revoked-other.test.json",
       "state": {
         "schema": "calimocho-engine-index-state/1",
-        "epoch": 1,
-        "index_version": 7,
-        "payload_sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
-        "keyids": [
-          "39f713d0a644253f04529421b9f51b9b08979d08295959c4f3990ee617f5139f"
-        ],
+        "high_water": {
+          "epoch": 1,
+          "index_version": 7,
+          "payload_sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+          "keyids": [
+            "39f713d0a644253f04529421b9f51b9b08979d08295959c4f3990ee617f5139f"
+          ]
+        },
         "revoked_engines": []
       },
       "expect": "valid",
@@ -190,13 +221,57 @@
       ],
       "new_state": {
         "schema": "calimocho-engine-index-state/1",
-        "epoch": 1,
-        "index_version": 1,
-        "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
-        "keyids": [
-          "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
-        ],
+        "high_water": {
+          "epoch": 1,
+          "index_version": 1,
+          "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
+          "keyids": [
+            "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
+          ]
+        },
         "revoked_engines": []
+      },
+      "now": "2026-10-27T00:00:00Z"
+    },
+    {
+      "name": "revocations survive a discarded high-water",
+      "envelope": "envelope.json",
+      "trust": "trust-revoked-other.test.json",
+      "state": {
+        "schema": "calimocho-engine-index-state/1",
+        "high_water": {
+          "epoch": 1,
+          "index_version": 7,
+          "payload_sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+          "keyids": [
+            "39f713d0a644253f04529421b9f51b9b08979d08295959c4f3990ee617f5139f"
+          ]
+        },
+        "revoked_engines": [
+          {
+            "engine_id": "calimocho-11.20-4.0b3-06",
+            "reason": "test revocation"
+          }
+        ]
+      },
+      "expect": "valid",
+      "eligible": [],
+      "new_state": {
+        "schema": "calimocho-engine-index-state/1",
+        "high_water": {
+          "epoch": 1,
+          "index_version": 1,
+          "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
+          "keyids": [
+            "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
+          ]
+        },
+        "revoked_engines": [
+          {
+            "engine_id": "calimocho-11.20-4.0b3-06",
+            "reason": "test revocation"
+          }
+        ]
       },
       "now": "2026-10-27T00:00:00Z"
     },
@@ -206,12 +281,14 @@
       "trust": "trust-epoch2.test.json",
       "state": {
         "schema": "calimocho-engine-index-state/1",
-        "epoch": 1,
-        "index_version": 2,
-        "payload_sha256": "68e403b722a0a744360e895e433e2ef68819364ddb4b9b0b09f7a9f4841aa2d5",
-        "keyids": [
-          "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
-        ],
+        "high_water": {
+          "epoch": 1,
+          "index_version": 2,
+          "payload_sha256": "68e403b722a0a744360e895e433e2ef68819364ddb4b9b0b09f7a9f4841aa2d5",
+          "keyids": [
+            "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
+          ]
+        },
         "revoked_engines": []
       },
       "expect": "valid",
@@ -220,12 +297,14 @@
       ],
       "new_state": {
         "schema": "calimocho-engine-index-state/1",
-        "epoch": 2,
-        "index_version": 1,
-        "payload_sha256": "238d85beb07719abf2d9cf81eff951e4892f7cff31ec45727ba8720cf29dfe07",
-        "keyids": [
-          "39f713d0a644253f04529421b9f51b9b08979d08295959c4f3990ee617f5139f"
-        ],
+        "high_water": {
+          "epoch": 2,
+          "index_version": 1,
+          "payload_sha256": "238d85beb07719abf2d9cf81eff951e4892f7cff31ec45727ba8720cf29dfe07",
+          "keyids": [
+            "39f713d0a644253f04529421b9f51b9b08979d08295959c4f3990ee617f5139f"
+          ]
+        },
         "revoked_engines": []
       },
       "now": "2026-10-27T00:00:00Z"
@@ -235,34 +314,42 @@
       "envelope": "envelope.json",
       "state": {
         "schema": "calimocho-engine-index-state/1",
-        "epoch": 1,
-        "index_version": 2,
-        "payload_sha256": "68e403b722a0a744360e895e433e2ef68819364ddb4b9b0b09f7a9f4841aa2d5",
-        "keyids": [
-          "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
-        ],
+        "high_water": {
+          "epoch": 1,
+          "index_version": 2,
+          "payload_sha256": "68e403b722a0a744360e895e433e2ef68819364ddb4b9b0b09f7a9f4841aa2d5",
+          "keyids": [
+            "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
+          ]
+        },
         "revoked_engines": []
       },
       "expect": "invalid",
+      "error": "older than 2 \\(rollback\\)",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "rollback"
     },
     {
       "name": "state from a trusted key is honoured",
       "envelope": "envelope.json",
       "state": {
         "schema": "calimocho-engine-index-state/1",
-        "epoch": 1,
-        "index_version": 7,
-        "payload_sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
-        "keyids": [
-          "39f713d0a644253f04529421b9f51b9b08979d08295959c4f3990ee617f5139f"
-        ],
+        "high_water": {
+          "epoch": 1,
+          "index_version": 7,
+          "payload_sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+          "keyids": [
+            "39f713d0a644253f04529421b9f51b9b08979d08295959c4f3990ee617f5139f"
+          ]
+        },
         "revoked_engines": []
       },
       "expect": "invalid",
+      "error": "older than 7 \\(rollback\\)",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "rollback"
     },
     {
       "name": "older epoch",
@@ -270,159 +357,203 @@
       "trust": "trust-epoch2.test.json",
       "state": {
         "schema": "calimocho-engine-index-state/1",
-        "epoch": 2,
-        "index_version": 1,
-        "payload_sha256": "238d85beb07719abf2d9cf81eff951e4892f7cff31ec45727ba8720cf29dfe07",
-        "keyids": [
-          "39f713d0a644253f04529421b9f51b9b08979d08295959c4f3990ee617f5139f"
-        ],
+        "high_water": {
+          "epoch": 2,
+          "index_version": 1,
+          "payload_sha256": "238d85beb07719abf2d9cf81eff951e4892f7cff31ec45727ba8720cf29dfe07",
+          "keyids": [
+            "39f713d0a644253f04529421b9f51b9b08979d08295959c4f3990ee617f5139f"
+          ]
+        },
         "revoked_engines": []
       },
       "expect": "invalid",
-      "now": "2026-10-27T00:00:00Z"
+      "error": "epoch 1 is older than 2",
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "rollback"
     },
     {
       "name": "equivocation",
       "envelope": "envelope-equivocation.json",
       "state": {
         "schema": "calimocho-engine-index-state/1",
-        "epoch": 1,
-        "index_version": 1,
-        "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
-        "keyids": [
-          "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
-        ],
+        "high_water": {
+          "epoch": 1,
+          "index_version": 1,
+          "payload_sha256": "c4bd394c0c3a33e6bd320452ab73a775b8ba6301ea8f1b5b614cd7fc3bb83804",
+          "keyids": [
+            "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
+          ]
+        },
         "revoked_engines": []
       },
       "expect": "invalid",
+      "error": "equivocation",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "equivocation"
     },
     {
       "name": "below embedded floor",
       "envelope": "envelope.json",
       "trust": "trust-floor-2.test.json",
       "expect": "invalid",
-      "now": "2026-10-27T00:00:00Z"
+      "error": "below the embedded floor",
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "below_floor"
     },
     {
       "name": "revoked signing key",
       "envelope": "envelope.json",
       "trust": "trust-revoked-key.test.json",
       "expect": "invalid",
-      "now": "2026-10-27T00:00:00Z"
+      "error": "no signature from a trusted key",
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "no_trusted_signature"
     },
     {
       "name": "key not bound to payload epoch",
       "envelope": "envelope-epoch2-test-key.json",
       "trust": "trust-epoch2.test.json",
       "expect": "invalid",
-      "now": "2026-10-27T00:00:00Z"
+      "error": "bound to epoch 2",
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "key_epoch"
     },
     {
       "name": "expired",
       "envelope": "envelope.json",
       "now": "2026-11-25T12:06:00Z",
       "expect": "invalid",
-      "trust": "trust.test.json"
+      "error": "index expired",
+      "trust": "trust.test.json",
+      "reason": "expired"
     },
     {
       "name": "from the future",
       "envelope": "envelope.json",
       "now": "2026-10-26T11:54:00Z",
       "expect": "invalid",
-      "trust": "trust.test.json"
+      "error": "from the future",
+      "trust": "trust.test.json",
+      "reason": "not_yet_valid"
     },
     {
       "name": "envelope-bad-dot-name.json",
       "envelope": "envelope-bad-dot-name.json",
       "expect": "invalid",
+      "error": "asset.name: '..'",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "schema"
     },
     {
       "name": "envelope-bad-duplicate-key.json",
       "envelope": "envelope-bad-duplicate-key.json",
       "expect": "invalid",
+      "error": "duplicate JSON key 'epoch'",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "duplicate_key"
     },
     {
       "name": "envelope-bad-hidden-name.json",
       "envelope": "envelope-bad-hidden-name.json",
       "expect": "invalid",
+      "error": "asset.name: '.zip'",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "schema"
     },
     {
       "name": "envelope-bad-index-cap.json",
       "envelope": "envelope-bad-index-cap.json",
       "expect": "invalid",
+      "error": "index_version: out of range",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "schema"
     },
     {
       "name": "envelope-bad-newline.json",
       "envelope": "envelope-bad-newline.json",
       "expect": "invalid",
+      "error": "engine_id: .*\\\\n",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "schema"
     },
     {
       "name": "envelope-bad-noncanonical-base64.json",
       "envelope": "envelope-bad-noncanonical-base64.json",
       "expect": "invalid",
+      "error": "non-canonical base64",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "noncanonical_base64"
     },
     {
       "name": "envelope-bad-nul.json",
       "envelope": "envelope-bad-nul.json",
       "expect": "invalid",
+      "error": "reason: .*\\\\x00",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "schema"
     },
     {
       "name": "envelope-bad-tampered.json",
       "envelope": "envelope-bad-tampered.json",
       "expect": "invalid",
+      "error": "no signature from a trusted key",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "no_trusted_signature"
     },
     {
       "name": "envelope-bad-untrusted-key.json",
       "envelope": "envelope-bad-untrusted-key.json",
       "expect": "invalid",
+      "error": "no signature from a trusted key",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "no_trusted_signature"
     },
     {
       "name": "envelope-bad-url-http.json",
       "envelope": "envelope-bad-url-http.json",
       "expect": "invalid",
+      "error": "asset.url: 'http://",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "url"
     },
     {
       "name": "envelope-bad-url-port.json",
       "envelope": "envelope-bad-url-port.json",
       "expect": "invalid",
+      "error": "asset.url: 'https://github.com:443",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "url"
     },
     {
       "name": "envelope-bad-url-userinfo.json",
       "envelope": "envelope-bad-url-userinfo.json",
       "expect": "invalid",
+      "error": "asset.url: 'https://x@github.com",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "url"
     },
     {
       "name": "envelope-bad-wrong-type.json",
       "envelope": "envelope-bad-wrong-type.json",
       "expect": "invalid",
+      "error": "payloadType: must be",
       "trust": "trust.test.json",
-      "now": "2026-10-27T00:00:00Z"
+      "now": "2026-10-27T00:00:00Z",
+      "reason": "payload_type"
     }
   ]
 }

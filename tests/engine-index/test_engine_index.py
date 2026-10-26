@@ -21,6 +21,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import warnings
 import zipfile
 
 HERE = Path(__file__).resolve().parent
@@ -146,9 +147,11 @@ def build(directory):
         trust("trust-epoch2.test.json", [(test_public, 1), (other_public, 2)])
 
         def state(epoch, version, body, keyids=(test_id,), revoked=()):
-            return {"schema": "calimocho-engine-index-state/1", "epoch": epoch, "index_version": version,
-                    "payload_sha256": ei.sha256_bytes(body), "keyids": list(keyids),
+            return {"schema": "calimocho-engine-index-state/1",
+                    "high_water": {"epoch": epoch, "index_version": version,
+                                   "payload_sha256": ei.sha256_bytes(body), "keyids": list(keyids)},
                     "revoked_engines": list(revoked)}
+        revocation = {"engine_id": ENGINE, "reason": "test revocation"}
         fresh = state(1, 1, good)
         cases = [
             {"name": "valid", "envelope": "envelope.json", "xode_version": "0.2.0",
@@ -166,43 +169,75 @@ def build(directory):
             {"name": "newer index", "envelope": "envelope-v2.json", "state": fresh,
              "expect": "valid", "eligible": [ENGINE], "new_state": state(1, 2, v2)},
             {"name": "persisted revocation", "envelope": "envelope.json",
-             "state": state(1, 1, good, revoked=[{"engine_id": ENGINE, "reason": "test revocation"}]),
-             "expect": "valid", "eligible": []},
+             "state": state(1, 1, good, revoked=[revocation]),
+             "expect": "valid", "eligible": [], "new_state": state(1, 1, good, revoked=[revocation])},
             {"name": "embedded revocation", "envelope": "envelope.json", "trust": "trust-revoked-engine.test.json",
              "expect": "valid", "eligible": []},
-            {"name": "state from revoked key is discarded", "envelope": "envelope.json",
+            {"name": "high-water from revoked key is discarded", "envelope": "envelope.json",
              "trust": "trust-revoked-other.test.json", "state": state(1, 7, b"x", keyids=[other_id]),
              "expect": "valid", "eligible": [ENGINE], "new_state": fresh},
+            {"name": "revocations survive a discarded high-water", "envelope": "envelope.json",
+             "trust": "trust-revoked-other.test.json",
+             "state": state(1, 7, b"x", keyids=[other_id], revoked=[revocation]),
+             "expect": "valid", "eligible": [], "new_state": state(1, 1, good, revoked=[revocation])},
             {"name": "new epoch resets the high-water mark", "envelope": "envelope-epoch2-other-key.json",
              "trust": "trust-epoch2.test.json", "state": state(1, 2, v2),
              "expect": "valid", "eligible": [ENGINE], "new_state": state(2, 1, epoch2, keyids=[other_id])},
-            {"name": "rollback", "envelope": "envelope.json", "state": state(1, 2, v2), "expect": "invalid"},
+            {"name": "rollback", "envelope": "envelope.json", "state": state(1, 2, v2), "expect": "invalid",
+             "error": "older than 2 \\(rollback\\)"},
             {"name": "state from a trusted key is honoured", "envelope": "envelope.json",
-             "state": state(1, 7, b"x", keyids=[other_id]), "expect": "invalid"},
+             "state": state(1, 7, b"x", keyids=[other_id]), "expect": "invalid",
+             "error": "older than 7 \\(rollback\\)"},
             {"name": "older epoch", "envelope": "envelope.json", "trust": "trust-epoch2.test.json",
-             "state": state(2, 1, epoch2, keyids=[other_id]), "expect": "invalid"},
-            {"name": "equivocation", "envelope": "envelope-equivocation.json", "state": fresh, "expect": "invalid"},
+             "state": state(2, 1, epoch2, keyids=[other_id]), "expect": "invalid",
+             "error": "epoch 1 is older than 2"},
+            {"name": "equivocation", "envelope": "envelope-equivocation.json", "state": fresh, "expect": "invalid",
+             "error": "equivocation"},
             {"name": "below embedded floor", "envelope": "envelope.json", "trust": "trust-floor-2.test.json",
-             "expect": "invalid"},
+             "expect": "invalid", "error": "below the embedded floor"},
             {"name": "revoked signing key", "envelope": "envelope.json", "trust": "trust-revoked-key.test.json",
-             "expect": "invalid"},
+             "expect": "invalid", "error": "no signature from a trusted key"},
             {"name": "key not bound to payload epoch", "envelope": "envelope-epoch2-test-key.json",
-             "trust": "trust-epoch2.test.json", "expect": "invalid"},
-            {"name": "expired", "envelope": "envelope.json", "now": "2026-11-25T12:06:00Z", "expect": "invalid"},
+             "trust": "trust-epoch2.test.json", "expect": "invalid", "error": "bound to epoch 2"},
+            {"name": "expired", "envelope": "envelope.json", "now": "2026-11-25T12:06:00Z", "expect": "invalid",
+             "error": "index expired"},
             {"name": "from the future", "envelope": "envelope.json", "now": "2026-10-26T11:54:00Z",
-             "expect": "invalid"},
+             "expect": "invalid", "error": "from the future"},
         ]
+        bad_reasons = {
+            "envelope-bad-dot-name.json": "asset.name: '..'",
+            "envelope-bad-duplicate-key.json": "duplicate JSON key 'epoch'",
+            "envelope-bad-hidden-name.json": "asset.name: '.zip'",
+            "envelope-bad-index-cap.json": "index_version: out of range",
+            "envelope-bad-newline.json": "engine_id: .*\\\\n",
+            "envelope-bad-noncanonical-base64.json": "non-canonical base64",
+            "envelope-bad-nul.json": "reason: .*\\\\x00",
+            "envelope-bad-tampered.json": "no signature from a trusted key",
+            "envelope-bad-untrusted-key.json": "no signature from a trusted key",
+            "envelope-bad-url-http.json": "asset.url: 'http://",
+            "envelope-bad-url-port.json": "asset.url: 'https://github.com:443",
+            "envelope-bad-url-userinfo.json": "asset.url: 'https://x@github.com",
+            "envelope-bad-wrong-type.json": "payloadType: must be",
+        }
         for name in sorted(files):
             if name.startswith("envelope-bad-"):
-                cases.append({"name": name, "envelope": name, "expect": "invalid"})
+                cases.append({"name": name, "envelope": name, "expect": "invalid", "error": bad_reasons[name]})
+        codes = [("rollback", "rollback"), ("epoch 1 is older", "rollback"), ("equivocation", "equivocation"),
+                 ("floor", "below_floor"), ("no signature", "no_trusted_signature"), ("bound to epoch", "key_epoch"),
+                 ("expired", "expired"), ("future", "not_yet_valid"), ("duplicate JSON", "duplicate_key"),
+                 ("base64", "noncanonical_base64"), ("payloadType", "payload_type"), ("asset.url", "url"),
+                 ("out of range", "schema"), ("asset.name", "schema"), ("engine_id", "schema"), ("reason", "schema")]
         for case in cases:
             case.setdefault("trust", "trust.test.json")
             case.setdefault("now", NOW)
+            if case["expect"] == "invalid":
+                case["reason"] = next(code for needle, code in codes if needle in case["error"])
         write("vector.json", {
             "description": "Known-answer vector for calimocho-engine-index/1 in a DSSE v1 envelope (ADR-0082). "
                            "Run every case with the named trust file, optional prior state, now, X Ode version "
                            "and installed Calimocho version; valid cases must yield exactly 'eligible' and "
-                           "'new_state'.",
+                           "'new_state'. Invalid cases carry a stable 'reason' code for other implementations "
+                           "and 'error', a regular expression over this reference tool's message.",
             "test_key": {"source": "RFC 8032 section 7.1, TEST 1", "warning": "Public test key. Never trust it.",
                          "seed_hex": TEST_SEED.hex(), "public_key_hex": test_public.hex(), "keyid": test_id,
                          "epoch": 1},
@@ -221,13 +256,17 @@ def build(directory):
 
 def make_zip(path, members):
     """members: list of (name, kind, data) with kind file|dir|symlink|fifo."""
-    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
+    with warnings.catch_warnings(), zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
+        warnings.simplefilter("ignore", UserWarning)  # duplicate names are deliberate in some cases
         for name, kind, data in members:
             info = zipfile.ZipInfo(name, date_time=(2026, 10, 26, 0, 0, 0))
-            info.create_system = 3
-            mode = {"file": stat.S_IFREG | 0o644, "dir": stat.S_IFDIR | 0o755,
-                    "symlink": stat.S_IFLNK | 0o777, "fifo": stat.S_IFIFO | 0o644}[kind]
-            info.external_attr = mode << 16
+            if kind == "dos":
+                info.create_system, info.external_attr = 0, 0
+            else:
+                info.create_system = 3
+                mode = {"file": stat.S_IFREG | 0o644, "dir": stat.S_IFDIR | 0o755,
+                        "symlink": stat.S_IFLNK | 0o777, "fifo": stat.S_IFIFO | 0o644}[kind]
+                info.external_attr = mode << 16
             archive.writestr(info, data if kind != "dir" else b"")
 
 
@@ -310,9 +349,24 @@ class EngineIndexTests(unittest.TestCase):
                     if "new_state" in case:
                         self.assertEqual(new_state, case["new_state"])
                 else:
-                    with self.assertRaises(ei.IndexError_):
+                    with self.assertRaisesRegex(ei.IndexError_, case["error"]):
                         run()
         self.assertGreaterEqual(len(names), 30)
+
+    def test_revocation_overflow_fails_closed(self):
+        trust = ei.load_trust(HERE / "trust.test.json")
+        raw = (HERE / "envelope.json").read_bytes()
+        many = [{"engine_id": f"calimocho-11.20-4.0b3-{n:04d}", "reason": "x"} for n in range(1024)]
+        state = {"schema": "calimocho-engine-index-state/1",
+                 "high_water": {"epoch": 1, "index_version": 1,
+                                "payload_sha256": ei.sha256_bytes((HERE / "payload.json").read_bytes()),
+                                "keyids": [self.vector["test_key"]["keyid"]]},
+                 "revoked_engines": many}
+        _, eligible, new_state = ei.verify_envelope(raw, trust, state, ei.utc(NOW))
+        self.assertEqual(len(new_state["revoked_engines"]), 1024)
+        trust["revoked_engines"] = [{"engine_id": ENGINE, "reason": "one more"}]
+        with self.assertRaisesRegex(ei.IndexError_, "revocation list overflow"):
+            ei.verify_envelope(raw, trust, state, ei.utc(NOW))
 
     def test_negative_envelopes_have_valid_signatures(self):
         """Content negatives must be rejected by the rules, not by a broken signature."""
@@ -348,11 +402,17 @@ class EngineIndexTests(unittest.TestCase):
             "epoch zero": lambda d: d.update(epoch=0),
             "control char": lambda d: d["engines"][0]["components"].update(wine="11.20\t"),
         }
+        reasons = {"unknown field": "unexpected", "install dir": "install.directory", "foreign url": "asset.url",
+                   "query": "asset.url", "tag mismatch": "release_notes_url|URL is not the release URL",
+                   "bad sha": "wine_sha256", "sha newline": "wine_sha256", "team": "team_id",
+                   "too long": "at most 90 days", "revoked listed": "still listed", "duplicate": "duplicate engine",
+                   "bool version": "expected an integer", "float epoch": "expected an integer",
+                   "epoch zero": "out of range", "control char": "components.wine"}
         ei.check_payload(base)
         for name, mutate in mutations.items():
             document = copy.deepcopy(base)
             mutate(document)
-            with self.subTest(name=name), self.assertRaises(ei.IndexError_):
+            with self.subTest(name=name), self.assertRaisesRegex(ei.IndexError_, reasons[name]):
                 ei.check_payload(document)
 
     def test_release_url_is_parsed(self):
@@ -363,12 +423,13 @@ class EngineIndexTests(unittest.TestCase):
                     good.replace("github.com", "github.com:443"), good + "?x=1", good + "#f",
                     good.replace("github.com", "github.com.evil"), good.replace("engine-0.1120.4.6", "engine-0.1120.4.4"),
                     good.replace("/a.zip", "/b.zip"), good.replace("WorkingPrinciple", "workingprinciple")):
-            with self.subTest(url=url), self.assertRaises(ei.IndexError_):
+            with self.subTest(url=url), self.assertRaisesRegex(ei.IndexError_, "not the release URL"):
                 ei.release_url(url, "download", "engine-0.1120.4.6", "a.zip")
 
     def test_strict_json(self):
-        for raw in (b'{"a":1,"a":2}', b'{"a":NaN}', b'{"a":Infinity}'):
-            with self.subTest(raw=raw), self.assertRaises(ei.IndexError_):
+        for raw, reason in ((b'{"a":1,"a":2}', "duplicate JSON key"), (b'{"a":NaN}', "invalid JSON constant"),
+                            (b'{"a":Infinity}', "invalid JSON constant")):
+            with self.subTest(raw=raw), self.assertRaisesRegex(ei.IndexError_, reason):
                 ei.strict_json(raw)
 
     def test_check_zip(self):
@@ -376,40 +437,48 @@ class EngineIndexTests(unittest.TestCase):
             path, entry = fake_engine(scratch)
             self.assertEqual(ei.check_zip(path, entry)["symlinks"], 1)
             cases = {
-                "absolute path": dict(extra=[("/etc/passwd", "file", b"x")]),
-                "dot dot": dict(extra=[("TOP/../escape", "file", b"x")]),
-                "backslash": dict(extra=[("TOP/a\\b", "file", b"x")]),
-                "control char": dict(extra=[("TOP/a\x01b", "file", b"x")]),
-                "outside top": dict(extra=[("other/file", "file", b"x")]),
-                "symlink escape": dict(extra=[("TOP/escape", "symlink", b"../../outside")]),
-                "absolute symlink": dict(extra=[("TOP/abs", "symlink", b"/etc/passwd")]),
-                "dangling symlink": dict(extra=[("TOP/dangle", "symlink", b"missing")]),
-                "write through symlink": dict(extra=[("TOP/lib/wine/x86_64-unix/d3d12.so/x", "file", b"x")]),
-                "duplicate": dict(extra=[("TOP/bin/wine", "file", b"wine")]),
-                "case collision": dict(extra=[("TOP/BIN/WINE", "file", b"x")]),
-                "unicode collision": dict(extra=[("TOP/caf\u00e9", "file", b"x"), ("TOP/cafe\u0301", "file", b"y")]),
-                "fifo or hard link": dict(extra=[("TOP/pipe", "fifo", b"")]),
-                "bytes exceed bound": dict(bound={"size": 10, "entries": 100}),
-                "entries exceed bound": dict(bound={"size": 1 << 30, "entries": 3}),
-                "unlisted file": dict(extra=[("TOP/unlisted", "file", b"x")]),
-                "manifest lists missing": dict(drop_manifest_line="bin/wineserver"),
+                "absolute path": (dict(extra=[("/etc/passwd", "file", b"x")]), "unsafe path"),
+                "dot dot": (dict(extra=[("TOP/../escape", "file", b"x")]), "unsafe path"),
+                "backslash": (dict(extra=[("TOP/a\\b", "file", b"x")]), "unsafe path"),
+                "control char": (dict(extra=[("TOP/a\x01b", "file", b"x")]), "unsafe path"),
+                "outside top": (dict(extra=[("other/file", "file", b"x")]), "path outside"),
+                "symlink escape": (dict(extra=[("TOP/escape", "symlink", b"../../outside")]), "leaves"),
+                "absolute symlink": (dict(extra=[("TOP/abs", "symlink", b"/etc/passwd")]), "unsafe symlink target"),
+                "backslash symlink": (dict(extra=[("TOP/bs", "symlink", b"a\\b")]), "unsafe symlink target"),
+                "dangling symlink": (dict(extra=[("TOP/dangle", "symlink", b"missing")]), "dangles"),
+                "write through symlink": (dict(extra=[("TOP/lib/wine/x86_64-unix/d3d12.so/x", "file", b"x")]),
+                                          "under a symlink"),
+                "write through case-folded symlink": (dict(extra=[("TOP/Foo", "symlink", b"bin"),
+                                                                  ("TOP/foo/x", "file", b"x")]), "under a symlink"),
+                "duplicate": (dict(extra=[("TOP/bin/wine", "file", b"wine")]), "duplicate path"),
+                "case collision": (dict(extra=[("TOP/BIN/WINE", "file", b"x")]), "collide"),
+                "unicode collision": (dict(extra=[("TOP/caf\u00e9", "file", b"x"),
+                                                  ("TOP/cafe\u0301", "file", b"y")]), "collide"),
+                "fifo or hard link": (dict(extra=[("TOP/pipe", "fifo", b"")]), "unsupported member type"),
+                "not a Unix member": (dict(extra=[("TOP/dos", "dos", b"x")]), "without a Unix mode"),
+                "slash on a file": (dict(extra=[("TOP/fake/", "file", b"")]), "trailing slash disagree"),
+                "directory without slash": (dict(extra=[("TOP/dir", "dir", b"")]), "trailing slash disagree"),
+                "bytes exceed bound": (dict(bound={"size": 10, "entries": 100}), "exceeds the signed"),
+                "entries exceed bound": (dict(bound={"size": 1 << 30, "entries": 3}), "exceeds the signed"),
+                "unlisted file": (dict(extra=[("TOP/unlisted", "file", b"x")]), "MANIFEST"),
+                "manifest lists missing": (dict(drop_manifest_line="bin/wineserver"), "MANIFEST"),
             }
-            for name, kwargs in cases.items():
+            for name, (kwargs, reason) in cases.items():
                 with tempfile.TemporaryDirectory() as inner, self.subTest(name=name):
                     path, entry = fake_engine(inner, **kwargs)
-                    with self.assertRaises(ei.IndexError_):
+                    with self.assertRaisesRegex(ei.IndexError_, reason):
                         ei.check_zip(path, entry)
             # A different zip than the signed one is refused before anything else.
             path, entry = fake_engine(scratch)
             entry["asset"]["sha256"] = "0" * 64
-            with self.assertRaises(ei.IndexError_):
+            with self.assertRaisesRegex(ei.IndexError_, "size or SHA-256"):
                 ei.check_zip(path, entry)
 
     def test_key_files(self):
         with tempfile.TemporaryDirectory() as scratch:
             key = key_file(scratch, TEST_SEED, "loose.pem")
             key.chmod(0o644)
-            with self.assertRaises(ei.IndexError_):
+            with self.assertRaisesRegex(ei.IndexError_, "group or others"):
                 ei.public_key_of(key)
             key.chmod(0o600)
             payload = Path(scratch) / "payload.json"

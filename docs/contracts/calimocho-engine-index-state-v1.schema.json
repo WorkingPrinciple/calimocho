@@ -2,44 +2,53 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/WorkingPrinciple/calimocho/blob/main/docs/contracts/calimocho-engine-index-state-v1.schema.json",
   "title": "Calimocho engine index client state, version 1",
-  "description": "What X Ode persists after an index passes every check (ADR-0082): the high-water mark for the current epoch, the keyids that established it, and every engine revocation seen so far.",
+  "description": "What X Ode persists after an index passes every check (ADR-0082). high_water is bound to the keys that set it and is discarded if one of them is revoked; revoked_engines is kept separately and only grows. More than 1024 revocations fails closed (no update).",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schema",
-    "epoch",
-    "index_version",
-    "payload_sha256",
-    "keyids",
+    "high_water",
     "revoked_engines"
   ],
   "properties": {
     "schema": {
       "const": "calimocho-engine-index-state/1"
     },
-    "epoch": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 2147483647
-    },
-    "index_version": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 2147483647
-    },
-    "payload_sha256": {
-      "$ref": "#/$defs/sha256"
-    },
-    "keyids": {
-      "type": "array",
-      "minItems": 1,
-      "maxItems": 4,
-      "items": {
-        "$ref": "#/$defs/sha256"
+    "high_water": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "epoch",
+        "index_version",
+        "payload_sha256",
+        "keyids"
+      ],
+      "properties": {
+        "epoch": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "index_version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "payload_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "keyids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
       }
     },
     "revoked_engines": {
-      "$ref": "#/$defs/revoked"
+      "$ref": "#/$defs/revoked_state"
     }
   },
   "$defs": {
@@ -50,6 +59,30 @@
     "revoked": {
       "type": "array",
       "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "engine_id",
+          "reason"
+        ],
+        "properties": {
+          "engine_id": {
+            "type": "string",
+            "pattern": "^calimocho-[0-9]+\\.[0-9]+-[0-9A-Za-z.]+-[0-9]{2,}$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+          }
+        }
+      }
+    },
+    "revoked_state": {
+      "type": "array",
+      "maxItems": 1024,
       "items": {
         "type": "object",
         "additionalProperties": false,

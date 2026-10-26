@@ -50,6 +50,7 @@ TEAM_ID = "M62Z4M5EUY"  # embedded constant: never taken from the index
 MAX_ENVELOPE_BYTES = 1536 * 1024
 MAX_PAYLOAD_BYTES = 1024 * 1024
 MAX_VALIDITY = datetime.timedelta(days=90)
+MAX_STATE_REVOCATIONS = 1024
 CLOCK_SKEW = datetime.timedelta(minutes=5)
 RELEASE_HOST = "github.com"
 RELEASE_PATH = "/WorkingPrinciple/calimocho/releases"
@@ -392,22 +393,26 @@ def verify_envelope(raw, trust, state=None, now=None, xode_version=None, install
     floor = trust["floor"]
     if (epoch, version) < (floor["epoch"], floor["index_version"]):
         raise IndexError_(f"index ({epoch}, {version}) is below the embedded floor")
-    # A high-water mark set by a key this build revokes is discarded: a stolen key must not be
-    # able to freeze clients. The embedded floor still applies.
-    if state and any(k in trust["revoked_keyids"] for k in state["keyids"]):
-        state = None
-    if state:
-        if epoch < state["epoch"]:
-            raise IndexError_(f"epoch {epoch} is older than {state['epoch']} (rollback)")
-        if epoch == state["epoch"]:
-            if version < state["index_version"]:
-                raise IndexError_(f"index_version {version} is older than {state['index_version']} (rollback)")
-            if version == state["index_version"] and digest != state["payload_sha256"]:
+    # The high-water mark is bound to the keys that set it. If one of them is revoked here, the
+    # mark is discarded (a stolen key must not freeze clients) and the embedded floor applies.
+    # Revocations are kept separately and only grow.
+    high = state["high_water"] if state else None
+    if high and any(k in trust["revoked_keyids"] for k in high["keyids"]):
+        high = None
+    if high:
+        if epoch < high["epoch"]:
+            raise IndexError_(f"epoch {epoch} is older than {high['epoch']} (rollback)")
+        if epoch == high["epoch"]:
+            if version < high["index_version"]:
+                raise IndexError_(f"index_version {version} is older than {high['index_version']} (rollback)")
+            if version == high["index_version"] and digest != high["payload_sha256"]:
                 raise IndexError_("a different payload claims the same index_version (equivocation)")
     revoked = {}
     for source in (trust["revoked_engines"], state["revoked_engines"] if state else [], document["revoked"]):
         for item in source:
             revoked.setdefault(item["engine_id"], item)
+    if len(revoked) > MAX_STATE_REVOCATIONS:
+        raise IndexError_("revocation list overflow; treating as no update")
     eligible = []
     for entry in document["engines"]:
         if entry["engine_id"] in revoked:
@@ -417,10 +422,11 @@ def verify_envelope(raw, trust, state=None, now=None, xode_version=None, install
         if installed_version and engine_version(entry["version"]) <= engine_version(installed_version):
             continue
         eligible.append(entry)
-    keep_old = state and (state["epoch"], state["index_version"]) == (epoch, version)
-    new_state = {"schema": STATE_SCHEMA, "epoch": epoch, "index_version": version, "payload_sha256": digest,
-                 "keyids": state["keyids"] if keep_old else signers,
-                 "revoked_engines": sorted(revoked.values(), key=lambda item: item["engine_id"])[:256]}
+    keep_old = high and (high["epoch"], high["index_version"]) == (epoch, version)
+    new_state = {"schema": STATE_SCHEMA,
+                 "high_water": {"epoch": epoch, "index_version": version, "payload_sha256": digest,
+                                "keyids": high["keyids"] if keep_old else signers},
+                 "revoked_engines": sorted(revoked.values(), key=lambda item: item["engine_id"])}
     check_schema(new_state, "state")
     return document, eligible, new_state
 
@@ -428,17 +434,17 @@ def verify_envelope(raw, trust, state=None, now=None, xode_version=None, install
 # ------------------------------------------------------------------ installer checks
 
 def zip_member_type(member):
-    mode = member.external_attr >> 16
-    if member.create_system != 3 or mode == 0:
-        return "dir" if member.filename.endswith("/") else "file"
-    kind = stat.S_IFMT(mode)
-    if kind == stat.S_IFREG:
-        return "file"
-    if kind == stat.S_IFDIR:
-        return "dir"
-    if kind == stat.S_IFLNK:
-        return "symlink"
-    return "other"
+    """Type comes only from a Unix (create_system 3) mode; anything else is refused. A name ending
+    in / must be a directory and a directory's name must end in /."""
+    if member.create_system != 3:
+        raise IndexError_(f"member without a Unix mode: {member.filename!r}")
+    kind = {stat.S_IFREG: "file", stat.S_IFDIR: "dir", stat.S_IFLNK: "symlink"}.get(
+        stat.S_IFMT(member.external_attr >> 16))
+    if kind is None:
+        raise IndexError_(f"unsupported member type (device, FIFO, hard link): {member.filename!r}")
+    if (kind == "dir") != member.filename.endswith("/"):
+        raise IndexError_(f"member type and trailing slash disagree: {member.filename!r}")
+    return kind
 
 
 def safe_relative(name, what):
@@ -470,8 +476,6 @@ def check_zip(zip_path, entry):
                 raise IndexError_(f"path outside {top}/: {name!r}")
             path = "/".join(parts)
             kind = zip_member_type(member)
-            if kind == "other":
-                raise IndexError_(f"unsupported member type (device, FIFO, hard link): {name!r}")
             if path in kinds:
                 raise IndexError_(f"duplicate path: {name!r}")
             key = unicodedata.normalize("NFC", path).casefold()
@@ -496,15 +500,21 @@ def check_zip(zip_path, entry):
             hashes[path] = digest.hexdigest()
         for path, target in links.items():
             target = target.decode("utf-8")
-            safe_relative(target.replace("../", "x/"), "symlink target")
-            if target.startswith("/"):
-                raise IndexError_(f"absolute symlink {path} -> {target}")
+            if (not target or target.startswith("/") or "\\" in target
+                    or any(ord(c) < 32 or ord(c) == 127 for c in target)):
+                raise IndexError_(f"unsafe symlink target {path} -> {target!r}")
+            resolved = posixpath.normpath(posixpath.join(posixpath.dirname(path), target))
+            if not resolved.startswith(top + "/"):
+                raise IndexError_(f"symlink {path} -> {target} leaves {top}/")
             links[path] = target
+        fold = lambda value: unicodedata.normalize("NFC", value).casefold()  # noqa: E731
+        folded_links = {fold(path) for path, kind in kinds.items() if kind == "symlink"}
         for path in kinds:
-            # Nothing may be written through a symlink: no proper prefix of a path is a symlink.
-            parts = path.split("/")
+            # Nothing may be written through a symlink: no proper prefix of a path, compared the
+            # way APFS compares names, is a symlink.
+            parts = fold(path).split("/")
             for depth in range(1, len(parts)):
-                if kinds.get("/".join(parts[:depth])) == "symlink":
+                if "/".join(parts[:depth]) in folded_links:
                     raise IndexError_(f"{path} lies under a symlink")
         for path in links:
             resolved = resolve_link(path, links, kinds, top)
@@ -746,7 +756,7 @@ def cmd_verify(args):
         staged.write_text(json.dumps(new_state, indent=2) + "\n")
         os.replace(staged, target)
     print(json.dumps({"verified": True, "epoch": document["epoch"], "index_version": document["index_version"],
-                      "keyids": new_state["keyids"], "expires_at": document["expires_at"],
+                      "keyids": new_state["high_water"]["keyids"], "expires_at": document["expires_at"],
                       "engines": [e["engine_id"] for e in document["engines"]],
                       "eligible": [e["engine_id"] for e in eligible],
                       "revoked": [r["engine_id"] for r in new_state["revoked_engines"]]}, indent=2))

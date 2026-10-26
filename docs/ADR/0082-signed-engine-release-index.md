@@ -62,10 +62,12 @@ versions may use them.
   - a floor (`epoch`, `index_version`);
   - engines revoked at build time.
 - **What X Ode persists.** X Ode persists
-  [`calimocho-engine-index-state`](../contracts/calimocho-engine-index-state-v1.schema.json):
-  - the high-water `epoch`, `index_version` and `payload_sha256`;
-  - the keyids that set them;
-  - every engine revocation seen.
+  [`calimocho-engine-index-state`](../contracts/calimocho-engine-index-state-v1.schema.json),
+  in two separate parts:
+  - `high_water`: the `epoch`, `index_version` and `payload_sha256`,
+    bound to the keyids that set them;
+  - `revoked_engines`: every engine revocation seen, kept apart from
+    the high-water mark and only ever growing (at most 1024).
 
 ### Client rules (X Ode, normative)
 
@@ -98,8 +100,9 @@ versions may use them.
    path must equal the release path for the entry's tag and file name.
 6. **Freshness.** Refuse an index if `now` is later than `expires_at`
    plus 5 minutes, or earlier than `generated_at` minus 5 minutes.
-7. **High-water mark.** Load the persisted state. Discard it if any of
-   its keyids is in the embedded `revoked_keyids`. Then refuse the index
+7. **High-water mark.** Load the persisted state. Discard its
+   `high_water` (but never its revocations) if any of the high-water
+   keyids is in the embedded `revoked_keyids`. Then refuse the index
    if:
    - (`epoch`, `index_version`) is below the embedded floor;
    - `epoch` is below the state's epoch;
@@ -111,6 +114,8 @@ versions may use them.
 8. **Persist only after every check passes**, by writing a new file and
    renaming it. Store the union of the revocations from the embedded
    trust, the old state and the payload. Revocations are never removed.
+   If the union would exceed 1024 entries, fail closed: treat the index
+   as "no update available" and keep the old state.
 9. **Offering engines.** Offer an engine only if:
    - it is not revoked;
    - `min_xode_version` ≤ the running X Ode version, comparing SemVer
@@ -141,14 +146,21 @@ versions may use them.
    - two paths that are equal after Unicode NFC normalisation and case
      folding (APFS is case-insensitive and normalisation-insensitive by
      default).
-3. **Member types.** Allow only regular files, directories and symbolic
-   links. Refuse hard links, devices and FIFOs.
+3. **Member types.** A member's type comes only from its Unix mode:
+   refuse any member whose `create_system` is not 3 (Unix). Allow only
+   regular files, directories and symbolic links; refuse hard links,
+   devices and FIFOs. A name ending in `/` must be a directory, and a
+   directory's name must end in `/`.
 4. **Symbolic links.**
-   - The target must be relative and contain no backslash or NUL.
-   - After resolving the whole chain, it must stay inside
-     `<engine_id>/` and point to an entry in the archive.
+   - The target must be non-empty and relative, with no backslash, NUL
+     or other control character.
+   - Join it to the link's folder and normalise it lexically; the result
+     must lie inside `<engine_id>/`. After resolving the whole chain, it
+     must point to an entry in the archive.
    - No entry may lie under a symbolic link, so nothing is written
-     through one.
+     through one. Compare paths after NFC normalisation and case
+     folding, as APFS does, so `Foo` (a link) and `foo/x` (a file)
+     count as one path.
    - Create links with `symlink()` and never follow them while
      extracting. Open files with `O_NOFOLLOW | O_EXCL`.
 5. **Expansion limits.** Count decompressed bytes as they are written.
@@ -272,10 +284,12 @@ change and is out of scope before 2026-10-30.
   - the known-answer vector (`vector.json`, `payload.json`,
     `envelope.json`) for the real 0.1120.4.6 entry;
   - test trust files;
-  - 33 cases with expected `eligible` lists and new state, covering:
+  - 34 cases with expected `eligible` lists and new state (invalid
+    cases carry a stable `reason` code), covering:
     - version filtering;
     - same index, newer index and new epoch;
-    - persisted and embedded revocation;
+    - persisted and embedded revocation, kept when a high-water mark
+      is discarded;
     - a state set by a revoked key;
     - rollback, older epoch and equivocation;
     - the floor, a revoked signing key and the key-to-epoch binding;
