@@ -2,12 +2,15 @@
 """Configure pristine pinned WineHQ source and compile only its Wine server."""
 
 import argparse
+import contextlib
+import fcntl
 import hashlib
 import json
 import os
 from pathlib import Path
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import time
@@ -47,6 +50,55 @@ def run_step(command, directory, environment, log, timeout):
             code = 124
     return {"command": command, "exit_code": code, "timed_out": timed_out,
             "log": str(log), "log_sha256": sha256(log)}
+
+
+FIXED_PREFIX_ROOT = Path("/tmp/calimocho-deps")
+
+
+@contextlib.contextmanager
+def fixed_install_prefix(name, real):
+    """Serve the real prefix at /tmp/calimocho-deps/<name> while a dependency builds (ADR-0081).
+
+    A library's install name comes from --prefix, and ld derives its LC_UUID from the image,
+    install name included. Configuring with this fixed path keeps both independent of the
+    build directory. The symlink lets configure test programs and make install use it. A lock
+    serializes builds that need the same path; the symlink is removed afterwards.
+    """
+    descriptor = os.open(f"{FIXED_PREFIX_ROOT}.lock",
+                         os.O_CREAT | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        try:
+            FIXED_PREFIX_ROOT.mkdir(mode=0o700)
+        except FileExistsError:
+            pass
+        info = FIXED_PREFIX_ROOT.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+            raise ValueError(f"{FIXED_PREFIX_ROOT} must be a directory you own")
+        link = FIXED_PREFIX_ROOT / name
+        if link.is_symlink():
+            link.unlink()  # left by an interrupted build; we hold the lock
+        elif link.exists():
+            raise ValueError(f"{link} exists and is not a symlink")
+        real.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(real)
+        try:
+            yield link
+        finally:
+            link.unlink()
+    finally:
+        os.close(descriptor)
+
+
+def relocate_pkgconfig(prefix, fixed):
+    """Point build-time .pc files from the fixed prefix to the real one; they are never shipped."""
+    for pc in sorted((prefix / "lib/pkgconfig").glob("*.pc")):
+        text = pc.read_text()
+        if f"prefix={fixed}\n" not in text:
+            raise ValueError(f"{pc.name} lacks prefix={fixed}")
+        pc.write_text(text.replace(f"prefix={fixed}\n", f"prefix={prefix}\n", 1))
+    for archive in (prefix / "lib").glob("*.la"):
+        archive.unlink()
 
 
 def probe(source, output, without_freetype=False):

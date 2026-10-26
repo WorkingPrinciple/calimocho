@@ -10,7 +10,7 @@ import sys
 import tarfile
 import time
 
-from probe_wine_source import REPO, run_step, sha256
+from probe_wine_source import REPO, fixed_install_prefix, relocate_pkgconfig, run_step, sha256
 
 
 def build(archive, output):
@@ -31,6 +31,14 @@ def build(archive, output):
     build_dir = output / "build"
     build_dir.mkdir()
     prefix = output / "prefix"
+    with fixed_install_prefix("freetype", prefix) as fixed:
+        result = build_in(output, pin, source, build_dir, prefix, fixed)
+    if result == 0:
+        relocate_pkgconfig(prefix, fixed)
+    return result
+
+
+def build_in(output, pin, source, build_dir, prefix, fixed):
     environment = {
         key: value for key, value in os.environ.items()
         if key not in {"CFLAGS", "CPPFLAGS", "LDFLAGS", "CC", "CXX"}
@@ -59,7 +67,7 @@ def build(archive, output):
     for label, command in (
             ("configure", [
                 str(source / "configure"), "--host=x86_64-apple-darwin",
-                f"--prefix={prefix}", "--with-zlib=yes", "--with-bzip2=no",
+                f"--prefix={fixed}", "--with-zlib=yes", "--with-bzip2=no",
                 "--with-png=no", "--with-harfbuzz=no", "--with-brotli=no",
             ]),
             ("compile", ["/usr/bin/make", "-j4"]),

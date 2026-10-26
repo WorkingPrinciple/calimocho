@@ -10,7 +10,7 @@ import sys
 import tarfile
 import time
 
-from probe_wine_source import REPO, run_step, sha256
+from probe_wine_source import REPO, fixed_install_prefix, relocate_pkgconfig, run_step, sha256
 
 
 OPTIONS = {
@@ -42,6 +42,13 @@ def build(archives, output):
         raise ValueError("TLS build output and archives must be disjoint")
     output.mkdir(parents=True, exist_ok=False)
     prefix = output / "prefix"
+    with fixed_install_prefix("tls", prefix) as fixed:
+        result = build_in(archives, output, pins, prefix, fixed)
+    relocate_pkgconfig(prefix, fixed)
+    return result
+
+
+def build_in(archives, output, pins, prefix, fixed):
     environment = {
         k: v for k, v in os.environ.items()
         if k not in {"CC", "CXX", "CFLAGS", "CPPFLAGS", "CXXFLAGS", "LDFLAGS",
@@ -52,13 +59,15 @@ def build(archives, output):
         CC="/usr/bin/clang -arch x86_64", CXX="/usr/bin/clang++ -arch x86_64",
         # Map build paths out of __FILE__ strings and debug info (reproducible, no dev paths).
         CFLAGS=f"-O2 -ffile-prefix-map={output}/=tls-build/",
-        CPPFLAGS=f"-I{prefix}/include", LDFLAGS=f"-L{prefix}/lib",
+        # -Wl,-S: no debug map; its absolute object paths and mtimes would change LC_UUID.
+        CPPFLAGS=f"-I{fixed}/include", LDFLAGS=f"-L{fixed}/lib -Wl,-S",
         PKG_CONFIG_LIBDIR=str(prefix / "lib/pkgconfig"),
         DYLD_FALLBACK_LIBRARY_PATH=f"{prefix}/lib:/usr/lib",
         CONFIG_SITE="/dev/null", LC_ALL="C",
     )
     receipt = {
-        "architecture": "x86_64", "prefix": str(prefix), "sources": pins,
+        "architecture": "x86_64", "prefix": str(prefix), "install_prefix": str(fixed),
+        "sources": pins,
         "environment": {k: environment[k] for k in (
             "CC", "CXX", "CFLAGS", "CPPFLAGS", "LDFLAGS", "PKG_CONFIG_LIBDIR",
             "DYLD_FALLBACK_LIBRARY_PATH", "CONFIG_SITE", "LC_ALL")},
@@ -82,7 +91,7 @@ def build(archives, output):
         directory.mkdir()
         commands = [
             ("configure", [str(source / "configure"), "--host=x86_64-apple-darwin",
-                           f"--prefix={prefix}", "--disable-static", "--enable-shared"]
+                           f"--prefix={fixed}", "--disable-static", "--enable-shared"]
              + OPTIONS[name]),
             ("compile", ["/usr/bin/make", "-j4"]),
             ("install", ["/usr/bin/make", "-j1", "install"]),
@@ -104,7 +113,10 @@ def build(archives, output):
             continue
         info = subprocess.check_output(["file", str(path)], text=True, timeout=30)
         linkage = subprocess.check_output(["otool", "-L", str(path)], text=True, timeout=30)
-        if "x86_64" not in info or any(s in linkage for s in ("/opt/homebrew", "/usr/local")):
+        # otool's first line echoes the file's own path.
+        loads = linkage.split("\n", 1)[1]
+        if "x86_64" not in info or any(s in loads for s in ("/opt/homebrew", "/usr/local",
+                                                               str(output))):
             raise ValueError(f"Unexpected architecture or global dependency in {path}")
         artifacts.append({"path": str(path), "sha256": sha256(path),
                           "file": info, "linkage": linkage})

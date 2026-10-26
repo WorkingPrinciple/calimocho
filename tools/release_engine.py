@@ -38,7 +38,7 @@ import time
 REPO = Path(__file__).resolve().parents[1]
 MACHO_MAGIC = {b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca"}
 APPLE_UNIX_LINKS = ("d3d10", "d3d11", "d3d12", "d3d12core", "dxgi")
-FORBIDDEN_LINKAGE = ("/Users/", "/opt/homebrew", "/usr/local", "/private/", "/tmp/")
+FORBIDDEN_LINKAGE = ("/Users/", "/opt/homebrew", "/usr/local", "/private/", "/tmp/", "/calimocho-deps/")
 PE_LDFLAGS = "-Wl,--no-insert-timestamp"
 
 
@@ -478,7 +478,8 @@ def strip_debug_symbols(root):
 
 def scan_for_build_paths(root, roots):
     """Fail if any shipped file outside Apple's untouched files names a build or user path."""
-    markers = [b"/Users/", b"/opt/homebrew/", b"/private/var/folders/", b"/var/folders/"]
+    markers = [b"/Users/", b"/opt/homebrew/", b"/private/var/folders/", b"/var/folders/",
+               b"/calimocho-deps/"]
     markers += [r.encode() for r in roots]
     hits = []
     for path in sorted(root.rglob("*")):

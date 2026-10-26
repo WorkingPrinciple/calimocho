@@ -15,6 +15,17 @@ Mach-O files, but 403 Windows PE modules differed in 8 bytes each:
 The toolchain was only recorded in the build receipt, not pinned, so a
 second build on an updated Mac could silently use a different compiler.
 
+Both 0.1120.4.3 builds also reused one set of FreeType and TLS
+libraries. Building those twice showed two more differences:
+
+- Each library's install name contained its build directory. Apple ld
+  derives the `LC_UUID` from the whole image, so the UUID differed too.
+  The release tool rewrites the install name to `@rpath`, but not the
+  UUID.
+- nettle's objects carry debug information, so ld wrote a debug map
+  with absolute object paths and file times, which also changed the
+  UUID.
+
 ## Decision
 
 - **PE timestamp.** Wine is configured with
@@ -34,6 +45,18 @@ second build on an updated Mac could silently use a different compiler.
 - **Policy check.** `tools/release_engine.py assemble` fails if any of
   our PE modules (Apple's five are excluded) carries a non-zero
   `TimeDateStamp`. `build` fails if configure drops the flag.
+- **Dependency libraries.** `tools/build_freetype.py` and
+  `tools/build_tls.py` configure with the fixed prefix
+  `/tmp/calimocho-deps/<name>`. During the build that path is a symlink
+  to the real output directory, guarded by a lock and an owner check,
+  and removed afterwards. Install names and UUIDs no longer depend on
+  the build directory, and configure behaves as before. Its test
+  programs still find the libraries, which a nonexistent prefix would
+  break: SIP strips `DYLD_*` variables from `/bin/sh`. The TLS
+  libraries link with `-Wl,-S`, so ld writes no debug map; the exported
+  symbols are unchanged. The build-time `.pc` files are pointed back to
+  the real prefix and the `.la` files are removed; neither is shipped.
+  The release tool's path scan also rejects `/calimocho-deps/`.
 - **Toolchain pin.** `versions.json` `release_engine.toolchain` pins
   the Xcode version and build, the SDK version and build, and the
   version line and SHA-256 of clang, Apple ld, make, bison, flex, both
