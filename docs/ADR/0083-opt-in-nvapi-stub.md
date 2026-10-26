@@ -1,6 +1,7 @@
 # ADR-0083: Opt-in NVAPI stub for the NVIDIA identity
 
-Status: Accepted (REQ-120). Partly proven live; see Consequences.
+Status: Accepted (REQ-120). Not sufficient on its own; see
+[ADR-0084](0084-dxgi-driver-version-front-end.md).
 Date: 2026-10-26
 
 ## Context
@@ -69,8 +70,10 @@ lets us write the smallest piece that unblocks one.
   SYS_GetDriverAndBranchVersion (answered 616.56), EnumPhysicalGPUs
   and GPU_GetArchInfo. It reached the signed-in title screen and quit
   normally. The same run also showed that this prefix carries the
-  owner's "Don't show again" for FH302, so it doesn't prove the dialog
-  is gone. That needs an A/B on a prefix that still shows FH302.
+  owner's "Don't show again" for FH302, so it didn't prove anything
+  about the dialog. The A/B on a prefix that still shows FH302 settled
+  it: FH302 appeared both with and without the stub. FH6 also needs the
+  DXGI driver version (ADR-0084).
 - FH6's DLSS and Reflex menus stay off, as they are without the stub.
 - If a game starts needing more NVAPI, it gets
   `NVAPI_NO_IMPLEMENTATION`, never made-up data.

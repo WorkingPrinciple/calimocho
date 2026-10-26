@@ -97,7 +97,7 @@ class StubImage(unittest.TestCase):
 class Pins(unittest.TestCase):
     def test_versions_json_pins_the_stub(self):
         pin = json.loads((REPO / "versions.json").read_text())["release_engine"]
-        stub = pin["nvapi_stub"]
+        stub = next(item for item in pin["native_shims"] if item["name"] == "nvapi_stub")
         for name, item in stub["files"].items():
             self.assertEqual(hashlib.sha256((STUB / name).read_bytes()).hexdigest(), item["sha256"], name)
         self.assertTrue(stub["install_path"].startswith("lib/calimocho/"))

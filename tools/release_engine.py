@@ -434,36 +434,38 @@ def build_tsshim(pin, root, work, receipt):
     receipt["tsshim_sha256"] = sha256(windows / shim["tsshim_export_name"])
 
 
-def build_nvapi_stub(pin, root, work, receipt):
-    """Build Calimocho's own NVAPI stub (REQ-120, ADR-0083) from tools/nvapi_stub.
+def build_native_shims(pin, root, work, receipt):
+    """Build Calimocho's own title shims (REQ-120: ADR-0083 NVAPI, ADR-0084 DXGI UMD version).
 
-    It goes outside lib/wine, so wineboot never puts it in a prefix: only a title profile
-    that copies it to system32\\nvapi64.dll uses it (Wine has no builtin nvapi64, so the
-    native copy loads). It links only kernel32 and advapi32, without the C runtime.
+    They go to lib/calimocho, outside lib/wine, so wineboot never puts them in a prefix: only a
+    title profile copies one into system32 (and sets its DLL override). Each links only the
+    Windows system DLLs it names, without the C runtime, and must be reproducible (ADR-0081).
     """
-    stub = pin["nvapi_stub"]
-    source = REPO / stub["source"]
-    directory = work / "nvapi_stub"
-    if directory.exists():
-        shutil.rmtree(directory)
-    shutil.copytree(source, directory)
-    for name, item in stub["files"].items():
-        if sha256(directory / name) != item["sha256"]:
-            raise ValueError(f"nvapi stub {name} differs from its pin in versions.json")
-    built = directory / "nvapi64.dll"
-    # Relative names keep the image base and any embedded path independent of the work directory.
-    run(["x86_64-w64-mingw32-gcc", "-shared", "-O2", "-Wall", "-Wextra", "-Werror", "-nostdlib", "-s",
-         PE_LDFLAGS, "-Wl,-e,DllMain", "-ffile-prefix-map=" + f"{directory}/=nvapi_stub/",
-         "-o", built.name, "nvapi64.c", "nvapi64.def", "-lkernel32", "-ladvapi32"],
-        cwd=directory, log=directory / "compile.log")
-    data = built.read_bytes()
-    header = pe_header(data)
-    if header is None or int.from_bytes(data[header[0]:header[0] + 4], "little") != 0:
-        raise ValueError("nvapi stub must be a PE image with TimeDateStamp 0 (ADR-0081)")
-    target = root / stub["install_path"]
-    target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(built, target)
-    receipt["nvapi_stub_sha256"] = sha256(target)
+    receipt["native_shims"] = {}
+    for shim in pin["native_shims"]:
+        source = REPO / shim["source"]
+        directory = work / "native_shims" / shim["name"]
+        if directory.exists():
+            shutil.rmtree(directory)
+        shutil.copytree(source, directory)
+        for name, item in shim["files"].items():
+            if sha256(directory / name) != item["sha256"]:
+                raise ValueError(f"{shim['name']}: {name} differs from its pin in versions.json")
+        built = directory / Path(shim["install_path"]).name
+        # Relative names keep the image base and any embedded path independent of the work directory.
+        run(["x86_64-w64-mingw32-gcc", "-shared", "-O2", "-fno-builtin", "-Wall", "-Wextra", "-Werror",
+             "-nostdlib", "-s", PE_LDFLAGS, "-Wl,-e,DllMain",
+             "-ffile-prefix-map=" + f"{directory}/={shim['name']}/", "-o", built.name,
+             *shim["compile"], *[f"-l{lib}" for lib in shim["link"]]],
+            cwd=directory, log=directory / "compile.log")
+        data = built.read_bytes()
+        header = pe_header(data)
+        if header is None or int.from_bytes(data[header[0]:header[0] + 4], "little") != 0:
+            raise ValueError(f"{shim['name']} must be a PE image with TimeDateStamp 0 (ADR-0081)")
+        target = root / shim["install_path"]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(built, target)
+        receipt["native_shims"][shim["name"]] = sha256(target)
 
 
 def assemble(args):
@@ -493,8 +495,8 @@ def assemble(args):
     copy_apple(args, pin, root)
     if "tsshim" in pin:
         build_tsshim(pin, root, work, receipt)
-    if "nvapi_stub" in pin:
-        build_nvapi_stub(pin, root, work, receipt)
+    if "native_shims" in pin:
+        build_native_shims(pin, root, work, receipt)
     copy_licences(args, pin, root, moltenvk)
     for document in ("NOTICE", "TRADEMARKS.md", "LICENSE", "COPYING.LIB"):
         shutil.copy2(REPO / document, root / document)
@@ -747,9 +749,9 @@ def verify_signatures(root, pin):
 
 # Pins and files that decide the bytes of the shipped binaries. Reusing a signed build is
 # only allowed when none of them changed since that build's source commit.
-BINARY_PINS = ("wine", "patches", "dependency_sources", "moltenvk", "tsshim", "nvapi_stub", "apple_gptk",
+BINARY_PINS = ("wine", "patches", "dependency_sources", "moltenvk", "tsshim", "native_shims", "apple_gptk",
                "toolchain", "cw_donor", "signing", "environment", "opt_ins", "freetype_credit_years")
-BINARY_INPUTS = ("patches", "tools/nvapi_stub", "tools/port_d3dmetal.py", "tools/native_gs_localtime.c",
+BINARY_INPUTS = ("patches", "tools/nvapi_stub", "tools/dxgi_umd", "tools/port_d3dmetal.py", "tools/native_gs_localtime.c",
                  "tools/build_freetype.py", "tools/build_tls.py", "tools/build_moltenvk.py",
                  "scripts/entitlements")
 RELEASE_DOCUMENTS = ("NOTICE", "TRADEMARKS.md", "LICENSE", "COPYING.LIB")

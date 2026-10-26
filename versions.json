@@ -277,6 +277,7 @@
       "tools/build_moltenvk.py",
       "tools/probe_wine_source.py",
       "tools/nvapi_stub",
+      "tools/dxgi_umd",
       "NOTICE",
       "LICENSE",
       "tests/wine/test_winebus_controller.py",
@@ -309,22 +310,58 @@
       },
       "tsshim_export_name": "d3d12_tsshim.dll"
     },
-    "nvapi_stub": {
-      "_doc": "Calimocho's own NVAPI stub (REQ-120, ADR-0083), LGPL-2.1+, built from tools/nvapi_stub with mingw-w64 and no C runtime. Installed outside lib/wine so wineboot never puts it in a prefix. Only the FH6 profile uses it, by copying it to drive_c/windows/system32/nvapi64.dll. It reports the same driver version as patch 0012 and returns NVAPI_NVIDIA_DEVICE_NOT_FOUND unless D3DM_VENDOR_ID is 0x10de.",
-      "source": "tools/nvapi_stub",
-      "files": {
-        "nvapi64.c": {
-          "sha256": "dd1c5d5178f3edfebba6266be75c8f3656f2243bb32ff29068ae97ce0168a1be"
+    "native_shims": [
+      {
+        "_doc": "Calimocho's own NVAPI stub (REQ-120, ADR-0083), LGPL-2.1+, built from tools/nvapi_stub with mingw-w64 and no C runtime. Installed outside lib/wine so wineboot never puts it in a prefix. Only the FH6 profile uses it, by copying it to drive_c/windows/system32/nvapi64.dll. It reports the same driver version as patch 0012 and returns NVAPI_NVIDIA_DEVICE_NOT_FOUND unless D3DM_VENDOR_ID is 0x10de.",
+        "name": "nvapi_stub",
+        "source": "tools/nvapi_stub",
+        "files": {
+          "nvapi64.c": {
+            "sha256": "dd1c5d5178f3edfebba6266be75c8f3656f2243bb32ff29068ae97ce0168a1be"
+          },
+          "nvapi64.def": {
+            "sha256": "f85dcb96a3c5ec8967d0b486e723d45d6a284b93b2642bcd1ea5aae1f1c248e7"
+          },
+          "nvapi_version.h": {
+            "sha256": "4508608c4033f96fbd814cd1162ffa422d441327a8b32032f5b483c215ba5691"
+          }
         },
-        "nvapi64.def": {
-          "sha256": "f85dcb96a3c5ec8967d0b486e723d45d6a284b93b2642bcd1ea5aae1f1c248e7"
-        },
-        "nvapi_version.h": {
-          "sha256": "4508608c4033f96fbd814cd1162ffa422d441327a8b32032f5b483c215ba5691"
-        }
+        "compile": [
+          "nvapi64.c",
+          "nvapi64.def"
+        ],
+        "link": [
+          "kernel32",
+          "advapi32"
+        ],
+        "install_path": "lib/calimocho/x86_64-windows/nvapi64.dll"
       },
-      "install_path": "lib/calimocho/x86_64-windows/nvapi64.dll"
-    },
+      {
+        "_doc": "Calimocho's own DXGI front-end (REQ-120, ADR-0084), LGPL-2.1+. Loads Apple's dxgi.dll unchanged and forwards every export; only IDXGIAdapter::CheckInterfaceSupport reports the display Class key DriverVersion instead of Apple's 65535.65535.65535.65535. Inert unless D3DM_VENDOR_ID is set. Only the FH6 profile uses it.",
+        "name": "dxgi_umd",
+        "source": "tools/dxgi_umd",
+        "files": {
+          "dxgi.c": {
+            "sha256": "2f4e24581b569bef7a3b1a9612348c920d9f9430e000feb0c03791eda878ac70"
+          },
+          "dxgi.def": {
+            "sha256": "6c976a77871e337da351196dca30edd02a1646eac33931f72e97b55716094b5c"
+          },
+          "umd_version.h": {
+            "sha256": "e1cf95588a84303f3034b1e099a7221c35800e27c02b972d75815c8c71f1db2f"
+          }
+        },
+        "compile": [
+          "dxgi.c",
+          "dxgi.def"
+        ],
+        "link": [
+          "kernel32",
+          "advapi32"
+        ],
+        "install_path": "lib/calimocho/x86_64-windows/dxgi.dll"
+      }
+    ],
     "opt_ins": {
       "fh6": {
         "_doc": "Forza Horizon 6 only. Ode's FH6 title profile sets these; every other title leaves them unset, which keeps -01 behaviour.",
@@ -349,6 +386,7 @@
           "After the prefix is created or updated for this engine, copy ${ENGINE_ROOT}/lib/wine/x86_64-windows/d3d12_tsshim.dll to <prefix>/drive_c/windows/system32/d3d12.dll.",
           "Set HB_D3D12_REAL to Z: + ${ENGINE_ROOT}/lib/wine/x86_64-windows/d3d12.dll with backslashes.",
           "After the prefix is created or updated for this engine, copy ${ENGINE_ROOT}/lib/calimocho/x86_64-windows/nvapi64.dll to <prefix>/drive_c/windows/system32/nvapi64.dll (REQ-120: lets FH6 read the driver version, no FH302).",
+          "After the prefix is created or updated for this engine, copy ${ENGINE_ROOT}/lib/calimocho/x86_64-windows/dxgi.dll to <prefix>/drive_c/windows/system32/dxgi.dll and set HKCU\\Software\\Wine\\DllOverrides dxgi=native,builtin in the prefix (REQ-120: reports the registry driver version through IDXGIAdapter::CheckInterfaceSupport).",
           "Keep XODUS_PRIVATE_RUNTIME_COM_STA unset (runtime COM must stay MTA)."
         ]
       }
