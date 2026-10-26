@@ -1333,3 +1333,204 @@ Build steps, only after the coordinator releases the slot (Forza first):
    comparing frame-time spikes (Metal HUD) and owner judgment.
 
 If it still stutters, the per-draw push snapshot copy is the next suspect.
+
+## 2026-10-26: REQ-104 bisect candidates A, B and C (signed, not run in Wine)
+
+Coordinator-directed parallel slice while another session's FH6 gate owns
+the Wine window. Scope: build, sign, test without Wine and freeze MoltenVK
+candidates for independent review, REQ-80/S2 admission and one later
+owner-judged NMS launch. No Wine, wineserver, CrossOver, game, prefix, save,
+Ode registry or installed engine was touched. Registry `170ca4ad` stays
+admitted until a candidate replaces it.
+
+### Why a bisect
+
+Candidate 128-02 removed the sampler warning and the address-space errors,
+but the owner rejected it for stutter. It carried two independent changes:
+the gated 128 push argument buffer path (patch 0002) and the PR 2719 shader
+backport. Original 170ca has neither and is smooth. Each change now ships
+alone, plus one candidate that removes a measured push path cost:
+
+| Candidate | Engine | MoltenVK patches | SPIRV-Cross | Samplers | Cache namespace |
+| --- | --- | --- | --- | --- | --- |
+| A | `calimocho-req104-A-sampler` | 0002, 0003 | clean, 170ca archive | 128 | `R4A1` |
+| B | `calimocho-req104-B-addrspace` | 0003 | PR 2719 (patch 0001) | 16 | `R4B1` |
+| C | `calimocho-req104-C-pushcache` | 0002, 0003, 0004 | clean, 170ca archive | 128 | `R4C1` |
+
+All three start from MoltenVK v1.4.2 `db66022459ffb663aa2b50f6b018bc2e124f5edf`
+and the dependency pins in `versions.json` (`req104_moltenvk`). They use
+Xcode 27.1 (27A9275), x86_64, Release and `MVK_USE_METAL_PRIVATE_API=1`,
+like 170ca's own build receipt (`owned.xcconfig`, SHA-256 `bee29f19...`).
+The source trees were APFS clones of the earlier copies, never built in place.
+
+### New source patches
+
+- `patches/moltenvk/0003-namespace-req104-pipeline-cache-uuid.patch`
+  (SHA-256 `a65d64d42c7c993c5503eee65e745031d9fce2013000eb9afb0c6f7a21e43623`).
+  It writes a 4-byte `REQ104_CACHE_NAMESPACE` word into pipeline cache UUID
+  bytes 12 to 15, which upstream leaves zero. Pipelines cached by any other
+  build, including 170ca, are therefore not reused. No user cache is deleted.
+  The probe confirms that UUID bytes 0 to 11 equal 170ca's on every candidate.
+  This replaces the uncommitted `REQ104_NO2719_CACHE_NAMESPACE` hunk of the
+  prepared push-ab-03 copy.
+- `patches/moltenvk/0004-reuse-metal3-push-snapshots-until-changed.patch`
+  (SHA-256 `cdebc2fcac50749b3c554feea35fbb14a82431f2cfed561cf85fb37ceea720f8`),
+  applied after 0002 and 0003. In A, `bindMetalResources` cleared the push
+  set's "already bound" bit on every draw and dispatch. Every bind then took a
+  new temporary Metal buffer, registered one more command buffer completion
+  handler, copied the push bytes and declared residency for every push
+  resource again, once per shader stage. C keeps one immutable,
+  command-buffer-owned snapshot. Any push write, push layout change or state
+  copy drops it. A stage rebinds only when its bound buffer is not that exact
+  snapshot. A snapshot is never reused across Metal command buffers.
+
+Each build tree was checked against its patch stack: a fresh clone at
+`db66022` plus the tracked patches gives a byte-identical `git diff`.
+`tools/freeze_req104_bisect.py audit` repeats this check.
+
+### Translator archive and reproducibility control
+
+- A and C link the exact `libSPIRVCross.a` from 170ca's source tree
+  (`9b0ffcf11dc1c48d7280dea635673d2e8ddce3f38a245b407500fd08ecc3afaf`),
+  built from clean SPIRV-Cross `6c09849`.
+- B links the PR 2719 archive of the 2026-10-25 shader candidate
+  (`b7dfdd453f4846d664c636fc459a1e4220d684b0699643d2d687adcb4ea9756f`).
+  Unpacking both archives shows 7 of 8 members byte-identical; only
+  `spirv_msl.o` differs.
+- Control: rebuilding 170ca's untouched MoltenVK source with its own build
+  settings reproduces 170ca's library byte for byte
+  (`4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385`).
+  So every difference between a candidate and 170ca comes from the tracked
+  patches and the translator archive.
+
+### Build, sign and verify
+
+```bash
+cd build/req104/A-sampler-source
+XCODE_XCCONFIG_FILE="$PWD/../A-sampler.xcconfig" xcodebuild build -quiet \
+  -project MoltenVKPackaging.xcodeproj -scheme "MoltenVK Package (macOS only)" \
+  -configuration Release -destination generic/platform=macOS \
+  -derivedDataPath "$PWD/../A-derived" -jobs 4
+cp -p Package/Release/MoltenVK/dynamic/dylib/macOS/libMoltenVK.dylib ../signed/A-sampler/
+codesign --force --options runtime --timestamp \
+  --sign 410914520BCC840C0125D3826CCF0F247F603321 ../signed/A-sampler/libMoltenVK.dylib
+codesign --verify --strict --verbose=2 ../signed/A-sampler/libMoltenVK.dylib
+```
+
+B and C use the same commands with their own directory and xcconfig.
+
+| Candidate | xcconfig SHA-256 | Unsigned build SHA-256 | Signed library SHA-256 |
+| --- | --- | --- | --- |
+| A | `91b46307...` | `b61f53d07b5745a959dba6e397d4df30deaf7d8c154bcd0d070e81dac95b6b34` | `21833bb575ea4f4a6456895aee77e1ce0ec6143a4bb9d7479db71e7654815bc4` |
+| B | `1645c4f4...` | `406e69fe93267451e905d9e5ef812c3dfcb74dd379f3934e08facfb9a0471628` | `8bf43ed5475c1a7ea19902b648b376dc56a18eeb4c472e82560d9b88aac64a4c` |
+| C | `bbd0dcd5...` | `780c39285c71b1787f1b5b672c3edfbeb8b41d0d3a174d664274c378f8f6a5a4` | `e58c1cc1580b9d64a944dff10bc254ea9e9bf1cf82151c091eef2c25cc57a1a9` |
+
+For all three, `codesign --verify --strict` reports "valid on disk" and
+"satisfies its Designated Requirement". `codesign -dvvv` shows Authority
+"Developer ID Application: Dragos Hont (M62Z4M5EUY)", flags `runtime` and a
+secure timestamp. Signing follows the standing COR-71 grant; no keychain
+prompt or denial appeared. `lipo` reports x86_64. `otool -L` shows zero
+`/usr/local` references and the same link list and minimum OS (12.0) as
+170ca. Removing the signature gives the build output back, except the
+`__LINKEDIT` vmsize field that `codesign` grows.
+
+### Tests without Wine
+
+All GPU work was small headless Vulkan probes against the exact signed
+files, with `MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS=1` and
+`MVK_CONFIG_USE_METAL_PRIVATE_API=1` as in the 170ca registry.
+
+1. The existing 128 sampler suite (`tests/test_sampler_render.py --width 128
+   --candidate-limit 128 --extended`, baseline 170ca) passes 38 of 38 outcomes
+   for A and for C. The regenerated fixtures are byte-identical to those of
+   the accepted 128-02 receipt. Receipts:
+   `docs/evidence/req104-bisect-A-sampler-tests.json` (SHA-256
+   `5096097b2f2a96fe68e444e6ca7ea36f73a1f1580b1d6335ac70f1a93993c423`) and
+   `docs/evidence/req104-bisect-C-pushcache-tests.json` (SHA-256
+   `3cee4b666b566d5b14f8f8eb33e43e9a2bfbf509dbfd78455d5554e9d261feb5`).
+2. The new bisect suite (`tests/test_req104_bisect.py`, probe
+   `tests/vulkan_req104_probe.cpp`) passes every oracle. Receipt:
+   `docs/evidence/req104-bisect-tests.json` (SHA-256
+   `e31df6646d20e999eeb7c8715256feb9c4887ee735713336bfcb883f257f0aab`).
+3. `python3 -m unittest discover -s tests -p 'test_freeze_*.py'`: 12 pass.
+
+The tessellation check draws one triangle through vertex, tessellation and
+fragment stages. Its vertex stage is the PR 2719 fixture. The control stage
+outputs `2 * tile - position`, so the triangle lands on the probed pixel only
+when every vertex output component arrived unchanged.
+
+| Library | Samplers | UUID tail | Plain pipeline | Tessellation pipeline |
+| --- | --- | --- | --- | --- |
+| 170ca | 16 | `00000000` | renders | fails, VkResult -3, 8 address-space errors |
+| A | 128 | `R4A1` | renders | fails, VkResult -3, 8 address-space errors |
+| B | 16 | `R4B1` | renders | compiles and renders the expected pixels |
+| C | 128 | `R4C1` | renders | fails, VkResult -3, 8 address-space errors |
+
+The failing diagnostic is the NMS class, for example
+`program_source:30:6: error: C-style cast from 'float4 *' to 'device float *'
+converts between mismatching address spaces`.
+
+Push encoding cost, microseconds per dispatch, median of 5 interleaved rounds
+of 9 repeats of 20000 dispatches with a 128-sampler set. "Submit" is the
+`vkQueueSubmit` call (synchronous encoding); "total" adds GPU completion.
+Another session's build was running, which is why rounds were interleaved.
+
+| Scenario | A submit | A total | C submit | C total |
+| --- | --- | --- | --- | --- |
+| Ordinary set, bound once | 0.188 | 2.842 | 0.197 | 2.844 |
+| Push set, pushed once | 0.432 | 3.889 | 0.200 | 2.836 |
+| Push set, pushed every dispatch | 2.508 | 5.985 | 2.582 | 6.042 |
+
+With unchanged push data, A costs about 1.05 microseconds more per dispatch
+than an ordinary set (37 percent); C removes that. When the application
+pushes before every dispatch, A and C are equal within noise. Draws bind two
+stages, so A's per-draw cost is likely about double; draws were not measured.
+How often NMS pushes descriptors is unknown, so this does not prove that C
+fixes the NMS stutter.
+
+### Frozen registries
+
+`tools/freeze_req104_bisect.py audit` cloned 170ca's install (APFS clone,
+symlinks kept) and replaced only `lib/wine/x86_64-unix/libMoltenVK.dylib`.
+The inventory check allows exactly that one change. `bin/wine` (`f6d0546f...`)
+and `bin/wineserver` (`e3ec4e7e...`) equal 170ca's. After the evidence was
+committed in `109f613062f8ca6d97612bb54eff66edd60c72ce`, `freeze` bound each
+registry to that commit:
+
+| Candidate | Registry (under `build/req104/frozen/`) | Registry SHA-256 |
+| --- | --- | --- |
+| A | `calimocho-req104-A-sampler/registry.SOURCE-FROZEN.json` | `54017207079be3bb99a8be053e4bd506a5534c414de7712a5d5ae49a0a8b79b5` |
+| B | `calimocho-req104-B-addrspace/registry.SOURCE-FROZEN.json` | `d62de1105935e25d017d3b4dbe34a13b4b1dc0bf5ffcb44e586460b7bbf19001` |
+| C | `calimocho-req104-C-pushcache/registry.SOURCE-FROZEN.json` | `aa0ee5de38a5b89bc4fcba54d3decd49b8726cd3fdb91cc35db44ea5f1e5e98e` |
+
+Per-candidate evidence: `docs/evidence/req104-bisect-A.json`, `-B.json` and
+`-C.json`. Summary: `docs/evidence/req104-bisect-registries.json`.
+
+### Expected NMS effect and suggested owner session
+
+- A: no sampler warning (honest limit 128). The address-space pipeline
+  failures stay as on 170ca. If A is smooth, PR 2719 caused the 128-02
+  stutter; if A stutters, the push path did.
+- B: the sampler warning is still shown (limit 16). The address-space
+  pipeline failures should drop to zero. If B stutters, the cost comes from
+  pipelines that now compile and run, most likely terrain tessellation.
+- C: like A, without the measured push snapshot cost.
+- Each candidate has its own cache namespace, so its first launch compiles
+  every pipeline again. Judge smoothness after warm-up or on a second launch,
+  at the same prefix, save and spot as run `26d9c575`.
+
+A reasonable order is C first (warning half), then B (address-space half),
+and A only if C and A need separating.
+
+### Not proven
+
+- NMS warning removal: only the advertised limit and functional probes are
+  proven. The exact NMS threshold is still unknown.
+- NMS frame time for any candidate, and the cause of the 128-02 stutter.
+- The NMS address-space failure count; only the minimal fixture is proven.
+- Wine loading of a Developer ID signed MoltenVK. 170ca's MoltenVK and Wine
+  are unsigned; signing is not expected to change loading, but it is
+  unobserved.
+- Normal quit and save preservation.
+- Other GPUs (gates keep limit 16) and Vulkan conformance.
+- The separate integer-format blending warning is unchanged.

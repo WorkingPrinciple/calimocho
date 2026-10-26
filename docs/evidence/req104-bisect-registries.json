@@ -1,0 +1,57 @@
+{
+  "requirement": "REQ-104",
+  "status": "frozen-signed-non-wine-tested-awaiting-independent-review",
+  "producerCommit": "109f613062f8ca6d97612bb54eff66edd60c72ce",
+  "base_registry_sha256": "170ca4ad08a5274b614e74bf740866ef219a97fdc7855270c5d8fa03192ed609",
+  "base_remains_admitted": true,
+  "candidates": {
+    "A": {
+      "engine": "calimocho-req104-A-sampler",
+      "registry": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-req104-bisect/build/req104/frozen/calimocho-req104-A-sampler/registry.SOURCE-FROZEN.json",
+      "registry_sha256": "54017207079be3bb99a8be053e4bd506a5534c414de7712a5d5ae49a0a8b79b5",
+      "libMoltenVK_sha256": "21833bb575ea4f4a6456895aee77e1ce0ec6143a4bb9d7479db71e7654815bc4",
+      "evidence": "docs/evidence/req104-bisect-A.json",
+      "evidence_sha256": "ecee527fa0b9624925b3f34a7db7fc8744b899c68c3dfcea0ffa440475004997",
+      "advertised_per_stage_samplers": 128,
+      "contains_pr2719": false,
+      "pipeline_cache_namespace": "52344131",
+      "expected_nms_change": "Sampler warning removed by an honest 128 limit; address-space pipeline failures unchanged from 170ca"
+    },
+    "B": {
+      "engine": "calimocho-req104-B-addrspace",
+      "registry": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-req104-bisect/build/req104/frozen/calimocho-req104-B-addrspace/registry.SOURCE-FROZEN.json",
+      "registry_sha256": "d62de1105935e25d017d3b4dbe34a13b4b1dc0bf5ffcb44e586460b7bbf19001",
+      "libMoltenVK_sha256": "8bf43ed5475c1a7ea19902b648b376dc56a18eeb4c472e82560d9b88aac64a4c",
+      "evidence": "docs/evidence/req104-bisect-B.json",
+      "evidence_sha256": "a506234debb8978621381fe87a10318b73396a240cb2603e3f4c1bf10fe7e620",
+      "advertised_per_stage_samplers": 16,
+      "contains_pr2719": true,
+      "pipeline_cache_namespace": "52344231",
+      "expected_nms_change": "Address-space pipeline failures fixed; sampler warning still shown (limit 16, unchanged)"
+    },
+    "C": {
+      "engine": "calimocho-req104-C-pushcache",
+      "registry": "/Users/dragoshont/src/copilot-worktrees/calimocho/dragoshont-req104-bisect/build/req104/frozen/calimocho-req104-C-pushcache/registry.SOURCE-FROZEN.json",
+      "registry_sha256": "aa0ee5de38a5b89bc4fcba54d3decd49b8726cd3fdb91cc35db44ea5f1e5e98e",
+      "libMoltenVK_sha256": "e58c1cc1580b9d64a944dff10bc254ea9e9bf1cf82151c091eef2c25cc57a1a9",
+      "evidence": "docs/evidence/req104-bisect-C.json",
+      "evidence_sha256": "17f284fa986b1fda3131eed6ee660eb67e591bca40d56c8f1e39dffdeddfc70d",
+      "advertised_per_stage_samplers": 128,
+      "contains_pr2719": false,
+      "pipeline_cache_namespace": "52344331",
+      "expected_nms_change": "As A, without A's per-bind push snapshot copy when push data is unchanged"
+    }
+  },
+  "owner_session_notes": [
+    "Each candidate has its own pipeline cache namespace: the first launch recompiles; judge smoothness after warm-up",
+    "Compare A or C (warning half) and B (address-space half) against the owner-smooth 170ca run 26d9c575",
+    "A versus C isolates the measured per-bind push snapshot cost"
+  ],
+  "not_proven": [
+    "NMS warning removal",
+    "NMS frame time or stutter cause",
+    "NMS address-space failure count",
+    "Wine loading of the Developer ID signed dylib",
+    "Normal quit and save preservation"
+  ]
+}
