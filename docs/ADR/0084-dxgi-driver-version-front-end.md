@@ -1,6 +1,6 @@
 # ADR-0084: DXGI front-end for the driver version
 
-Status: Proposed (REQ-120). Needs live proof and review.
+Status: Rejected for FH6 (REQ-120); see Result.
 Date: 2026-10-26
 
 ## Context
@@ -71,3 +71,14 @@ GPTK licence say Apple's files ship unmodified.
 - Runtime interposition on Apple objects is a design choice for review,
   even though no Apple bytes are changed. If review rejects it, FH302
   stays (the owner can still choose "Don't show again").
+
+## Result (2026-10-27): not effective for FH302
+
+An A/B on two fresh clones of the same FH6 prefix, with no automatic
+dismissal and the dialog detected by window title, settled it. The
+control showed "Forza Horizon 6 Compatibility Warning". The clone with
+both the NVAPI stub and the DXGI front-end showed it too. FH6 called
+the NVAPI stub (driver 616.56) but never called
+`IDXGIAdapter::CheckInterfaceSupport`. FH302 comes from another query,
+perhaps SetupAPI, WMI or D3DKMT. The components stay in the source tree
+as tested, reusable shims, but the FH6 profile doesn't install them.

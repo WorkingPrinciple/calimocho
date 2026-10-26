@@ -120,7 +120,7 @@ class Pins(unittest.TestCase):
             self.assertEqual(hashlib.sha256((SHIM / name).read_bytes()).hexdigest(), item["sha256"], name)
         self.assertEqual(shim["install_path"], "lib/calimocho/x86_64-windows/dxgi.dll")
         self.assertIn("tools/dxgi_umd", pin["source_bundle_files"])
-        self.assertIn("dxgi=native,builtin", " ".join(pin["opt_ins"]["fh6"]["profile_steps"]))
+        self.assertNotIn("dxgi=native,builtin", " ".join(pin["opt_ins"]["fh6"]["profile_steps"]))
         for name, item in pin["opt_ins"].items():
             if name != "fh6":
                 self.assertNotIn("dxgi", json.dumps(item))

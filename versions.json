@@ -385,8 +385,6 @@
         "profile_steps": [
           "After the prefix is created or updated for this engine, copy ${ENGINE_ROOT}/lib/wine/x86_64-windows/d3d12_tsshim.dll to <prefix>/drive_c/windows/system32/d3d12.dll.",
           "Set HB_D3D12_REAL to Z: + ${ENGINE_ROOT}/lib/wine/x86_64-windows/d3d12.dll with backslashes.",
-          "After the prefix is created or updated for this engine, copy ${ENGINE_ROOT}/lib/calimocho/x86_64-windows/nvapi64.dll to <prefix>/drive_c/windows/system32/nvapi64.dll (REQ-120: lets FH6 read the driver version, no FH302).",
-          "After the prefix is created or updated for this engine, copy ${ENGINE_ROOT}/lib/calimocho/x86_64-windows/dxgi.dll to <prefix>/drive_c/windows/system32/dxgi.dll and set HKCU\\Software\\Wine\\DllOverrides dxgi=native,builtin in the prefix (REQ-120: reports the registry driver version through IDXGIAdapter::CheckInterfaceSupport).",
           "Keep XODUS_PRIVATE_RUNTIME_COM_STA unset (runtime COM must stay MTA)."
         ]
       }

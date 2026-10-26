@@ -103,7 +103,7 @@ class Pins(unittest.TestCase):
         self.assertTrue(stub["install_path"].startswith("lib/calimocho/"))
         self.assertIn("tools/nvapi_stub", pin["source_bundle_files"])
         steps = " ".join(pin["opt_ins"]["fh6"]["profile_steps"])
-        self.assertIn("system32/nvapi64.dll", steps)
+        self.assertNotIn("nvapi64", steps)
         for name, item in pin["opt_ins"].items():
             if name != "fh6":
                 self.assertNotIn("nvapi64", json.dumps(item))
