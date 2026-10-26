@@ -1024,3 +1024,78 @@ CLI with the opt-in registry.
 | `bin/wineserver` (builds 3 and 4) | `655812965207694589e550bd58156c7841c08eeae50ecd09a1c8d803ed78cfc9` |
 | `calimocho-engine.json` (build 4) | `98473033e8b1e4f02a1986749b684d0becd5e2be7d0ff388f7a2049566296425` |
 | `MANIFEST.sha256` (build 4) | `5ce80d16347304d2cd5d149072fed4aeed848e854fe17e20c3bd45c5013b2aba` |
+
+## 2026-10-26 — Engine build 0.1120.4.5 (reproducible, held)
+
+Build 5 makes the engine reproducible
+([ADR-0081](ADR/0081-reproducible-engine-builds.md),
+[release notes](release/11.20-4.0b3-05.md)). It is signed and notarized
+but **held**: it is published only after the owner's Forza Horizon 6
+test on 0.1120.4.4 (COR-202). If that test shows the loader needs one
+more entitlement, it is added in this build before publication.
+
+### Reproducibility gate
+
+Two complete, independent builds of commit `50e0e0b` in separate
+worktrees: FreeType, the TLS libraries and Wine each built twice, then
+`release_engine.py assemble` (commit `1ed2fae`, which only changes the
+assemble-time PE check) into two unsigned engine trees.
+
+| Compared | Files | Result |
+|---|---|---|
+| FreeType, GMP, nettle, hogweed, libtasn1 and GnuTLS dylibs | 6 | byte-identical |
+| Wine `make install-lib` output | 1775 | byte-identical |
+| Assembled unsigned engine (all files, Windows modules included) | 1851 | byte-identical |
+| Symlinks in the engine | 20 | identical targets |
+
+- All 1520 PE modules linked by GNU ld have `TimeDateStamp` 0.
+- The 51 modules winebuild writes itself carry winebuild's name hash, the
+  same in both builds.
+- Compared with 0.1120.4.4 (built from `eb2c20a`), all 195 non-Windows
+  files of Wine's install output are identical. `bin/wine`,
+  `bin/wineserver`, the loader and `ntdll.so` are byte-identical once
+  the signatures are removed. The six dependency dylibs differ in their
+  bytes (install name, `LC_UUID`, nettle's debug map) but export
+  exactly the same symbols.
+
+Two problems found on the way, both fixed in this build:
+
+- **Dependency UUIDs.** The FreeType and TLS dylibs differed in
+  `LC_UUID`, because ld derived it from an install name that contained
+  the build directory. nettle's debug map (absolute object paths and
+  times) changed it too. The fix is a fixed install prefix and
+  `-Wl,-S`.
+- **winebuild stamps.** Modules written by winebuild carry hash stamps,
+  so the PE timestamp check now covers only modules GNU ld links.
+
+Signing changes the bytes again: Apple's secure timestamp differs on
+every signature. The comparison is therefore made before signing.
+
+### Checks on the signed build
+
+- 40 Mach-O files with Developer ID `M62Z4M5EUY`, hardened runtime and a
+  secure timestamp. The loader has `disable-library-validation` only;
+  `bin/wine` and `bin/wineserver` have none. Apple's 7 items are
+  unchanged.
+- `MANIFEST.sha256` lists 1871 entries. No `/Users/`, `/opt/homebrew`
+  or `/calimocho-deps/` strings outside Apple's files.
+- Smoke test twice from the signed tree: `wineboot --init`, `cmd /c
+  ver`, D3D11 and D3D12 through D3DMetal and Vulkan through MoltenVK
+  (120/120 presents, read-back matched), and WinHTTP HTTPS all pass.
+  An expired certificate is refused.
+- FH6 opt-in profile: the tsshim loads in front of Apple's `d3d12.dll`,
+  and the D3D12 probe passes.
+- Notarization `a0fc28c0-3486-4166-a644-b05844b3d1bd`: Accepted, 0
+  issues. `spctl` on the three executables: `source=Notarized Developer
+  ID`.
+
+### Outputs (local, not published)
+
+| Artifact | SHA-256 |
+|---|---|
+| `calimocho-11.20-4.0b3-05-macos.zip` (200,063,023 bytes) | `d8abbde2670191ae61966fae261f94fa6beda266b35af58ca8d8198baecbcb4d` |
+| `calimocho-11.20-4.0b3-05-source.tar` (63,774,720 bytes) | `300f2e9cdc3d3eb3ceb435df1cde77a4a7907e328cd49d9ee573be969deab848` |
+| `bin/wine` | `df72403016cb1bae19ad4137894fb7823d783db5d81ef5e4d58694095cd43834` |
+| `bin/wineserver` | `d10f00b426fcfe5796455c50ba4b2d3045fa553080f3c1c1e9416f059f7aaa15` |
+| `calimocho-engine.json` | `e9fed9808bd4b263fdc224365f5d3c50fe35bd35b7dd2a0fc9289a84d2e81316` |
+| `MANIFEST.sha256` | `248ad1a02cfa7077fa24b61820fa48d51f28aed8f6c03f00021c48fc509848a2` |
