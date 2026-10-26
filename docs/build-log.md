@@ -871,3 +871,50 @@ signature and every `MANIFEST.sha256` line: all pass.
   decisions).
 - No game was launched on this engine yet. Games may only claim support
   after a launch sweep on this build.
+
+## 2026-10-26 — Engine release 0.1120.4.2 (calimocho-11.20-4.0b3-02)
+
+Second engine build, with the Forza Horizon 6 fixes as default-off
+opt-ins ([ADR-0079](ADR/0079-forza-opt-ins-in-the-general-engine.md),
+[release notes](release/11.20-4.0b3-02.md)). Source commit `9696e14`,
+tag `engine-0.1120.4.2`. Superseded by 0.1120.4.3 before anyone pinned
+it; it was never published.
+
+### Tests
+
+- Smoke test, opt-ins off, throwaway prefix and `HOME`: `wineboot
+  --init` exit 0; `cmd /c ver` prints `Microsoft Windows 10.0.19045`;
+  D3D11, D3D12 (D3DMetal) and Vulkan (MoltenVK) present probes 120/120
+  with matching read-back; WinHTTP HTTPS GET returns 0.
+- Non-Forza regression through `xodus-cli launch`, fresh prefix per
+  title, ordinary quit with `wine taskkill /im <exe>` (WM_CLOSE):
+  - Brotato: window rendered, alive until quit, clean quit, wineserver
+    gone. Pass.
+  - Halls of Torment: same. Pass.
+  - Vampire Survivors: window at about 21 s, then exit code 3.
+  - Balatro: `love.exe` exits 0 without a window.
+- Discriminating runs on the pinned 170ca development engine with the
+  same CLI recipe and a fresh prefix: Vampire Survivors also exits 3
+  (identical 81-line Unity `Player.log`, ending after Zenject project
+  context set-up; code 3 is the MSVC `abort()` code) and Balatro also
+  exits 0 without a window. Neither is a release-engine defect. The
+  launch method is the likely factor. Both are known issues.
+
+### Notarization
+
+`xcrun notarytool submit --keychain-profile notary --wait` on the engine
+zip, with Apple's D3DMetal inside and unmodified: **Accepted**, "Ready
+for distribution", no issues (submission
+`7a3d202d-18ea-43c6-9294-dc3c3e2f83a3`). A zip cannot be stapled; the
+ticket is online.
+
+### Outputs (local only)
+
+| Artifact | SHA-256 |
+|---|---|
+| `calimocho-11.20-4.0b3-02-macos.zip` (200,134,448 bytes) | `ee0d07c12822a0f12ee632745f0d85cd77a452847350893244dc5d8748007ef0` |
+| `calimocho-11.20-4.0b3-02-source.tar` (63,703,040 bytes) | `a9cd453b635a8e8382f72a453872ed520b2faf3f634150eb9842f1dce954b4ba` |
+| `bin/wine` | `48217af46e6bdb6c7bf1bfe94226dd5ea967e9aa3b4037b509c80c298406a623` |
+| `bin/wineserver` | `9b83a18394362cb9e9c6d4fb7ca547659097c9b911051c25c04f97b8bfc69536` |
+| `calimocho-engine.json` | `76269b0967613dfa87890378dc7441b46d83ccb081896e63839ebd00be1c8708` |
+| `MANIFEST.sha256` | `ca9313dd7f2a6ece6c832597aa065ba28b3e029555d3048bb9487d012c31e5d4` |
