@@ -122,6 +122,7 @@ apply to it.
 | Vampire Survivors | 11.20-4.0b3-01, -02 and -03 | Window opens, then the game exits with code 3 after about 20 s. The earlier Calimocho development engine does exactly the same with this command-line check, so the release isn't the cause. The likely difference is the launch method: this check runs without a signed-in Xbox user, while the result above came from a launch through Xode. |
 | Balatro | 11.20-4.0b3-01, -02 and -03 | No window; exits after about 30 s. The earlier development engine does the same. |
 | Forza Horizon 6 | 11.20-4.0b3-01 with the Forza-only workarounds (the set used in -02) | Title screen, then Continue with existing progress into free roam ("Explore Japan"). Exit Game from the menu quit cleanly. Driving input wasn't checked in this run. |
+| Forza Horizon 6 | 11.20-4.0b3-04 with the Forza-only workarounds | Driver warning, then title screen, then a clean quit. Start Game showed "Sign In Required"; the -01 build now shows the same message, so this points to the Xbox account state, not the engine. Gameplay on -04 is not verified yet. |
 
 ## Counts (24–25 October 2026)
 
