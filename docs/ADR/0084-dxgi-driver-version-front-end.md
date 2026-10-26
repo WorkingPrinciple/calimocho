@@ -82,3 +82,11 @@ the NVAPI stub (driver 616.56) but never called
 `IDXGIAdapter::CheckInterfaceSupport`. FH302 comes from another query,
 perhaps SetupAPI, WMI or D3DKMT. The components stay in the source tree
 as tested, reusable shims, but the FH6 profile doesn't install them.
+
+A trace of the query FH6 actually uses was not possible. The Ode CLI
+accepts FH6 only with its reviewed title recipe, which pins
+`WINEDEBUG=-all`, and the executable is encrypted at rest, so it can't
+be started outside the CLI. The CLI's popup record of the A/B run also
+shows the FH302 dialog closing by itself after a few seconds with no
+button pressed. The title screen follows either way, so the warning is
+cosmetic. REQ-120 is parked with this evidence.
