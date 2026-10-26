@@ -112,14 +112,15 @@ Where a game's Calimocho result above differs, both are kept.
 Short checks on the release builds, run from the command line in a fresh
 prefix: launch, wait about 60 seconds, then close the game normally. They
 show whether a game still starts on a release; they don't replace the
-results above.
+results above. Release -04 contains the same binaries as -03, so -03 results
+apply to it.
 
 | Game | Release | What we saw |
 |---|---|---|
-| Brotato | 11.20-4.0b3-02 | Menu rendered, still running at 60 s, clean quit. |
-| Halls of Torment | 11.20-4.0b3-02 | Menu rendered, still running at 60 s, clean quit. Better than the earlier Calimocho result above. |
-| Vampire Survivors | 11.20-4.0b3-01 and -02 | Window opens, then the game exits with code 3 after about 20 s. The earlier Calimocho development engine does exactly the same with this command-line check, so the release isn't the cause. The likely difference is the launch method: this check runs without a signed-in Xbox user, while the result above came from a launch through Xode. |
-| Balatro | 11.20-4.0b3-01 and -02 | No window; exits after about 30 s. The earlier development engine does the same. |
+| Brotato | 11.20-4.0b3-02 and -03 | Menu rendered, still running at 60 s, clean quit. |
+| Halls of Torment | 11.20-4.0b3-02 and -03 | Menu rendered, still running at 60 s, clean quit. Better than the earlier Calimocho result above. |
+| Vampire Survivors | 11.20-4.0b3-01, -02 and -03 | Window opens, then the game exits with code 3 after about 20 s. The earlier Calimocho development engine does exactly the same with this command-line check, so the release isn't the cause. The likely difference is the launch method: this check runs without a signed-in Xbox user, while the result above came from a launch through Xode. |
+| Balatro | 11.20-4.0b3-01, -02 and -03 | No window; exits after about 30 s. The earlier development engine does the same. |
 | Forza Horizon 6 | 11.20-4.0b3-01 with the Forza-only workarounds (the set used in -02) | Title screen, then Continue with existing progress into free roam ("Explore Japan"). Exit Game from the menu quit cleanly. Driving input wasn't checked in this run. |
 
 ## Counts (24–25 October 2026)
