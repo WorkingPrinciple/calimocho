@@ -1,0 +1,20 @@
+; REQ-104: constant red fragment stage for the tessellation readback oracle.
+OpCapability Shader
+OpMemoryModel Logical GLSL450
+OpEntryPoint Fragment %main "main" %color
+OpExecutionMode %main OriginUpperLeft
+OpDecorate %color Location 0
+%void = OpTypeVoid
+%function = OpTypeFunction %void
+%float = OpTypeFloat 32
+%vec4 = OpTypeVector %float 4
+%f0 = OpConstant %float 0
+%f1 = OpConstant %float 1
+%red = OpConstantComposite %vec4 %f1 %f0 %f0 %f1
+%output_ptr = OpTypePointer Output %vec4
+%color = OpVariable %output_ptr Output
+%main = OpFunction %void None %function
+%entry = OpLabel
+OpStore %color %red
+OpReturn
+OpFunctionEnd

@@ -1,0 +1,95 @@
+{
+  "requirement": "REQ-104",
+  "candidate": "A",
+  "engine": "calimocho-req104-A-sampler",
+  "status": "signed-non-wine-tested-awaiting-review-and-admission",
+  "qualified": false,
+  "base_registry_sha256": "170ca4ad08a5274b614e74bf740866ef219a97fdc7855270c5d8fa03192ed609",
+  "base_library_sha256": "4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385",
+  "wine_sha256": "f6d0546fad2d0dafaa09a9fe6cabe75bb070567df6b0933ecd3622dcb6349194",
+  "wineserver_sha256": "e3ec4e7e76cee273f17d5fa3459902642f73d6921e94c576aa74e8cdbdcd7da1",
+  "only_changed_module": "lib/wine/x86_64-unix/libMoltenVK.dylib",
+  "unsigned_library_sha256": "b61f53d07b5745a959dba6e397d4df30deaf7d8c154bcd0d070e81dac95b6b34",
+  "library_sha256": "21833bb575ea4f4a6456895aee77e1ce0ec6143a4bb9d7479db71e7654815bc4",
+  "signature": {
+    "verify_strict": "valid on disk; satisfies its Designated Requirement",
+    "authority": "Developer ID Application: Dragos Hont (M62Z4M5EUY)",
+    "team": "M62Z4M5EUY",
+    "flags": "0x10000(runtime)",
+    "timestamp": "26 Oct 2026 at 16:00:33"
+  },
+  "architecture": "x86_64",
+  "usr_local_references": 0,
+  "signed_equals_build_plus_signature": "codesign --remove-signature output equals the build output except the grown __LINKEDIT vmsize field",
+  "source_revisions": {
+    "MoltenVK": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+    "cereal": "a56bad8bbb770ee266e930c95d37fff2a5be7fea",
+    "Vulkan-Headers": "e3b1eec08173d6b825cd3ac88c885a63b621504a",
+    "SPIRV-Cross": "6c09849fe88c48eaed08413aa022aaa136a3a057",
+    "SPIRV-Tools": "0d6fd73ca73830ccab5fa1f00ed5ed40124e2c55",
+    "SPIRV-Headers": "29981f65241605e08b0ede4cfeb999fe3b723c6a",
+    "Vulkan-Tools": "8c66b352925cb771f793a4d3220b1321ae0febf1",
+    "Volk": "776893306c5d3b22b6185b5d4a258b81d94572bf"
+  },
+  "moltenvk_patches": [
+    {
+      "path": "patches/moltenvk/0002-gate-128-samplers-to-metal3-argument-buffers.patch",
+      "sha256": "54415d464609e82fb3e4ef682e53d50f836bdff74d9249bb2967a0c52fa99ddb"
+    },
+    {
+      "path": "patches/moltenvk/0003-namespace-req104-pipeline-cache-uuid.patch",
+      "sha256": "a65d64d42c7c993c5503eee65e745031d9fce2013000eb9afb0c6f7a21e43623"
+    }
+  ],
+  "spirv_cross_patch": null,
+  "spirv_cross_archive_sha256": "9b0ffcf11dc1c48d7280dea635673d2e8ddce3f38a245b407500fd08ecc3afaf",
+  "spirv_cross_archive_note": "Byte-identical to the archive inside 170ca",
+  "build_config": {
+    "sha256": "91b46307358e39d2c79a09a25faa0e90360dd05baf81e3e378577829eb8885a9",
+    "defines": [
+      "MVK_USE_METAL_PRIVATE_API=1",
+      "REQ104_PUSH_ARGUMENT_BUFFERS=1",
+      "REQ104_SAMPLER_LIMIT=128",
+      "REQ104_CACHE_NAMESPACE=0x52344131"
+    ]
+  },
+  "build_command": "XCODE_XCCONFIG_FILE=<config> xcodebuild build -quiet -project MoltenVKPackaging.xcodeproj -scheme 'MoltenVK Package (macOS only)' -configuration Release -destination generic/platform=macOS -derivedDataPath <derived> -jobs 4",
+  "toolchain": "Xcode 27.1 (27A9275), same as 170ca",
+  "reproducibility_control": {
+    "rebuilt_170ca_source_sha256": "4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385",
+    "matches_170ca_library": true
+  },
+  "advertised_per_stage_samplers": 128,
+  "pipeline_cache_namespace": "52344131",
+  "contains_pr2719": false,
+  "tests": {
+    "bisect": {
+      "path": "docs/evidence/req104-bisect-tests.json",
+      "sha256": "e31df6646d20e999eeb7c8715256feb9c4887ee735713336bfcb883f257f0aab",
+      "checks": [
+        "bench-round-0",
+        "bench-round-1",
+        "bench-round-2",
+        "bench-round-3",
+        "bench-round-4",
+        "identity",
+        "tess"
+      ]
+    },
+    "sampler_128": {
+      "path": "docs/evidence/req104-bisect-A-sampler-tests.json",
+      "sha256": "5096097b2f2a96fe68e444e6ca7ea36f73a1f1580b1d6335ac70f1a93993c423",
+      "outcomes": 38,
+      "all_oracles_passed": true
+    }
+  },
+  "inventory_sha256": "0aff4cad56ac5791f65d13feba3ca2af75904f9ca6597753ee70e2bc1b0150ff",
+  "expected_nms_change": "Sampler warning removed by an honest 128 limit; address-space pipeline failures unchanged from 170ca",
+  "limitations": [
+    "No Wine, NMS launch, warning observation, frame-time or save check was performed",
+    "New pipeline cache namespace: the first NMS launch recompiles shaders; judge smoothness after warm-up",
+    "Headless compute, fragment and tessellation probes only; not Vulkan conformance",
+    "Apple M5 Max only; devices failing the Metal3 gates keep limit 16",
+    "REQ80/S2 admission and an owner-judged Ode Play are still required"
+  ]
+}

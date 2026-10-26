@@ -1,0 +1,19 @@
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
+index 9772757..23f1d74 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
+@@ -3278,6 +3278,14 @@ void MVKPhysicalDevice::initPipelineCacheUUID() {
+ 	mtlFeatures |= _isUsingMetalArgumentBuffers << 0;
+ 	*(uint32_t*)&_properties.pipelineCacheUUID[uuidComponentOffset] = NSSwapHostIntToBig(mtlFeatures);
+ 	uuidComponentOffset += sizeof(mtlFeatures);
++
++#ifdef REQ104_CACHE_NAMESPACE
++	// Give each REQ-104 bisect variant its own pipeline cache namespace, so cached
++	// MSL from another build is never reused. User caches are never deleted.
++	uint32_t req104Namespace = REQ104_CACHE_NAMESPACE;
++	*(uint32_t*)&_properties.pipelineCacheUUID[uuidComponentOffset] = NSSwapHostIntToBig(req104Namespace);
++	uuidComponentOffset += sizeof(req104Namespace);
++#endif
+ }
+ 
+ // Combine OS major (8 bits), OS minor (8 bits), Mac GPU family (8 bits), and

@@ -1,0 +1,56 @@
+; REQ-104: minimal triangle tessellation evaluation stage. Independent fixture.
+OpCapability Tessellation
+OpMemoryModel Logical GLSL450
+OpEntryPoint TessellationEvaluation %main "main" %inputs %coord %builtin
+OpExecutionMode %main Triangles
+OpExecutionMode %main SpacingEqual
+OpExecutionMode %main VertexOrderCcw
+OpName %inputs "position"
+OpName %PerVertex "gl_PerVertex"
+OpMemberName %PerVertex 0 "gl_Position"
+OpDecorate %inputs Location 0
+OpDecorate %coord BuiltIn TessCoord
+OpDecorate %PerVertex Block
+OpMemberDecorate %PerVertex 0 BuiltIn Position
+%void = OpTypeVoid
+%function = OpTypeFunction %void
+%float = OpTypeFloat 32
+%int = OpTypeInt 32 1
+%uint = OpTypeInt 32 0
+%vec3 = OpTypeVector %float 3
+%vec4 = OpTypeVector %float 4
+%i0 = OpConstant %int 0
+%i1 = OpConstant %int 1
+%i2 = OpConstant %int 2
+%u32 = OpConstant %uint 32
+%InArray = OpTypeArray %vec4 %u32
+%input_ptr = OpTypePointer Input %InArray
+%inputs = OpVariable %input_ptr Input
+%vec3_input_ptr = OpTypePointer Input %vec3
+%coord = OpVariable %vec3_input_ptr Input
+%PerVertex = OpTypeStruct %vec4
+%builtin_ptr = OpTypePointer Output %PerVertex
+%builtin = OpVariable %builtin_ptr Output
+%vec4_input_ptr = OpTypePointer Input %vec4
+%vec4_output_ptr = OpTypePointer Output %vec4
+%main = OpFunction %void None %function
+%entry = OpLabel
+%c = OpLoad %vec3 %coord
+%cx = OpCompositeExtract %float %c 0
+%cy = OpCompositeExtract %float %c 1
+%cz = OpCompositeExtract %float %c 2
+%p0_ptr = OpAccessChain %vec4_input_ptr %inputs %i0
+%p0 = OpLoad %vec4 %p0_ptr
+%p1_ptr = OpAccessChain %vec4_input_ptr %inputs %i1
+%p1 = OpLoad %vec4 %p1_ptr
+%p2_ptr = OpAccessChain %vec4_input_ptr %inputs %i2
+%p2 = OpLoad %vec4 %p2_ptr
+%a = OpVectorTimesScalar %vec4 %p0 %cx
+%b = OpVectorTimesScalar %vec4 %p1 %cy
+%d = OpVectorTimesScalar %vec4 %p2 %cz
+%ab = OpFAdd %vec4 %a %b
+%abd = OpFAdd %vec4 %ab %d
+%position_ptr = OpAccessChain %vec4_output_ptr %builtin %i0
+OpStore %position_ptr %abd
+OpReturn
+OpFunctionEnd

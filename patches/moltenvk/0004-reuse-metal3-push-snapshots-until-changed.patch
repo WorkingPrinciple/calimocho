@@ -1,0 +1,119 @@
+diff --git a/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.h b/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.h
+index 491ba3a..9ef9733 100644
+--- a/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.h
++++ b/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.h
+@@ -30,6 +30,7 @@
+ class MVKCommandEncoder;
+ class MVKGraphicsPipeline;
+ class MVKDescriptorSet;
++class MVKMTLBufferAllocation;
+ class MVKOcclusionQueryPool;
+ 
+ struct MVKShaderImplicitRezBinding;
+@@ -170,6 +171,10 @@ struct MVKVulkanCommonEncoderState {
+ 	MVKDescriptorSet _pushDescriptor = {};
+ 	MVKSmallVector<uint8_t, 16> _pushDescData;
+ 	MVKSmallVector<uint64_t, 16> _pushDescGPUData;
++	/** Immutable command-buffer-owned copy of the Metal3 push bytes, reused until they change. */
++	mutable const MVKMTLBufferAllocation* _pushDescSnapshot = nullptr;
++	/** The Metal command buffer that owns _pushDescSnapshot (not retained, compared only). */
++	mutable id<MTLCommandBuffer> _pushDescSnapshotOwner = nil;
+ 	void ensurePushDescriptorSize(uint32_t size);
+ 	void ensurePushDescriptorLayout(const MVKDescriptorSetLayout* layout);
+ 	void setLayout(MVKPipelineLayout* layout);
+diff --git a/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.mm b/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.mm
+index 39d129f..62922e3 100644
+--- a/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.mm
++++ b/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.mm
+@@ -627,6 +627,22 @@ static MVKResourceUsageStages combineStages(MVKResourceUsageStages a, MVKResourc
+ 	return MVKResourceUsageStages::All;
+ }
+ 
++/** Returns the current Metal3 push snapshot, copying the push bytes once per change. */
++static const MVKMTLBufferAllocation* getPushDescriptorSnapshot(MVKCommandEncoder& mvkEncoder,
++                                                               const MVKVulkanCommonEncoderState& common,
++                                                               const MVKDescriptorSetLayout* layout) {
++	if (!common._pushDescSnapshot || common._pushDescSnapshotOwner != mvkEncoder._mtlCmdBuffer) {
++		const MVKDescriptorSet& set = common._pushDescriptor;
++		const auto* allocation = mvkEncoder.copyToTempMTLBufferAllocation(set.gpuBuffer, layout->gpuSize());
++		MVKDescriptorSet snapshot = set;
++		snapshot.gpuBuffer = static_cast<char*>(allocation->getContents());
++		mvkInitMetal3DescriptorMetadata(&snapshot, allocation->_mtlBuffer.gpuAddress + allocation->_offset);
++		common._pushDescSnapshot = allocation;
++		common._pushDescSnapshotOwner = mvkEncoder._mtlCmdBuffer;
++	}
++	return common._pushDescSnapshot;
++}
++
+ static void bindMetalResources(id<MTLCommandEncoder> encoder,
+                                MVKCommandEncoder& mvkEncoder,
+                                const MVKVulkanCommonEncoderState& common,
+@@ -639,10 +655,21 @@ static void bindMetalResources(id<MTLCommandEncoder> encoder,
+                                MVKStageResourceBindings& bindings,
+                                const MVKResourceBinder& RESTRICT binder) {
+ 	// Clear descriptor set resource use bitarray for new sets and bind them
+-	// Every push snapshot is command-completion-owned. Never bind mutable host
+-	// bytes, which could otherwise change an earlier dispatch or render stage.
+-	if (common._layout->hasPushDescriptor())
+-		exists.descriptorSetData.clear(common._layout->pushDescriptor());
++	// Every push snapshot is command-completion-owned and immutable. Never bind mutable
++	// host bytes. A stage rebinds the push set, and declares its resources again, only
++	// when it does not already have the current snapshot bound. Any push write or push
++	// layout change drops the snapshot, so the next bind copies the new bytes once.
++	if (common._layout->hasPushDescriptor()) {
++		size_t pushIdx = common._layout->pushDescriptor();
++		const MVKDescriptorSetLayout* pushLayout = common._layout->getDescriptorSetLayout(pushIdx);
++		if (pushLayout->argBufMode() == MVKArgumentBufferMode::Metal3 &&
++			resources.resources.descriptorSetData.get(pushIdx)) {
++			const MVKMTLBufferAllocation* snapshot = getPushDescriptorSnapshot(mvkEncoder, common, pushLayout);
++			MVKStageResourceBindings::Buffer bound = { snapshot->_mtlBuffer, snapshot->_offset };
++			if (!exists.buffers.get(pushIdx) || bindings.buffers[pushIdx] != bound)
++				exists.descriptorSetData.clear(pushIdx);
++		}
++	}
+ 	MVKStaticBitSet<kMVKMaxDescriptorSetCount> setsNeeded = resources.resources.descriptorSetData.clearingAllIn(exists.descriptorSetData);
+ 	exists.descriptorSetData |= resources.resources.descriptorSetData;
+ 	for (size_t idx : setsNeeded) {
+@@ -650,11 +677,8 @@ static void bindMetalResources(id<MTLCommandEncoder> encoder,
+ 		const MVKDescriptorSetLayout* layout = common._layout->getDescriptorSetLayout(idx);
+ 		bindings.descriptorSetResourceUse[idx].resizeAndClear(layout->bindings().size());
+ 		if (layout->isPushDescriptorSetLayout() && layout->argBufMode() == MVKArgumentBufferMode::Metal3) {
+-			const auto* allocation = mvkEncoder.copyToTempMTLBufferAllocation(set->gpuBuffer, layout->gpuSize());
+-			MVKDescriptorSet snapshot = *set;
+-			snapshot.gpuBuffer = static_cast<char*>(allocation->getContents());
+-			mvkInitMetal3DescriptorMetadata(&snapshot, allocation->_mtlBuffer.gpuAddress + allocation->_offset);
+-			bindBuffer(encoder, allocation->_mtlBuffer, allocation->_offset, idx, exists, bindings, binder);
++			const MVKMTLBufferAllocation* snapshot = getPushDescriptorSnapshot(mvkEncoder, common, layout);
++			bindBuffer(encoder, snapshot->_mtlBuffer, snapshot->_offset, idx, exists, bindings, binder);
+ 		} else {
+ 			bindBuffer(encoder, set->gpuBufferObject, set->gpuBufferOffset, idx, exists, bindings, binder);
+ 		}
+@@ -956,6 +980,8 @@ void MVKVulkanCommonEncoderState::ensurePushDescriptorSize(uint32_t size) {
+ }
+ 
+ void MVKVulkanCommonEncoderState::ensurePushDescriptorLayout(const MVKDescriptorSetLayout* layout) {
++	// Called before every push write and on every push layout change.
++	_pushDescSnapshot = nullptr;
+ 	ensurePushDescriptorSize(layout->cpuSize());
+ 	_pushDescriptor.cpuBufferSize = layout->cpuSize();
+ 	_pushDescriptor.layout = layout;
+@@ -986,6 +1012,9 @@ MVKVulkanCommonEncoderState::MVKVulkanCommonEncoderState(const MVKVulkanCommonEn
+ 	if (other._pushDescriptor.layout)
+ 		ensurePushDescriptorLayout(other._pushDescriptor.layout);
+ 	memcpy(_pushDescriptor.cpuBuffer, other._pushDescriptor.cpuBuffer, _pushDescriptor.cpuBufferSize);
++	// A copied state may encode into another Metal command buffer.
++	_pushDescSnapshot = nullptr;
++	_pushDescSnapshotOwner = nil;
+ }
+ 
+ MVKVulkanCommonEncoderState& MVKVulkanCommonEncoderState::operator=(const MVKVulkanCommonEncoderState& other) {
+@@ -996,6 +1025,9 @@ MVKVulkanCommonEncoderState& MVKVulkanCommonEncoderState::operator=(const MVKVul
+ 	if (other._pushDescriptor.layout)
+ 		ensurePushDescriptorLayout(other._pushDescriptor.layout);
+ 	memmove(_pushDescriptor.cpuBuffer, other._pushDescriptor.cpuBuffer, _pushDescriptor.cpuBufferSize);
++	// A copied state may encode into another Metal command buffer.
++	_pushDescSnapshot = nullptr;
++	_pushDescSnapshotOwner = nil;
+ 	return *this;
+ }
+ 
