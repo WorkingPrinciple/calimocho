@@ -1,0 +1,116 @@
+{
+ "schema": "calimocho-renderer-provenance/1",
+ "purpose": "COR-224 CrossOver NMS renderer variant (hedge for stock CrossOver MoltenVK)",
+ "component": "MoltenVK",
+ "licence": "Apache-2.0",
+ "licence_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+ "source": {
+  "repository": "https://github.com/KhronosGroup/MoltenVK.git",
+  "tag": "v1.4.2",
+  "commit": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+  "dependencies": {
+   "cereal": [
+    "USCiLab/cereal",
+    "a56bad8bbb770ee266e930c95d37fff2a5be7fea"
+   ],
+   "Vulkan-Headers": [
+    "KhronosGroup/Vulkan-Headers",
+    "e3b1eec08173d6b825cd3ac88c885a63b621504a"
+   ],
+   "SPIRV-Cross": [
+    "KhronosGroup/SPIRV-Cross",
+    "6c09849fe88c48eaed08413aa022aaa136a3a057"
+   ],
+   "SPIRV-Tools": [
+    "KhronosGroup/SPIRV-Tools",
+    "0d6fd73ca73830ccab5fa1f00ed5ed40124e2c55"
+   ],
+   "SPIRV-Headers": [
+    "KhronosGroup/SPIRV-Headers",
+    "29981f65241605e08b0ede4cfeb999fe3b723c6a"
+   ],
+   "Vulkan-Tools": [
+    "KhronosGroup/Vulkan-Tools",
+    "8c66b352925cb771f793a4d3220b1321ae0febf1"
+   ],
+   "Volk": [
+    "zeux/volk",
+    "776893306c5d3b22b6185b5d4a258b81d94572bf"
+   ]
+  },
+  "pin_file": "versions.json moltenvk_source (calimocho branch dragoshont-calimocho-first-release)",
+  "tracked_changes": "none"
+ },
+ "build": {
+  "tool": "tools/build_moltenvk.py",
+  "tool_sha256": "ecb5aa7953988a8ec2dff4904cac23437bc6a95746d572ebeb358f0d6e02ada5",
+  "command": "python3 tools/build_moltenvk.py --output build/dependencies/moltenvk-1.4.2-x86_64-private-cor224 --metal-private-api --local-build-cache build/dependencies/moltenvk-1.4.2-x86_64-cache-cor224",
+  "configuration": "ARCHS=x86_64, ONLY_ACTIVE_ARCH=NO, code signing disabled, GCC_PREPROCESSOR_DEFINITIONS += MVK_USE_METAL_PRIVATE_API=1",
+  "build_config_sha256": "bee29f198b8240c79ecfe77218da8a2dcdbc68571cc1c3142826d9954ab6b820",
+  "metal_private_api": true,
+  "local_build_cache_receipt_sha256": "232505177f3776db325d5dbeaf338febc5f276c3bbfc99e748a3e585bd67f97d",
+  "local_build_cache_note": "APFS clone of the source-built pinned dependency cache moltenvk-1.4.2-x86_64-01 (cautious-potato), receipt identical",
+  "toolchain": [
+   "Xcode 27.1",
+   "Build version 27A9275"
+  ],
+  "steps": [
+   [
+    "toolchain",
+    0
+   ],
+   [
+    "moltenvk",
+    0
+   ],
+   [
+    "architecture",
+    0
+   ],
+   [
+    "linkage",
+    0
+   ]
+  ],
+  "build_receipt_sha256": "119a5caff57deb63dc96606f4480624c7c3d8c2343cab39b19e2cf65cb3dc64e"
+ },
+ "unsigned_library_sha256": "4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385",
+ "reproducibility": "unsigned output is byte-identical to 170ca's MoltenVK 4b4bc6fe (calimocho-wine11.20-gptk4b3-tls-vulkan-private, owner-judged smooth for NMS) and to the unsigned input of the -06 release engine (signed there as f24fe64a); the signed bytes differ only by the code signature",
+ "signed_library": {
+  "path": "~/Library/Application Support/XodusCLI/renderers/moltenvk-1.4.2-private-api-x86_64-cor224/libMoltenVK.dylib",
+  "sha256": "7c2fd1179404ac72c811e0edca9af8a292ec07d4aa4dcd061467158b5d91042a",
+  "arch": "x86_64",
+  "install_name": "@rpath/libMoltenVK.dylib",
+  "imports": "system frameworks and /usr/lib/libc++ only; no /usr/local; no LC_RPATH",
+  "signing": "codesign --force --options runtime --timestamp --sign 410914520BCC840C0125D3826CCF0F247F603321 (Developer ID Application: Dragos Hont (M62Z4M5EUY)); no entitlements; not notarized (a bare dylib is not submitted)",
+  "codesign_verify_strict": [
+   "~/Library/Application Support/XodusCLI/renderers/moltenvk-1.4.2-private-api-x86_64-cor224/libMoltenVK.dylib: valid on disk",
+   "~/Library/Application Support/XodusCLI/renderers/moltenvk-1.4.2-private-api-x86_64-cor224/libMoltenVK.dylib: satisfies its Designated Requirement"
+  ],
+  "codesign_dvvv": [
+   "Identifier=libMoltenVK",
+   "Format=Mach-O thin (x86_64)",
+   "CodeDirectory v=20500 size=43703 flags=0x10000(runtime) hashes=1360+2 location=embedded",
+   "Authority=Developer ID Application: Dragos Hont (M62Z4M5EUY)",
+   "Authority=Developer ID Certification Authority",
+   "Authority=Apple Root CA",
+   "Timestamp=26 Oct 2026 at 16:20:25",
+   "TeamIdentifier=M62Z4M5EUY",
+   "Runtime Version=27.0.0"
+  ]
+ },
+ "registry_variant": {
+  "path": "~/Library/Application Support/XodusCLI/renderers/moltenvk-1.4.2-private-api-x86_64-cor224/crossover-26.3-mvk142.registry.json",
+  "sha256": "c246dd2977fc42daf933d1e39507d5c1e2b49a7aa37beaaa6fe5348bcccbf80d",
+  "derived_from": "run-2 plan stock registry bytes 8b988bace19dd55a54c2f98da4240b57d1662d277c7f2f7bae7aa9fb25ab2231",
+  "differences": [
+   "name crossover-26.3 -> crossover-26.3-mvk142",
+   "environment.CX_LIBVULKAN and the CX_LIBVULKAN inside environment.CX_ENV -> signed library path",
+   "dependencies -> [{signed library path, 7c2fd117...}]"
+  ]
+ },
+ "not_proven": [
+  "NMS gameplay with this library under CrossOver (COR-224 run 2 variant)"
+ ],
+ "loader_compatibility": "CrossOver 26.3 Mach-O loaders bin/wineloader, lib/wine/x86_64-unix/wine and bin/wineserver are hardened-runtime with com.apple.security.cs.disable-library-validation=true (codesign -d --entitlements), so a Developer-ID-signed third-party MoltenVK is loadable; run 95ac8bdc already loaded an unsigned one via CX_LIBVULKAN."
+}

@@ -1174,3 +1174,36 @@ Wine build, assembled into unsigned engines.
 | `bin/wineserver` | `7102d70405e7667acf143e710723f58fb24d32eee81468b1f0f02279343601d0` |
 | `calimocho-engine.json` | `d3ca32d8d706be0ca948f661f76e68c4a735b78362c6fb95fe50c12eb5db18ff` |
 | `MANIFEST.sha256` | `db1b642e1d1a93cf50a3620a994ca049e34ce2352dc25fc34617a651302528bf` |
+
+## 2026-10-26: Signed MoltenVK renderer for the CrossOver NMS route (COR-224)
+
+The CrossOver route for No Man's Sky (COR-224) needs a Vulkan
+renderer we can ship. The private MoltenVK used in the first live run
+has no recorded source and is unsigned, and CrossOver's own MoltenVK
+failed NMS once before (run `ceaf63d7`, `vkCreateDevice` feature 16).
+As a hedge, this entry rebuilds the pinned MoltenVK from source and
+signs it.
+
+- **Source.** MoltenVK `v1.4.2` (`db66022459ffb663aa2b50f6b018bc2e124f5edf`)
+  and the dependency commits in `versions.json` (`moltenvk_source`),
+  with no tracked changes.
+- **Build.** `tools/build_moltenvk.py --metal-private-api`, x86_64,
+  from an APFS clone of the source-built dependency cache (receipt
+  `23250517`). Configuration SHA-256 `bee29f19`, all four steps exit 0.
+- **Reproducibility.** The unsigned library is
+  `4b4bc6fe5fd68f8e2fda12b6a153e69f838d78f72623d062ebcb42374833a385`.
+  That is byte for byte the MoltenVK of the 170ca engine (owner-judged
+  smooth in NMS) and the unsigned input of the 0.1120.4.6 release.
+- **Signing.** Developer ID `M62Z4M5EUY`, hardened runtime, secure
+  timestamp, no entitlements. Signed SHA-256
+  `7c2fd1179404ac72c811e0edca9af8a292ec07d4aa4dcd061467158b5d91042a`.
+  `codesign --verify --strict` passes.
+- **Loader.** CrossOver 26.3's `wineloader`, `x86_64-unix/wine` and
+  `wineserver` have `disable-library-validation`, so they can load a
+  library signed by another team.
+
+The signed library and its rendered registry variant
+(`crossover-26.3-mvk142`) stay local. Nothing binary is committed.
+[Provenance](evidence/cor224-moltenvk-renderer.json) lists every hash.
+Not proven yet: NMS gameplay with this library under CrossOver. That
+is the COR-224 run 2 variant, queued behind the stock MoltenVK run.
