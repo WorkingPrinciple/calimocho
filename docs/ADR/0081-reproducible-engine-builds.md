@@ -57,6 +57,9 @@ libraries. Building those twice showed two more differences:
   symbols are unchanged. The build-time `.pc` files are pointed back to
   the real prefix and the `.la` files are removed; neither is shipped.
   The release tool's path scan also rejects `/calimocho-deps/`.
+  `release_engine.py build` serves the same paths from configure to
+  install, because Wine's `sfnt2fon` build tool loads FreeType. One
+  lock covers them, so two builds on one Mac take turns at that stage.
 - **Toolchain pin.** `versions.json` `release_engine.toolchain` pins
   the Xcode version and build, the SDK version and build, and the
   version line and SHA-256 of clang, Apple ld, make, bison, flex, both

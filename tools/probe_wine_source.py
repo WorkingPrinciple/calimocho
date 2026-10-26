@@ -56,16 +56,20 @@ FIXED_PREFIX_ROOT = Path("/tmp/calimocho-deps")
 
 
 @contextlib.contextmanager
-def fixed_install_prefix(name, real):
-    """Serve the real prefix at /tmp/calimocho-deps/<name> while a dependency builds (ADR-0081).
+def fixed_install_prefixes(prefixes):
+    """Serve real prefixes at /tmp/calimocho-deps/<name> while something builds (ADR-0081).
 
+    prefixes maps a name to its real directory; yields the same names mapped to the fixed paths.
     A library's install name comes from --prefix, and ld derives its LC_UUID from the image,
-    install name included. Configuring with this fixed path keeps both independent of the
-    build directory. The symlink lets configure test programs and make install use it. A lock
-    serializes builds that need the same path; the symlink is removed afterwards.
+    install name included. Configuring with a fixed path keeps both independent of the build
+    directory. The symlinks let configure test programs, make install and build tools linked
+    against the libraries (Wine's sfnt2fon) load them; DYLD_* variables cannot do that because
+    SIP strips them from /bin/sh and /usr/bin/nice. One lock covers all names, so builds that
+    need the paths run one after another; the symlinks are removed afterwards.
     """
     descriptor = os.open(f"{FIXED_PREFIX_ROOT}.lock",
                          os.O_CREAT | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+    links = []
     try:
         fcntl.flock(descriptor, fcntl.LOCK_EX)
         try:
@@ -75,19 +79,27 @@ def fixed_install_prefix(name, real):
         info = FIXED_PREFIX_ROOT.lstat()
         if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
             raise ValueError(f"{FIXED_PREFIX_ROOT} must be a directory you own")
-        link = FIXED_PREFIX_ROOT / name
-        if link.is_symlink():
-            link.unlink()  # left by an interrupted build; we hold the lock
-        elif link.exists():
-            raise ValueError(f"{link} exists and is not a symlink")
-        real.mkdir(parents=True, exist_ok=True)
-        link.symlink_to(real)
-        try:
-            yield link
-        finally:
-            link.unlink()
+        for name, real in prefixes.items():
+            link = FIXED_PREFIX_ROOT / name
+            if link.is_symlink():
+                link.unlink()  # left by an interrupted build; we hold the lock
+            elif link.exists():
+                raise ValueError(f"{link} exists and is not a symlink")
+            Path(real).mkdir(parents=True, exist_ok=True)
+            link.symlink_to(real)
+            links.append(link)
+        yield {name: FIXED_PREFIX_ROOT / name for name in prefixes}
     finally:
+        for link in links:
+            link.unlink()
         os.close(descriptor)
+
+
+@contextlib.contextmanager
+def fixed_install_prefix(name, real):
+    """fixed_install_prefixes for one dependency; yields its fixed path."""
+    with fixed_install_prefixes({name: real}) as fixed:
+        yield fixed[name]
 
 
 def relocate_pkgconfig(prefix, fixed):

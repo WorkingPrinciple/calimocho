@@ -35,6 +35,8 @@ import tarfile
 import tempfile
 import time
 
+from probe_wine_source import fixed_install_prefixes
+
 REPO = Path(__file__).resolve().parents[1]
 MACHO_MAGIC = {b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca"}
 APPLE_UNIX_LINKS = ("d3d10", "d3d11", "d3d12", "d3d12core", "dxgi")
@@ -265,39 +267,42 @@ def build(args):
                  f"--prefix={pin['configure_prefix']}"]
     nice = ["/usr/bin/nice", "-n", "10"]
     steps = [("configure", configure, 1800), ("compile", nice + ["/usr/bin/make", f"-j{jobs}"], 4 * 3600)]
-    for label, command, timeout in steps:
-        started = time.monotonic()
-        run(command, cwd=directory, env=environment, log=work / f"{label}.log", timeout=timeout)
-        receipt["steps"].append({"step": label, "command": command,
-                                 "seconds": round(time.monotonic() - started, 1)})
-        save()
-        if label == "configure":
-            config = (directory / "include/config.h").read_text()
-            for name, value in pin["configure_sonames"].items():
-                if f'#define {name} "{value}"' not in config.splitlines():
-                    raise ValueError(f"configure did not select {name} {value}")
-            makefile = (directory / "Makefile").read_text().splitlines()
-            for arch in ("x86_64", "i386"):
-                line = next((l for l in makefile if l.startswith(f"{arch}_LDFLAGS =")), "")
-                if PE_LDFLAGS not in line:
-                    raise ValueError(f"configure dropped {PE_LDFLAGS} from {arch}_LDFLAGS")
+    # The FreeType and TLS libraries carry install names under the fixed dependency prefix;
+    # Wine's build tools (sfnt2fon) and configure tests load them from there (ADR-0081).
+    with fixed_install_prefixes({"freetype": freetype, "tls": tls}):
+        for label, command, timeout in steps:
+            started = time.monotonic()
+            run(command, cwd=directory, env=environment, log=work / f"{label}.log", timeout=timeout)
+            receipt["steps"].append({"step": label, "command": command,
+                                     "seconds": round(time.monotonic() - started, 1)})
+            save()
+            if label == "configure":
+                config = (directory / "include/config.h").read_text()
+                for name, value in pin["configure_sonames"].items():
+                    if f'#define {name} "{value}"' not in config.splitlines():
+                        raise ValueError(f"configure did not select {name} {value}")
+                makefile = (directory / "Makefile").read_text().splitlines()
+                for arch in ("x86_64", "i386"):
+                    line = next((l for l in makefile if l.startswith(f"{arch}_LDFLAGS =")), "")
+                    if PE_LDFLAGS not in line:
+                        raise ValueError(f"configure dropped {PE_LDFLAGS} from {arch}_LDFLAGS")
 
-    helper = directory / "loader/libnative-gs-localtime.dylib"
-    run(["/usr/bin/clang", "-arch", "x86_64", "-dynamiclib", "-O2", "-Wall", "-Wextra", "-Werror",
-         "-Wl,-install_name,@loader_path/libnative-gs-localtime.dylib",
-         "-o", str(helper), str(REPO / "tools/native_gs_localtime.c")],
-        cwd=directory, env=environment, log=work / "native-gs-helper.log")
-    run(["/usr/bin/make", "-W", "loader/main.o", "loader/wine",
-         f"LDFLAGS={environment['LDFLAGS']} -Wl,-needed_library,{helper}"],
-        cwd=directory, env=environment, log=work / "native-gs-loader-link.log")
-    loads = output(["otool", "-l", str(directory / "loader/wine")])
-    if not re.search(r"cmd LC_LOAD_DYLIB\s+cmdsize \d+\s+name @loader_path/libnative-gs-localtime\.dylib",
-                     loads):
-        raise ValueError("Wine loader lacks its native-GS LC_LOAD_DYLIB")
+        helper = directory / "loader/libnative-gs-localtime.dylib"
+        run(["/usr/bin/clang", "-arch", "x86_64", "-dynamiclib", "-O2", "-Wall", "-Wextra", "-Werror",
+             "-Wl,-install_name,@loader_path/libnative-gs-localtime.dylib",
+             "-o", str(helper), str(REPO / "tools/native_gs_localtime.c")],
+            cwd=directory, env=environment, log=work / "native-gs-helper.log")
+        run(["/usr/bin/make", "-W", "loader/main.o", "loader/wine",
+             f"LDFLAGS={environment['LDFLAGS']} -Wl,-needed_library,{helper}"],
+            cwd=directory, env=environment, log=work / "native-gs-loader-link.log")
+        loads = output(["otool", "-l", str(directory / "loader/wine")])
+        if not re.search(r"cmd LC_LOAD_DYLIB\s+cmdsize \d+\s+name @loader_path/libnative-gs-localtime\.dylib",
+                         loads):
+            raise ValueError("Wine loader lacks its native-GS LC_LOAD_DYLIB")
 
-    destdir = work / "destdir"
-    run(["/usr/bin/make", "install-lib", f"DESTDIR={destdir}"], cwd=directory,
-        env=environment, log=work / "install.log", timeout=3600)
+        destdir = work / "destdir"
+        run(["/usr/bin/make", "install-lib", f"DESTDIR={destdir}"], cwd=directory,
+            env=environment, log=work / "install.log", timeout=3600)
     stage = destdir / pin["configure_prefix"].lstrip("/")
     shutil.copy2(helper, stage / "lib/wine/x86_64-unix/libnative-gs-localtime.dylib")
     receipt["stage"] = str(stage)
