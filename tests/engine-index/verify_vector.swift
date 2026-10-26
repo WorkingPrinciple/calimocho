@@ -1,4 +1,5 @@
-// Verifies the engine index test vector with CryptoKit, the way X Ode does (ADR-0082).
+// Checks the signatures of the engine index test vector with CryptoKit, the way X Ode does
+// (ADR-0082). Content rules (schema, epoch, state, expiry, URLs) are checked by test_engine_index.py.
 // Usage: swift tests/engine-index/verify_vector.swift tests/engine-index
 import CryptoKit
 import Foundation
@@ -38,10 +39,10 @@ func pae(_ type: String, _ body: Data) -> Data {
 }
 
 let vector = json("vector.json")
-let testKey = vector["test_key"] as! [String: String]
-let publicKey = try! Curve25519.Signing.PublicKey(rawRepresentation: hex(testKey["public_key_hex"]!))
+let testKey = vector["test_key"] as! [String: Any]
+let publicKey = try! Curve25519.Signing.PublicKey(rawRepresentation: hex(testKey["public_key_hex"] as! String))
 let keyid = SHA256.hash(data: publicKey.rawRepresentation).map { String(format: "%02x", $0) }.joined()
-guard keyid == testKey["keyid"] else { fail("keyid") }
+guard keyid == testKey["keyid"] as? String else { fail("keyid") }
 
 func verify(_ name: String) -> Bool {
     let envelope = json(name)
@@ -62,7 +63,7 @@ let digest = SHA256.hash(data: message).map { String(format: "%02x", $0) }.joine
 guard digest == vector["pae_sha256"] as! String else { fail("pae_sha256") }
 guard publicKey.isValidSignature(hex(vector["signature_hex"] as! String), for: message) else { fail("signature_hex") }
 guard verify("envelope.json") else { fail("envelope.json should verify") }
-for name in ["envelope-tampered-payload.json", "envelope-wrong-type.json", "envelope-untrusted-key.json"] {
+for name in ["envelope-bad-tampered.json", "envelope-bad-wrong-type.json", "envelope-bad-untrusted-key.json"] {
     guard !verify(name) else { fail("\(name) must not verify") }
 }
 print("CryptoKit ok")

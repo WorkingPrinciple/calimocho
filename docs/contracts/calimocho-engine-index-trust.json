@@ -1,0 +1,17 @@
+{
+  "schema": "calimocho-engine-index-trust/1",
+  "description": "What X Ode and its backend embed at build time to verify the Calimocho engine release index (ADR-0082): trusted Ed25519 public keys, each bound to one epoch; revoked keyids; the minimum (epoch, index_version) floor; and engines revoked at build time. Private keys never enter any repository, Keychain or CI.",
+  "keys": [
+    {
+      "keyid": "b2906316227f06803851b23824ed2ff3a93fd590c0c497752387713fff70dcee",
+      "public_key": "5ZrgTETTbLPowbB7xfPzaXTd34x6yHVSjU6jy0BbeTA=",
+      "epoch": 1,
+      "status": "active",
+      "created": "2026-10-26",
+      "note": "Production key 2026-10. Private key on the maintainer Mac: ~/.config/calimocho/engine-index/engine-index-ed25519-2026-10.pem (mode 0600, passphrase-encrypted)."
+    }
+  ],
+  "revoked_keyids": [],
+  "floor": {"epoch": 1, "index_version": 1},
+  "revoked_engines": []
+}

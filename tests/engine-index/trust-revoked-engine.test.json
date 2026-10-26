@@ -1,0 +1,24 @@
+{
+  "schema": "calimocho-engine-index-trust/1",
+  "description": "TEST ONLY. Public RFC 8032 keys; never ship.",
+  "keys": [
+    {
+      "keyid": "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9",
+      "public_key": "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=",
+      "epoch": 1,
+      "status": "active",
+      "created": "2026-10-26"
+    }
+  ],
+  "revoked_keyids": [],
+  "floor": {
+    "epoch": 1,
+    "index_version": 1
+  },
+  "revoked_engines": [
+    {
+      "engine_id": "calimocho-11.20-4.0b3-06",
+      "reason": "test revocation"
+    }
+  ]
+}

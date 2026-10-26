@@ -2,35 +2,70 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/WorkingPrinciple/calimocho/blob/main/docs/contracts/calimocho-engine-index-v1.schema.json",
   "title": "Calimocho engine release index, version 1",
-  "description": "Signed list of Calimocho engine releases that X Ode and its backend may install and admit. The payload is carried inside a DSSE v1 envelope (calimocho-engine-index-envelope-v1.schema.json) and signed with Ed25519. See docs/ADR/0082-signed-engine-release-index.md.",
+  "description": "Signed list of Calimocho engine releases that X Ode may offer and install. The payload is carried inside a DSSE v1 envelope (calimocho-engine-index-envelope-v1.schema.json) and signed with Ed25519. Every pattern must match the whole string (\\A...\\z semantics); no string may contain control characters. See docs/ADR/0082-signed-engine-release-index.md.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "index_version", "generated_at", "expires_at", "publisher", "engines", "revoked"],
+  "required": [
+    "schema",
+    "epoch",
+    "index_version",
+    "generated_at",
+    "expires_at",
+    "publisher",
+    "engines",
+    "revoked"
+  ],
   "properties": {
-    "schema": {"const": "calimocho-engine-index/1"},
-    "index_version": {
-      "description": "Increases by at least 1 with every published index. Clients refuse an index older than the newest one they have accepted (rollback protection).",
-      "type": "integer", "minimum": 1, "maximum": 9007199254740991
+    "schema": {
+      "const": "calimocho-engine-index/1"
     },
-    "generated_at": {"$ref": "#/$defs/timestamp"},
+    "epoch": {
+      "description": "Signing epoch. Raised only by a key rotation after a compromise; each trusted key signs exactly one epoch.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "index_version": {
+      "description": "Increases with every published index within an epoch. Clients keep a high-water mark per epoch and refuse anything lower, and refuse a different payload with the same index_version.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "generated_at": {
+      "$ref": "#/$defs/timestamp"
+    },
     "expires_at": {
       "description": "Clients refuse an expired index (freeze protection). Later than generated_at and at most 90 days after it.",
       "$ref": "#/$defs/timestamp"
     },
-    "publisher": {"const": "WorkingPrinciple/calimocho"},
+    "publisher": {
+      "const": "WorkingPrinciple/calimocho"
+    },
     "engines": {
-      "type": "array", "maxItems": 64,
-      "items": {"$ref": "#/$defs/engine"}
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/engine"
+      }
     },
     "revoked": {
       "description": "Engines that must not be installed or admitted any more, for example after a security fix. A revoked engine_id never appears in engines.",
-      "type": "array", "maxItems": 256,
+      "type": "array",
+      "maxItems": 256,
       "items": {
-        "type": "object", "additionalProperties": false,
-        "required": ["engine_id", "reason"],
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "engine_id",
+          "reason"
+        ],
         "properties": {
-          "engine_id": {"$ref": "#/$defs/engine_id"},
-          "reason": {"type": "string", "minLength": 1, "maxLength": 500}
+          "engine_id": {
+            "$ref": "#/$defs/engine_id"
+          },
+          "reason": {
+            "$ref": "#/$defs/text"
+          }
         }
       }
     }
@@ -38,65 +73,159 @@
   "$defs": {
     "timestamp": {
       "description": "UTC, RFC 3339, whole seconds, Z suffix.",
-      "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
     },
-    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "semver": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
-    "engine_id": {"type": "string", "pattern": "^calimocho-[0-9]+\\.[0-9]+-[0-9A-Za-z.]+-[0-9]{2,}$"},
-    "release_tag": {"type": "string", "pattern": "^engine-[0-9]+(\\.[0-9]+)*(-[0-9A-Za-z.]+)*$"},
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "engine_id": {
+      "type": "string",
+      "pattern": "^calimocho-[0-9]+\\.[0-9]+-[0-9A-Za-z.]+-[0-9]{2,}$"
+    },
+    "release_tag": {
+      "type": "string",
+      "pattern": "^engine-[0-9]+(\\.[0-9]+)*(-[0-9A-Za-z.]+)*$"
+    },
     "file": {
-      "type": "object", "additionalProperties": false,
-      "required": ["name", "url", "size", "sha256"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "url",
+        "size",
+        "sha256"
+      ],
       "properties": {
-        "name": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+        "name": {
+          "description": "Plain file name: no path separators, not . or .., no leading dot.",
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*$"
+        },
         "url": {
           "description": "Must be https://github.com/WorkingPrinciple/calimocho/releases/download/<tag>/<name> for this engine's tag.",
           "type": "string",
           "pattern": "^https://github\\.com/WorkingPrinciple/calimocho/releases/download/engine-[0-9A-Za-z.-]+/[A-Za-z0-9._-]+$"
         },
-        "size": {"type": "integer", "minimum": 1, "maximum": 4294967296},
-        "sha256": {"$ref": "#/$defs/sha256"}
+        "size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967296
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
       }
     },
     "engine": {
-      "type": "object", "additionalProperties": false,
-      "required": ["engine_id", "version", "provider", "channel", "min_xode_version", "release_tag",
-                   "release_notes_url", "asset", "unpacked", "source", "source_commit", "install", "hashes", "signing",
-                   "apple_d3dmetal", "components"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engine_id",
+        "version",
+        "provider",
+        "channel",
+        "min_xode_version",
+        "release_tag",
+        "release_notes_url",
+        "asset",
+        "unpacked",
+        "source",
+        "source_commit",
+        "install",
+        "hashes",
+        "signing",
+        "apple_d3dmetal",
+        "components"
+      ],
       "properties": {
-        "engine_id": {"$ref": "#/$defs/engine_id"},
+        "engine_id": {
+          "$ref": "#/$defs/engine_id"
+        },
         "version": {
           "description": "0.<Wine major+minor>.<GPTK major>.<build>; compare as four integers.",
-          "type": "string", "pattern": "^0\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+          "type": "string",
+          "pattern": "^0\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
         },
         "provider": {
-          "type": "object", "additionalProperties": false, "required": ["id", "contract_version"],
-          "properties": {"id": {"const": "calimocho"}, "contract_version": {"const": 1}}
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "contract_version"
+          ],
+          "properties": {
+            "id": {
+              "const": "calimocho"
+            },
+            "contract_version": {
+              "const": 1
+            }
+          }
         },
-        "channel": {"enum": ["prerelease", "release"]},
+        "channel": {
+          "enum": [
+            "prerelease",
+            "release"
+          ]
+        },
         "min_xode_version": {
           "description": "Lowest X Ode version (CFBundleShortVersionString, SemVer core) that may install this engine.",
           "$ref": "#/$defs/semver"
         },
-        "release_tag": {"$ref": "#/$defs/release_tag"},
+        "release_tag": {
+          "$ref": "#/$defs/release_tag"
+        },
         "release_notes_url": {
           "description": "https://github.com/WorkingPrinciple/calimocho/releases/tag/<release_tag>",
           "type": "string",
           "pattern": "^https://github\\.com/WorkingPrinciple/calimocho/releases/tag/engine-[0-9A-Za-z.-]+$"
         },
-        "asset": {"$ref": "#/$defs/file", "description": "The engine zip that X Ode downloads."},
+        "asset": {
+          "$ref": "#/$defs/file",
+          "description": "The engine zip that X Ode downloads."
+        },
         "unpacked": {
           "description": "Expansion bound for the safe installer, from the zip central directory: size is the sum of uncompressed sizes of all entries, entries counts files, folders and symlinks. Installers refuse an archive whose central directory or actual extraction exceeds either value.",
-          "type": "object", "additionalProperties": false, "required": ["size", "entries"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "size",
+            "entries"
+          ],
           "properties": {
-            "size": {"type": "integer", "minimum": 1, "maximum": 8589934592},
-            "entries": {"type": "integer", "minimum": 1, "maximum": 200000}
+            "size": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8589934592
+            },
+            "entries": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200000
+            }
           }
         },
-        "source": {"$ref": "#/$defs/file", "description": "Corresponding source tar (LGPL). Not downloaded by X Ode."},
-        "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "source": {
+          "$ref": "#/$defs/file",
+          "description": "Corresponding source tar (LGPL). Not downloaded by X Ode."
+        },
+        "source_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
         "install": {
-          "type": "object", "additionalProperties": false, "required": ["directory"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "directory"
+          ],
           "properties": {
             "directory": {
               "description": "Folder name under ~/Library/Application Support/Xode/Engines/; equals engine_id.",
@@ -106,40 +235,106 @@
         },
         "hashes": {
           "description": "SHA-256 of files inside the unpacked engine. MANIFEST.sha256 lists every other file.",
-          "type": "object", "additionalProperties": false,
-          "required": ["wine_sha256", "wineserver_sha256", "loader_sha256", "manifest_sha256", "engine_json_sha256"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "wine_sha256",
+            "wineserver_sha256",
+            "loader_sha256",
+            "manifest_sha256",
+            "engine_json_sha256"
+          ],
           "properties": {
-            "wine_sha256": {"$ref": "#/$defs/sha256", "description": "bin/wine"},
-            "wineserver_sha256": {"$ref": "#/$defs/sha256", "description": "bin/wineserver"},
-            "loader_sha256": {"$ref": "#/$defs/sha256", "description": "lib/wine/x86_64-unix/wine"},
-            "manifest_sha256": {"$ref": "#/$defs/sha256", "description": "MANIFEST.sha256"},
-            "engine_json_sha256": {"$ref": "#/$defs/sha256", "description": "calimocho-engine.json"}
+            "wine_sha256": {
+              "$ref": "#/$defs/sha256",
+              "description": "bin/wine"
+            },
+            "wineserver_sha256": {
+              "$ref": "#/$defs/sha256",
+              "description": "bin/wineserver"
+            },
+            "loader_sha256": {
+              "$ref": "#/$defs/sha256",
+              "description": "lib/wine/x86_64-unix/wine"
+            },
+            "manifest_sha256": {
+              "$ref": "#/$defs/sha256",
+              "description": "MANIFEST.sha256"
+            },
+            "engine_json_sha256": {
+              "$ref": "#/$defs/sha256",
+              "description": "calimocho-engine.json"
+            }
           }
         },
         "signing": {
-          "type": "object", "additionalProperties": false, "required": ["team_id", "notarization_id"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "team_id",
+            "notarization_id"
+          ],
           "properties": {
-            "team_id": {"const": "M62Z4M5EUY"},
-            "notarization_id": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}
+            "team_id": {
+              "const": "M62Z4M5EUY"
+            },
+            "notarization_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            }
           }
         },
         "apple_d3dmetal": {
           "description": "Apple's D3DMetal must still carry Apple's own signature and this binary hash after install.",
-          "type": "object", "additionalProperties": false, "required": ["version", "binary_sha256"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "binary_sha256"
+          ],
           "properties": {
-            "version": {"type": "string", "minLength": 1, "maxLength": 32},
-            "binary_sha256": {"$ref": "#/$defs/sha256"}
+            "version": {
+              "$ref": "#/$defs/short_text"
+            },
+            "binary_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
           }
         },
         "components": {
-          "type": "object", "additionalProperties": false, "required": ["wine", "d3dmetal", "moltenvk"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "wine",
+            "d3dmetal",
+            "moltenvk"
+          ],
           "properties": {
-            "wine": {"type": "string", "minLength": 1, "maxLength": 32},
-            "d3dmetal": {"type": "string", "minLength": 1, "maxLength": 32},
-            "moltenvk": {"type": "string", "minLength": 1, "maxLength": 32}
+            "wine": {
+              "$ref": "#/$defs/short_text"
+            },
+            "d3dmetal": {
+              "$ref": "#/$defs/short_text"
+            },
+            "moltenvk": {
+              "$ref": "#/$defs/short_text"
+            }
           }
         }
       }
+    },
+    "text": {
+      "description": "Free text without control characters.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32,
+      "pattern": "^[0-9A-Za-z._+-]+$"
     }
   }
 }
