@@ -1099,3 +1099,78 @@ every signature. The comparison is therefore made before signing.
 | `bin/wineserver` | `d10f00b426fcfe5796455c50ba4b2d3045fa553080f3c1c1e9416f059f7aaa15` |
 | `calimocho-engine.json` | `e9fed9808bd4b263fdc224365f5d3c50fe35bd35b7dd2a0fc9289a84d2e81316` |
 | `MANIFEST.sha256` | `248ad1a02cfa7077fa24b61820fa48d51f28aed8f6c03f00021c48fc509848a2` |
+
+## 2026-10-26 — Engine release 0.1120.4.6 (calimocho-11.20-4.0b3-06)
+
+Build 6 adds Xbox sign-in for GDK games (patch 0014) and the Xbox One S
+Bluetooth controller mapping (patch 0015) to the reproducible build 5
+([release notes](release/11.20-4.0b3-06.md)). Source commit `2b9bbfb`,
+tag `engine-0.1120.4.6`. Published as a GitHub prerelease. Build 5
+(0.1120.4.5) was signed and notarized but never published; it is retired.
+
+### Root cause and fixes
+
+- **Sign-in.** Forza Horizon 6 showed "Sign In Required" with no account
+  broker request. The Xbox runtime reads its endpoint document through
+  `IVector<IJsonValue>` on Wine's `JsonArray`, and Wine returned
+  `E_NOINTERFACE`. Patch 0014 adds `IVector<IJsonValue>`,
+  `IIterable<IJsonValue>`, a live `IVectorView` and an iterator.
+  - `tests/wine/json_array_vector_probe.c` on build 5:
+    `QI IVector<IJsonValue> hr=0x80004002`.
+  - On build 6: 22 of 22 checks pass (size, `GetAt` and bounds,
+    `IndexOf`, `GetMany`, live view, iteration and all mutators).
+- **Controller.** The patch from the controller session was reviewed
+  here. It is guarded by the device ID, Bluetooth and an exact
+  descriptor match, and it moves no report field.
+  `tests/wine/test_xbox_ble_mapping.py`: 5 of 5 with the patch, failing
+  without it.
+
+### Reproducibility
+
+Two independent builds of `2b9bbfb`, each with its own FreeType, TLS and
+Wine build, assembled into unsigned engines.
+
+- All 1851 files and 20 symlinks are byte-identical.
+- All 1520 PE modules linked by GNU ld have `TimeDateStamp` 0.
+- The six dependency dylibs are also byte-identical to build 5's.
+- Build B was paused (`SIGSTOP` on `make`) during the Forza test and
+  the game regression, so it could not starve them of CPU, then resumed.
+
+### Checks on the signed build
+
+- 40 Mach-O files with Developer ID `M62Z4M5EUY`. Entitlements are
+  unchanged: the loader has `disable-library-validation` only.
+- `MANIFEST.sha256`: 1871 entries, verified after install.
+- Smoke test on the installed engine: `wineboot`, D3D11, D3D12 and
+  Vulkan presents with read-back, and HTTPS all pass.
+- Notarization `515895cd-17e1-4d4f-bf02-d175e1843a09`: Accepted. `spctl`
+  on the three executables: `source=Notarized Developer ID`.
+
+### Games
+
+- **Forza Horizon 6** (opt-in profile, run by the coordinator): signed
+  in and reached free roam with Wine's builtin `windows.web`.
+  - A prefix update replaces `system32\d3d12.dll` with Apple's
+    `d3d12.dll`, and the game then stops with FH206.
+  - The profile must copy `d3d12_tsshim.dll` back after every prefix
+    update.
+- **Regression.** Rollback CLI `358fd9ab`, fresh prefixes, quit with
+  `wine taskkill` (WM_CLOSE). `lsof` showed only this build's
+  `bin/wineserver` and `lib/wine/x86_64-unix/wine` mapped, both matching
+  `MANIFEST.sha256`.
+  - Brotato: pass. Window rendered, alive until quit, exit 0, no
+    leftovers.
+  - Halls of Torment: pass, with the same checks.
+  - Vampire Survivors: exit 3, the unchanged known issue.
+  - Balatro: no window, unchanged.
+
+### Outputs
+
+| Artifact | SHA-256 |
+|---|---|
+| `calimocho-11.20-4.0b3-06-macos.zip` (200,075,043 bytes) | `3fc4467b466b6f8f0855c1934b2fe6a3d1c02b0c5ca85037860b735e4e419ee5` |
+| `calimocho-11.20-4.0b3-06-source.tar` (63,836,160 bytes) | `d0ad43425b634e1c4078867358abe6514d6761251dceb5ab2991c39146d127f1` |
+| `bin/wine` | `803a62d101303bb3160da4aa8a506857c3d1e1146aa4a0c9ee8250357ef12505` |
+| `bin/wineserver` | `7102d70405e7667acf143e710723f58fb24d32eee81468b1f0f02279343601d0` |
+| `calimocho-engine.json` | `d3ca32d8d706be0ca948f661f76e68c4a735b78362c6fb95fe50c12eb5db18ff` |
+| `MANIFEST.sha256` | `db1b642e1d1a93cf50a3620a994ca049e34ce2352dc25fc34617a651302528bf` |
