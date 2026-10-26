@@ -342,10 +342,10 @@
         "source": "tools/dxgi_umd",
         "files": {
           "dxgi.c": {
-            "sha256": "2f4e24581b569bef7a3b1a9612348c920d9f9430e000feb0c03791eda878ac70"
+            "sha256": "c59623069fb84866fd048d01ff6ace20e15fb31e62f061f39ed9cc583796323d"
           },
           "dxgi.def": {
-            "sha256": "6c976a77871e337da351196dca30edd02a1646eac33931f72e97b55716094b5c"
+            "sha256": "e53ca0d796e1861bec850f618239af7b651131c34210faa3768c9229d38ed64a"
           },
           "umd_version.h": {
             "sha256": "e1cf95588a84303f3034b1e099a7221c35800e27c02b972d75815c8c71f1db2f"

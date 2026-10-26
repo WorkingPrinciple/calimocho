@@ -1,4 +1,4 @@
-LIBRARY dxgi.dll
+LIBRARY dxgi_calimocho.dll
 EXPORTS
     CreateDXGIFactory
     CreateDXGIFactory1

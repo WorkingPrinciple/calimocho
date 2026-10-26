@@ -30,10 +30,14 @@ GPTK licence say Apple's files ship unmodified.
 1. `tools/dxgi_umd/` is our own LGPL-2.1+ source for a `dxgi.dll`
    front-end, built like the NVAPI stub (mingw-w64, no C runtime,
    kernel32 and advapi32 only, reproducible).
-2. It loads Apple's `dxgi.dll` unchanged by path. That is the engine's
-   `lib/wine/x86_64-windows/dxgi.dll`, found from `WINELOADER`, or
-   `CALIMOCHO_DXGI_REAL` when set. It forwards all seven of Apple's
-   exports.
+2. It loads Apple's `dxgi.dll` unchanged by path:
+   `CALIMOCHO_DXGI_REAL` when set, otherwise the `dxgi.dll` next to
+   `HB_D3D12_REAL`, which the FH6 profile already sets to the engine's
+   `lib\wine\x86_64-windows\d3d12.dll`. Wine does not pass
+   `WINELOADER` into the Windows environment. Its export name is
+   `dxgi_calimocho.dll`, because Wine 11 matches modules by export name
+   and wouldn't load Apple's `dxgi.dll` next to another `dxgi.dll`. It
+   forwards all seven of Apple's exports.
 3. For every factory it creates, and every adapter such a factory
    returns, it makes a private copy of that object's vtable and points the
    object at the copy. In the copy, `CheckInterfaceSupport` and the
@@ -50,6 +54,15 @@ GPTK licence say Apple's files ship unmodified.
    `dxgi=native,builtin` in the prefix's DllOverrides.
 
 ## Consequences
+
+- Live, 2026-10-26: in an FH6 prefix with the opt-in identity, a probe
+  got `S_OK` and 32.0.16.1656 from `CheckInterfaceSupport` through the
+  front-end (Apple alone: 65535.65535.65535.65535). One FH6 run with the
+  front-end reached the title screen without FH302 and without input.
+  That run is not proof: the same prefix also showed no FH302 without
+  the front-end afterwards, and the trace showed FH6 never called
+  `CheckInterfaceSupport` there. A clean A/B on a fresh prefix is still
+  needed.
 
 - If D3DMetal ever checks an object's vtable pointer, the front-end could
   break that title. The live FH6 run is the check.

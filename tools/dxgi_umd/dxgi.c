@@ -18,7 +18,9 @@
  * CheckInterfaceSupport changes: the UMD version becomes the display Class key
  * DriverVersion that patch 0012 writes (32.0.16.1656 for the NVIDIA identity).
  *
- * A title profile installs it as system32\dxgi.dll with the override dxgi=n,b.
+ * A title profile installs it as system32\dxgi.dll with the override dxgi=n,b. Its export name
+ * is dxgi_calimocho.dll: Wine 11 matches modules by export name, so Apple's dxgi.dll could
+ * not be loaded next to a module that also calls itself dxgi.dll.
  * It does nothing unless D3DM_VENDOR_ID is set (the opt-in GPU identity).
  */
 
@@ -59,21 +61,20 @@ static void trace(const char *text)
     CloseHandle( file );
 }
 
-/* Engine root from WINELOADER (<root>/bin/wine), as a Z: path to Apple's dxgi.dll. */
+/* Apple's dxgi.dll: CALIMOCHO_DXGI_REAL, or the sibling of HB_D3D12_REAL (the FH6 profile sets
+ * it to the engine's lib\\wine\\x86_64-windows\\d3d12.dll). Wine does not pass WINELOADER into the
+ * Windows environment, so the engine root can't be found from it. */
 static BOOL real_dxgi_path(WCHAR *out, DWORD size)
 {
-    static const WCHAR tail[] = L"\\lib\\wine\\x86_64-windows\\dxgi.dll";
-    WCHAR loader[MAX_PATH];
-    DWORD length, i, cut = 0, seen = 0;
+    static const WCHAR name[] = L"dxgi.dll";
+    DWORD length, i, cut = 0;
 
     if (GetEnvironmentVariableW( L"CALIMOCHO_DXGI_REAL", out, size )) return TRUE;
-    length = GetEnvironmentVariableW( L"WINELOADER", loader, MAX_PATH );
-    if (!length || length >= MAX_PATH || loader[0] != '/') return FALSE;
-    for (i = length; i > 0; i--) if (loader[i - 1] == '/' && ++seen == 2) { cut = i - 1; break; }
-    if (!cut || 2 + cut + ARRAYSIZE(tail) > size) return FALSE;
-    out[0] = 'Z'; out[1] = ':';
-    for (i = 0; i < cut; i++) out[2 + i] = loader[i] == '/' ? '\\' : loader[i];
-    for (i = 0; i < ARRAYSIZE(tail); i++) out[2 + cut + i] = tail[i];
+    length = GetEnvironmentVariableW( L"HB_D3D12_REAL", out, size );
+    if (!length || length >= size) return FALSE;
+    for (i = length; i > 0; i--) if (out[i - 1] == '\\') { cut = i; break; }
+    if (!cut || cut + ARRAYSIZE(name) > size) return FALSE;
+    for (i = 0; i < ARRAYSIZE(name); i++) out[cut + i] = name[i];
     return TRUE;
 }
 
@@ -109,8 +110,16 @@ static BOOL CALLBACK initialize(INIT_ONCE *once, void *param, void **context)
     InitializeCriticalSection( &table_lock );
     if (real_dxgi_path( path, MAX_PATH )) real_dxgi = LoadLibraryExW( path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH );
     read_umd_version();
-    trace( real_dxgi ? (override_active ? "init: real dxgi loaded, UMD override on" : "init: real dxgi loaded, override off")
-                     : "init: real dxgi NOT loaded" );
+    if (!real_dxgi)
+    {
+        char text[48] = "init: real dxgi NOT loaded, error ";
+        DWORD error = GetLastError(), pos = lstrlenA( text ), digits = 1, i;
+        for (i = error; i >= 10; i /= 10) digits++;
+        for (i = 0; i < digits; i++, error /= 10) text[pos + digits - 1 - i] = (char)('0' + error % 10);
+        text[pos + digits] = 0;
+        trace( text );
+    }
+    else trace( override_active ? "init: real dxgi loaded, UMD override on" : "init: real dxgi loaded, override off" );
     return TRUE;
 }
 
@@ -139,7 +148,8 @@ static void retarget(void *object, unsigned int count, const unsigned int *slots
         copy = HeapAlloc( GetProcessHeap(), 0, (count + 1) * sizeof(void *) );
         if (copy)
         {
-            for (i = 0; i <= count; i++) copy[i] = original[i - 1];
+            copy[0] = original[-1];
+            for (i = 0; i < count; i++) copy[1 + i] = original[i];
             for (i = 0; i < replaced; i++) copy[1 + slots[i]] = functions[i];
             tables[table_count].original = original;
             tables[table_count].copy = copy;
