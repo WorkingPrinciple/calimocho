@@ -510,7 +510,7 @@ def source_document(pin):
     return "\n".join(lines)
 
 
-def write_engine_manifest(pin, root, receipt):
+def write_engine_manifest(pin, root, receipt, release=None):
     apple = pin["apple_gptk"]
     manifest = {
         "schema": "calimocho-engine/1",
@@ -518,6 +518,7 @@ def write_engine_manifest(pin, root, receipt):
         "version": pin["version"],
         "source_commit": receipt.get("source_commit"),
         "source_tree_clean": receipt.get("source_tree_clean"),
+        **(release or {}),
         "provider": {"id": "calimocho", "contract_version": 1},
         "architecture": "x86_64 (Apple Silicon via Rosetta 2)",
         "components": {
@@ -609,6 +610,76 @@ def verify_signatures(root, pin):
         subprocess.run(["codesign", "--verify", "--strict", str(framework)], check=True)
         report["apple"].append(framework.relative_to(root).as_posix())
     return report
+
+
+# ----------------------------------------------------------------- repackage
+
+# Pins and files that decide the bytes of the shipped binaries. Reusing a signed build is
+# only allowed when none of them changed since that build's source commit.
+BINARY_PINS = ("wine", "patches", "dependency_sources", "moltenvk", "tsshim", "apple_gptk",
+               "cw_donor", "signing", "environment", "opt_ins", "freetype_credit_years")
+BINARY_INPUTS = ("patches", "tools/port_d3dmetal.py", "tools/native_gs_localtime.c",
+                 "tools/build_freetype.py", "tools/build_tls.py", "tools/build_moltenvk.py",
+                 "scripts/entitlements")
+RELEASE_DOCUMENTS = ("NOTICE", "TRADEMARKS.md", "LICENSE", "COPYING.LIB")
+
+
+def repackage(args):
+    """Reissue a signed engine under the current pins when only release documents changed.
+
+    Every Mach-O, Windows module and licence text is kept byte for byte (signatures included);
+    only the release documents, SOURCE.md, VERSION and calimocho-engine.json are rewritten.
+    Run package afterwards to write MANIFEST.sha256 and the archives.
+    """
+    pin = pins(args)
+    source = Path(args.from_root).resolve(strict=True)
+    previous = json.loads((source / "calimocho-engine.json").read_text())
+    built_from = previous["source_commit"]
+    if not previous.get("source_tree_clean"):
+        raise ValueError(f"{previous['engine_id']} was not built from a clean tree")
+    old_pin = json.loads(output(["git", "-C", str(REPO), "show", f"{built_from}:versions.json"]))
+    old_pin = old_pin["release_engine"]
+    drift = [key for key in BINARY_PINS if old_pin.get(key) != pin.get(key)]
+    drift += output(["git", "-C", str(REPO), "diff", "--name-only", built_from, "HEAD", "--",
+                     *BINARY_INPUTS]).split()
+    if drift:
+        raise ValueError("Build inputs changed since the signed build, rebuild instead: " + ", ".join(drift))
+    out = ensure_outside_repo_sources(args.out)
+    root = out / pin["engine_id"]
+    if root.exists():
+        raise ValueError(f"{root} exists; repackage into a fresh directory")
+    out.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(source, root, symlinks=True)
+    (root / "MANIFEST.sha256").unlink()
+    for document in RELEASE_DOCUMENTS:
+        shutil.copy2(REPO / document, root / document)
+    (root / "SOURCE.md").write_text(source_document(pin))
+    receipt = {"source_commit": built_from, "source_tree_clean": True,
+               "patches": [{"name": name} for name in previous["components"]["wine"]["patches"]]}
+    release = {
+        "release_commit": output(["git", "-C", str(REPO), "rev-parse", "HEAD"]).strip(),
+        "release_tree_clean": not output(["git", "-C", str(REPO), "status", "--porcelain",
+                                          "--untracked-files=no"]).strip(),
+        "repackaged_from": previous["engine_id"],
+    }
+    write_engine_manifest(pin, root, receipt, release)
+    allowed = set(RELEASE_DOCUMENTS) | {"SOURCE.md", "VERSION", "calimocho-engine.json"}
+    changed, unexpected = [], []
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            same = os.readlink(path) == os.readlink(source / relative)
+        elif path.is_file():
+            same = (source / relative).is_file() and sha256(path) == sha256(source / relative)
+        else:
+            continue
+        if not same:
+            (changed if relative in allowed else unexpected).append(relative)
+    if unexpected:
+        raise ValueError("Repackaging changed files outside the release documents: " + ", ".join(unexpected))
+    verify_signatures(root, pin)
+    print(json.dumps({"root": str(root), "repackaged_from": previous["engine_id"],
+                      "built_from": built_from, "changed": changed}, indent=2))
 
 
 # ------------------------------------------------------------------- package
@@ -745,6 +816,11 @@ def main():
     p = commands.add_parser("sign")
     p.add_argument("--root", required=True)
     p.set_defaults(func=sign)
+    p = commands.add_parser("repackage",
+                            help="reissue a signed engine when only release documents changed")
+    p.add_argument("--from-root", required=True, help="signed engine directory of the earlier build")
+    p.add_argument("--out", required=True)
+    p.set_defaults(func=repackage)
     p = commands.add_parser("package")
     p.add_argument("--root", required=True)
     p.add_argument("--wine-archive", required=True)

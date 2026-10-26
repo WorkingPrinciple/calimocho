@@ -35,13 +35,13 @@
     "last_known_release": "v2.3.5"
   },
   "release_engine": {
-    "_doc": "Pins for the Calimocho engine release built by tools/release_engine.py. Version is 0.<Wine major+minor>.<Apple GPTK major>.<our build number> (owner, 2026-10-26); any rebuild, including a new GPTK beta, bumps the last number. The engine ID keeps the readable <Wine>-<Apple D3DMetal>-<build> form. See docs/ADR/0079-forza-opt-ins-in-the-general-engine.md and docs/release/11.20-4.0b3-03.md.",
-    "version": "0.1120.4.3",
-    "engine_id": "calimocho-11.20-4.0b3-03",
-    "patch_counter": "03",
+    "_doc": "Pins for the Calimocho engine release built by tools/release_engine.py. Version is 0.<Wine major+minor>.<Apple GPTK major>.<our build number> (owner, 2026-10-26); any rebuild, including a new GPTK beta, bumps the last number. The engine ID keeps the readable <Wine>-<Apple D3DMetal>-<build> form. See docs/ADR/0079-forza-opt-ins-in-the-general-engine.md and docs/release/11.20-4.0b3-04.md.",
+    "version": "0.1120.4.4",
+    "engine_id": "calimocho-11.20-4.0b3-04",
+    "patch_counter": "04",
     "source_repository": "https://github.com/WorkingPrinciple/calimocho",
-    "source_tag": "engine-0.1120.4.3",
-    "install_location": "~/Library/Application Support/Xode/Engines/calimocho-11.20-4.0b3-03",
+    "source_tag": "engine-0.1120.4.4",
+    "install_location": "~/Library/Application Support/Xode/Engines/calimocho-11.20-4.0b3-04",
     "configure_prefix": "/opt/calimocho",
     "wine": {
       "version": "11.20",
@@ -227,7 +227,7 @@
       "TRADEMARKS.md",
       "COPYING.LIB",
       "scripts/entitlements/wine-loader.plist",
-      "docs/release/11.20-4.0b3-03.md"
+      "docs/release/11.20-4.0b3-04.md"
     ],
     "tsshim": {
       "_doc": "Highball tsshim (timestamp queries, shader-model fallback, MSAA depth resolve, append-aligned input layouts in front of D3DMetal d3d12). GPL-3.0. Built here with export and file name tsshim_export_name. Apple's d3d12.dll is never patched and stays the engine default. The FH6 profile enables the shim per prefix: copy lib/wine/x86_64-windows/d3d12_tsshim.dll to drive_c/windows/system32/d3d12.dll after any prefix update, and set HB_D3D12_REAL to the Windows path (Z:...) of the engine's lib/wine/x86_64-windows/d3d12.dll.",
