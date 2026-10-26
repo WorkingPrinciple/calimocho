@@ -123,6 +123,9 @@ apply to it.
 | Balatro | 11.20-4.0b3-01, -02 and -03 | No window; exits after about 30 s. The earlier development engine does the same. |
 | Forza Horizon 6 | 11.20-4.0b3-01 with the Forza-only workarounds (the set used in -02) | Title screen, then Continue with existing progress into free roam ("Explore Japan"). Exit Game from the menu quit cleanly. Driving input wasn't checked in this run. |
 | Forza Horizon 6 | 11.20-4.0b3-04 with the Forza-only workarounds | Driver warning, then title screen, then a clean quit. Start Game showed "Sign In Required"; the -01 build now shows the same message, so this points to the Xbox account state, not the engine. Gameplay on -04 is not verified yet. |
+| Brotato, Halls of Torment | 11.20-4.0b3-06 | Window rendered, still running until a normal close, clean exit. |
+| Vampire Survivors, Balatro | 11.20-4.0b3-06 | Unchanged from earlier releases: Vampire Survivors exits with code 3 after about 20 s; Balatro shows no window. |
+| Forza Horizon 6 | 11.20-4.0b3-06 with the Forza-only workarounds | Sign-in, Continue, story scene, then driving in free roam (about 110 mph). Uses Wine's own windows.web, with no Windows copy needed. On a prefix last used by an older release, the first -06 launch updates the prefix and replaces the Forza graphics shim (`d3d12.dll`); the game then shows "graphics card not supported" (FH206). Copying the shim back fixes it, so the shim has to be re-copied after every prefix update. |
 
 ## Counts (24–25 October 2026)
 
