@@ -1,0 +1,72 @@
+{
+  "description": "Known-answer vector for calimocho-engine-index/1 in a DSSE v1 envelope (ADR-0082).",
+  "test_key": {
+    "source": "RFC 8032 section 7.1, TEST 1",
+    "warning": "Public test key. Never trust it.",
+    "seed_hex": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+    "public_key_hex": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+    "keyid": "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9"
+  },
+  "payload_type": "application/vnd.calimocho.engine-index+json; version=1",
+  "payload_sha256": "b462955f785adccbb68dc43df6a7362d0e2597a14e163f1d965db74ad9d4c7d1",
+  "pae_prefix": "DSSEv1 54 application/vnd.calimocho.engine-index+json; version=1 1910 ",
+  "pae_sha256": "86f8d1b9fef690b31811cb4ea458affa0637059d0c36800401b0892bfafd2959",
+  "signature_hex": "f8df73839c9e790e881050a946e61ff9dd9ddf9dcf4e6dfadc96c222ba7ccd62b3950b910fad96821c60b09e1adb035dfba336a9c058a1a3b5e578b1fc0cb70f",
+  "cases": [
+    {
+      "envelope": "envelope.json",
+      "now": "2026-10-27T00:00:00Z",
+      "xode_version": "0.2.0",
+      "min_index_version": 0,
+      "expect": "valid",
+      "eligible": [
+        "calimocho-11.20-4.0b3-06"
+      ]
+    },
+    {
+      "envelope": "envelope.json",
+      "now": "2026-10-27T00:00:00Z",
+      "xode_version": "0.1.9",
+      "min_index_version": 0,
+      "expect": "valid",
+      "eligible": []
+    },
+    {
+      "envelope": "envelope.json",
+      "now": "2026-11-25T12:06:00Z",
+      "expect": "invalid",
+      "why": "expired"
+    },
+    {
+      "envelope": "envelope.json",
+      "now": "2026-10-26T11:54:00Z",
+      "expect": "invalid",
+      "why": "from the future"
+    },
+    {
+      "envelope": "envelope.json",
+      "now": "2026-10-27T00:00:00Z",
+      "min_index_version": 2,
+      "expect": "invalid",
+      "why": "rollback"
+    },
+    {
+      "envelope": "envelope-tampered-payload.json",
+      "now": "2026-10-27T00:00:00Z",
+      "expect": "invalid",
+      "why": "bad signature"
+    },
+    {
+      "envelope": "envelope-wrong-type.json",
+      "now": "2026-10-27T00:00:00Z",
+      "expect": "invalid",
+      "why": "payloadType"
+    },
+    {
+      "envelope": "envelope-untrusted-key.json",
+      "now": "2026-10-27T00:00:00Z",
+      "expect": "invalid",
+      "why": "untrusted key"
+    }
+  ]
+}
