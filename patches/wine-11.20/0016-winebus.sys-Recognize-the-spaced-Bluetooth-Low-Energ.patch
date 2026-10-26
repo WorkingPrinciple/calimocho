@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dragos Hont <dragos79@gmail.com>
+Date: Mon, 26 Oct 2026 13:41:52 +0200
+Subject: [PATCH] winebus.sys: Recognize the spaced Bluetooth Low Energy
+ transport string.
+
+macOS reports kIOHIDTransportKey as "Bluetooth Low Energy" for BLE
+controllers, while the SDK constant is "BluetoothLowEnergy". The
+mismatch left bus_type at 0 so the Xbox One S BLE normalization from the
+previous patch never applied (right stick drove the triggers).
+---
+ dlls/winebus.sys/bus_iohid.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/dlls/winebus.sys/bus_iohid.c b/dlls/winebus.sys/bus_iohid.c
+index 91d0349..a884b53 100644
+--- a/dlls/winebus.sys/bus_iohid.c
++++ b/dlls/winebus.sys/bus_iohid.c
+@@ -500,7 +500,8 @@ static void handle_DeviceMatchingCallback(void *context, IOReturn result, void *
+     if ((str = IOHIDDeviceGetProperty(IOHIDDevice, CFSTR(kIOHIDTransportKey))))
+     {
+         if (!CFStringCompare(str, CFSTR(kIOHIDTransportBluetoothValue), 0) ||
+-                            !CFStringCompare(str, CFSTR(kIOHIDTransportBluetoothLowEnergyValue), 0))
++                            !CFStringCompare(str, CFSTR(kIOHIDTransportBluetoothLowEnergyValue), 0) ||
++                            !CFStringCompare(str, CFSTR("Bluetooth Low Energy"), 0))
+             desc.bus_type = BUS_TYPE_BLUETOOTH;
+         else if (!CFStringCompare(str, CFSTR(kIOHIDTransportUSBValue), 0))
+             desc.bus_type = BUS_TYPE_USB;
+-- 
+2.56.0
+
