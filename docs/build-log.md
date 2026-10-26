@@ -918,3 +918,109 @@ ticket is online.
 | `bin/wineserver` | `9b83a18394362cb9e9c6d4fb7ca547659097c9b911051c25c04f97b8bfc69536` |
 | `calimocho-engine.json` | `76269b0967613dfa87890378dc7441b46d83ccb081896e63839ebd00be1c8708` |
 | `MANIFEST.sha256` | `ca9313dd7f2a6ece6c832597aa065ba28b3e029555d3048bb9487d012c31e5d4` |
+
+## 2026-10-26 — Engine releases 0.1120.4.3 and 0.1120.4.4 (hardening)
+
+Build 3 is the hardened build
+([release notes](release/11.20-4.0b3-03.md),
+[ADR-0080](ADR/0080-minimal-engine-entitlements.md)). Build 4
+([release notes](release/11.20-4.0b3-04.md)) ships the same signed
+binaries with a corrected `LICENSE` (it still named FreeType 2.13.3).
+Build 4 is the first published build.
+
+### Reproducibility
+
+Two clean builds from tag `engine-0.1120.4.3` (commit `eb2c20a`, clean
+tree) in separate worktrees and work directories, in parallel: configure
+22 s, compile 920 s each at `-j5`. Toolchain: Apple clang 21.0.0
+(clang-2100.3.34.2), SDK 27.0, mingw-w64 GCC 16.2.0, bison 3.8.2,
+flex 2.6.4.
+
+- 1775 installed files each. 1372 are byte-identical, including every
+  Mach-O file (`wine`, `wineserver`, the loader and all `.so` modules).
+- The other 403 are Windows PE modules. They differ only in the COFF
+  `TimeDateStamp` (link time, 2026-10-25 23:45:52 to 23:46:42 UTC) and
+  the optional-header `CheckSum` derived from it. With those 8 bytes
+  zeroed, all 403 are identical. Next step: link with
+  `-Wl,--no-insert-timestamp` or set `SOURCE_DATE_EPOCH`.
+
+### Hardening checks (build 3; build 4 has the same binaries)
+
+- `grep -rla /Users/` over the engine, excluding Apple's `lib/external`:
+  no hits. No `/opt/homebrew` or build directory strings. The two
+  `/usr/local` strings are Wine constants (`/usr/local/share/wine/nls`
+  in wineserver, `/usr/local/share/certs/` in crypt32).
+- 40 Mach-O files: no `LC_RPATH`, `LC_LOAD_DYLIB` or `LC_ID_DYLIB`
+  outside `@rpath`, `@loader_path`, `/usr/lib` and `/System`.
+- `codesign --verify --strict --deep` (verification only): 0 failures on
+  our 40 files, `D3DMetal.framework` and `libd3dshared.dylib`.
+- Entitlements: `bin/wine` none, `bin/wineserver` none, loader
+  `com.apple.security.cs.disable-library-validation` only.
+- `MANIFEST.sha256` lists 1871 entries, every shipped file and link,
+  and verifies clean after `ditto -x -k` into
+  `~/Library/Application Support/Xode/Engines/`. No quarantine attribute.
+- Default environment identical to 11.20-4.0b3-01. With the FH6 flags
+  unset, the tsshim never loads (checked with `HB_TSSHIM_DEBUG=1`) and
+  the prefix keeps Apple's `d3d12.dll`. With the FH6 profile it logs
+  `loaded in front of the real d3d12.dll` and the D3D12 and D3D11
+  probes pass.
+- Smoke test passes twice on build 3 and once on the installed build 4:
+  `wineboot --init`, `cmd /c ver`, D3D11 and D3D12 through D3DMetal and
+  Vulkan through MoltenVK (120/120 presents, read-back matched), WinHTTP
+  HTTPS GET.
+- Bad certificate: `winhttp-https-probe.exe --expired-certificate`
+  against expired.badssl.com fails. Wine's `netconn_verify_cert`
+  returns 12037 (`ERROR_WINHTTP_SECURE_CERT_DATE_INVALID`) and the
+  request is refused. macOS curl refuses the same host; `curl -k`
+  gets 200.
+
+### Notarization
+
+| Build | Submission | Result |
+|---|---|---|
+| 0.1120.4.3 | `43a21505-9530-45b4-8a3d-608f9cf13f68` | Accepted, 0 issues |
+| 0.1120.4.4 | `2aa553e5-2384-4590-a64e-3e46264704f2` | Accepted, 0 issues |
+
+`spctl -a -vv -t open --context context:primary-signature` on the
+three executables of the installed build 4: accepted, `source=Notarized
+Developer ID`.
+
+### Game regression (build 3 binaries)
+
+Through `xodus-cli launch`, fresh prefix per title, ordinary quit with
+`wine taskkill /im <exe>` (WM_CLOSE):
+
+| Title | Result |
+|---|---|
+| Brotato | Pass: window rendered, alive until quit, clean quit (exit 0), no leftover processes |
+| Halls of Torment | Pass: same |
+| Vampire Survivors | Known issue: exit code 3 about 20 s after the window (same on 170ca, -01 and -02) |
+| Balatro | Known issue: exits 0 without a window (same on 170ca) |
+
+### Forza Horizon 6 (installed build 4, opt-in profile)
+
+New APFS clone of `lp-ForzaHorizon6-p11b` after a copy-only save backup
+(13 files, verified). `wineboot -u`, tsshim placed, launched through the
+CLI with the opt-in registry.
+
+- The FH302 warning appeared and was dismissed with Ignore Warning.
+  The title screen rendered with the minimal entitlements.
+- Start Game showed "Sign In Required". The runtime made no broker
+  requests. The 11.20-4.0b3-01-fh6 engine, which reached free roam at
+  00:22 the same night, showed the same message when re-run at 02:20.
+  So this is account state, not the engine.
+- Both runs: WM_CLOSE quit, wine exit 0, no leftovers. Saves in
+  `lp-ForzaHorizon6-p11b` and in the clone are identical to the backup.
+- Not verified on the minimal entitlements: Continue and free roam.
+
+### Outputs
+
+| Artifact | SHA-256 |
+|---|---|
+| `calimocho-11.20-4.0b3-04-macos.zip` (200,070,449 bytes) | `193420eff603e05e9c76344de14e961ed230f016fd129f00667a176251a2fb6b` |
+| `calimocho-11.20-4.0b3-04-source.tar` (63,764,480 bytes) | `ac42a0130387dfb1e0f063eb14a911c17d08598c2a35a4093ad0e413e7a7c299` |
+| `calimocho-11.20-4.0b3-03-macos.zip` (200,070,393 bytes, not published) | `54bfa9ad019975733f17594f051e081233b3074be6f935915ea1b2548987f1dc` |
+| `bin/wine` (builds 3 and 4) | `2482af598928431f89fc32c99de72e72e146195dd86a859cc834bcab57fad3d0` |
+| `bin/wineserver` (builds 3 and 4) | `655812965207694589e550bd58156c7841c08eeae50ecd09a1c8d803ed78cfc9` |
+| `calimocho-engine.json` (build 4) | `98473033e8b1e4f02a1986749b684d0becd5e2be7d0ff388f7a2049566296425` |
+| `MANIFEST.sha256` (build 4) | `5ce80d16347304d2cd5d149072fed4aeed848e854fe17e20c3bd45c5013b2aba` |
