@@ -41,7 +41,7 @@ Components under open-source licences
 | Wine 11.20 | https://www.winehq.org/ | LGPL-2.1-or-later |
 | Libraries vendored in Wine's libs/ (vkd3d, FAudio, mpg123, lcms2, libpng, libjpeg, libtiff, libxml2, libxslt, zlib, musl, capstone, ...) | Wine source tree | Their own licences, kept in the Wine source tree; vkd3d is LGPL-2.1-or-later |
 | D3DMetal integration patch, derived from CodeWeavers' CrossOver 26.3.0 source | https://www.codeweavers.com/crossover/source | LGPL-2.1-or-later |
-| FreeType 2.13.3 | https://freetype.org/ | FTL or GPL-2.0; Calimocho distributes it under the FTL (licenses/freetype/ELECTED.txt) |
+| FreeType 2.14.3 | https://freetype.org/ | FTL or GPL-2.0; Calimocho distributes it under the FTL (licenses/freetype/ELECTED.txt) |
 | GnuTLS 3.8.13 | https://www.gnutls.org/ | LGPL-2.1-or-later (library) |
 | libtasn1 4.21.0 | https://www.gnu.org/software/libtasn1/ | LGPL-2.1-or-later (library) |
 | nettle 4.0 | https://www.lysator.liu.se/~nisse/nettle/ | LGPL-3.0-or-later or GPL-2.0-or-later |
@@ -64,7 +64,7 @@ These licences do not restrict commercial use. They do require that
 you pass on the licence texts and make the corresponding source
 available when you redistribute the binaries.
 
-Portions of this software are copyright © 1996-2024 The FreeType
+Portions of this software are copyright © 1996-2026 The FreeType
 Project (www.freetype.org).  All rights reserved.
 
 
