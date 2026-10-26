@@ -98,9 +98,21 @@ def pe_header(data):
     return pe + 8, pe + 24 + 64
 
 
-def check_pe_policy(root, apple_modules):
-    """Our PE modules must carry TimeDateStamp 0 (ADR-0081).
+def pe_sections(data):
+    """Section names of a PE image."""
+    pe = int.from_bytes(data[0x3C:0x40], "little")
+    count = int.from_bytes(data[pe + 6:pe + 8], "little")
+    table = pe + 24 + int.from_bytes(data[pe + 20:pe + 22], "little")
+    return [data[table + 40 * i:table + 40 * i + 8].rstrip(b"\0").decode("latin-1")
+            for i in range(count)]
 
+
+def check_pe_policy(root, apple_modules, ld_linked_names=()):
+    """PE modules linked by GNU ld must carry TimeDateStamp 0 (ADR-0081).
+
+    Wine links its modules with --build-id, so they carry a .buildid section; the tsshim is
+    named explicitly. Modules without that section are written by winebuild itself (data-only,
+    type-library and forwarder modules); winebuild stores a hash, not a time, in their stamp.
     The CheckSum stays as GNU ld wrote it. Wine's install step (winebuild --builtin) marks the
     DOS stub afterwards, so it no longer matches the file bytes, as in every upstream Wine build;
     with the timestamp fixed it is deterministic, and the double build proves that.
@@ -111,7 +123,8 @@ def check_pe_policy(root, apple_modules):
             continue
         data = path.read_bytes()
         header = pe_header(data)
-        if header is None:
+        if header is None or (".buildid" not in pe_sections(data)
+                              and path.name not in ld_linked_names):
             continue
         stamp = int.from_bytes(data[header[0]:header[0] + 4], "little")
         if stamp != 0:
@@ -464,7 +477,9 @@ def assemble(args):
         leaks += [f"{path.relative_to(root)}: {marker}" for marker in FORBIDDEN_LINKAGE if marker in text]
     if leaks:
         raise ValueError("Absolute build paths remain in load commands:\n" + "\n".join(leaks))
-    print(f"PE modules with TimeDateStamp 0: {check_pe_policy(root, set(pin['apple_gptk']['pe_modules']))}")
+    linked = check_pe_policy(root, set(pin["apple_gptk"]["pe_modules"]),
+                             {pin["tsshim"]["tsshim_export_name"]} if "tsshim" in pin else set())
+    print(f"PE modules linked by GNU ld, all with TimeDateStamp 0: {linked}")
     write_engine_manifest(pin, root, receipt)
     print(f"Assembled {root}")
 

@@ -42,9 +42,16 @@ libraries. Building those twice showed two more differences:
   checksum does not match the final file bytes. This is the same in
   every upstream Wine build, and Wine does not check it. With the
   timestamp fixed, the checksum is deterministic.
-- **Policy check.** `tools/release_engine.py assemble` fails if any of
-  our PE modules (Apple's five are excluded) carries a non-zero
-  `TimeDateStamp`. `build` fails if configure drops the flag.
+- **Policy check.** `tools/release_engine.py assemble` fails if any PE
+  module linked by GNU ld carries a non-zero `TimeDateStamp`. Wine links
+  those with `--build-id`, so they have a `.buildid` section (1519
+  modules), and the tsshim is checked by name. About 50 modules have no
+  such section: winebuild writes them itself (data-only, type-library
+  and forwarder modules) and stores a hash in the stamp, not a time
+  (for most of them, the FNV-1 hash of the file name). They are left as
+  upstream Wine makes them, and the double build shows they are
+  deterministic. Apple's five modules are excluded. `build` fails if
+  configure drops the flag.
 - **Dependency libraries.** `tools/build_freetype.py` and
   `tools/build_tls.py` configure with the fixed prefix
   `/tmp/calimocho-deps/<name>`. During the build that path is a symlink
