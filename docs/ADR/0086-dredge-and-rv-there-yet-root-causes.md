@@ -1,6 +1,6 @@
 # ADR-0086: Dredge and RV There Yet? on Calimocho (REQ-132)
 
-Status: Accepted (analysis). The RV fix is runtime-side; the Dredge quit fix is in progress.
+Status: Accepted (analysis). The RV fix landed runtime-side; the Dredge quit fix is in progress.
 Date: 2026-10-27
 
 ## Context
@@ -83,7 +83,10 @@ Calimocho already answers.
    needs the MTA for its own objects, it uses `CoIncrementMTAUsage`
    (implemented in Wine's combase) or a thread it owns. No Calimocho
    patch is needed, and none is made, because Wine already behaves
-   like Windows here.
+   like Windows here. L12 shipped this in the runtime at commit
+   `39088c3` (it now uses `CoIncrementMTAUsage`). On a fresh prefix
+   without the override, RV reaches "Press any button to continue",
+   and the FH6 and EDC checks show no regression.
 2. Dredge: there is no start-up defect to fix. The quit defect is a
    Wine deadlock in XInput's update-thread start-up. It is fixed in
    Calimocho (patch 0018) once native stacks identify the blocker.
