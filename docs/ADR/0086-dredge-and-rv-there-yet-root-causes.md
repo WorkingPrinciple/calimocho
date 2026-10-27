@@ -105,14 +105,20 @@ Calimocho already answers.
    app-icon set-up, and that set-up never finishes. Calimocho patch 0018
    replaces the `pthread_once` with a compare-and-swap flag. The first
    thread still sets the icon; no other thread waits for it. The icon
-   is cosmetic, so a lost icon is the worst case. Not opt-in: it only
+   is cosmetic, so a lost icon is the worst case for the other threads.
+   0018 does not help the first caller: if `set_app_icon` itself never
+   returns, that one thread still hangs. In Dredge no thread was found
+   inside it, so this did not happen there. Not opt-in: it only
    removes a wait, and Wine behaves the same when the set-up finishes.
    Local A/B (a copy of -07 with only the patched `winemac.so`,
    ad-hoc signed): in two Dredge runs, XInput's update thread is in its
    normal message wait 30 seconds in, and `WM_CLOSE` ends the game
    about three seconds later. Halls of Torment still runs. Brotato
    crashes in its own shutdown code on both plain -07 and 0018, with
-   the current runtime build, so that crash is unrelated to 0018. L12
+   the current runtime build, so that crash is unrelated to 0018.
+   Formal check on the full -07-pad build (patches 0001 to 0018 plus
+   the SDL controller bus): two Dredge runs pass the same way, and
+   Brotato and Halls of Torment open and quit with exit code 0. L12
    traced it to the runtime's legacy DLL, which lacks a save-game
    interface Brotato asks for (runtime-side; not a Calimocho change).
 3. `tools/monodump/` is kept as a diagnostic tool (LGPL, our own
