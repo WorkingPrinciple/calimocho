@@ -59,6 +59,14 @@ CANDIDATES = {
           "version": "REQ104 bisect C: gated128 push argument buffers with snapshot reuse, no PR2719, "
                      "cache namespace R4C1",
           "expected_nms_change": "As A, without A's per-bind push snapshot copy when push data is unchanged"},
+    "D": {"engine": "calimocho-req104-D-pushcache-addrspace", "dir": "D-pushcache-addrspace",
+          "defines": [PRIVATE, *PUSH, "REQ104_CACHE_NAMESPACE=0x52344431"],
+          "moltenvk_patches": [PUSH_PATCH, NAMESPACE_PATCH, REUSE_PATCH], "pr2719": True,
+          "archive": PR2719_ARCHIVE, "limit": 128, "namespace": "52344431",
+          "sampler_receipt": "docs/evidence/req104-bisect-D-pushcache-addrspace-tests.json",
+          "version": "REQ104 bisect D: C plus the PR2719 shader backport, cache namespace R4D1",
+          "expected_nms_change": "As C (sampler warning removed), and the float4*-to-device-float* "
+                                 "vertex pipeline failures fixed by PR2719"},
 }
 
 

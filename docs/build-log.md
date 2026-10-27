@@ -1534,3 +1534,46 @@ and A only if C and A need separating.
 - Normal quit and save preservation.
 - Other GPUs (gates keep limit 16) and Vulkan conformance.
 - The separate integer-format blending warning is unchanged.
+
+## 2026-10-27: REQ-104 candidate D proposed (C plus the PR 2719 shader backport)
+
+Candidate C, launched through its exact registry (`aa0ee5de`), removed the
+NMS sampler warning and was owner-judged smooth once its pipeline cache
+was warm. The second REQ-104 defect is still there. The warm C run logs
+one failed Metal shader library with eight
+`C-style cast from 'float4 *' to 'device float *'` errors, then 9,179
+`VK_ERROR_INITIALIZATION_FAILED: Vertex shader function could not be
+compiled into pipeline` lines. That is the same vertex output block cast
+that the headless probe reproduces on 170ca, A and C, and that candidate B
+(the PR 2719 backport only) compiles and renders correctly.
+
+Candidate D is C plus that backport, and nothing else:
+
+- MoltenVK patches 0002, 0003 and 0004, exactly as in C.
+- SPIRV-Cross patch `patches/spirv-cross/0001-keep-vertex-output-block-in-thread-storage.patch`
+  (PR 2719, Apache-2.0 OR MIT). It applies cleanly to C's SPIRV-Cross,
+  which is the same revision as B's (`6c09849f`). The upstream pull
+  request is still open, so this follows a FOSS proposal rather than a
+  CrossOver release (AGENTS rule 4, ADR-0017).
+- The SPIRV-Cross archive is B's PR 2719 archive (`b7dfdd45`).
+- Its own pipeline cache namespace, `R4D1` (`0x52344431`), so no MSL
+  that C generated is reused.
+
+`tools/freeze_req104_bisect.py` and `tests/test_req104_bisect.py` now
+define D. Nothing is built yet. The plan:
+
+1. Build slot: an APFS clone of the C source tree, apply the PR 2719
+   patch to `External/SPIRV-Cross`, link B's archive and build only the
+   MoltenVK package with the D defines. Then sign and freeze through the
+   tool.
+2. Headless suite: the tessellation probe must compile and render on D
+   (as on B), and the 128 sampler suite must pass as on C.
+3. S2 admission, then one owner NMS session through D's exact registry,
+   judged on a second (warm) launch at the same save. Pass means: no
+   sampler warning, zero address-space errors, zero
+   `VK_ERROR_INITIALIZATION_FAILED` lines, and the owner judges it smooth.
+
+The 128-02 build (the push path plus PR 2719) was rejected for stutter,
+but it was judged on a cold cache. Warm C shows the push path itself is
+smooth. If D stutters when warm, PR 2719's thread-local copy of the output
+block is the suspect, and B shows whether it does so on its own.

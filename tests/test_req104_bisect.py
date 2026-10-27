@@ -21,6 +21,7 @@ EXPECT = {
     "A": (128, "52344131", False),
     "B": (16, "52344231", True),
     "C": (128, "52344331", False),
+    "D": (128, "52344431", True),
 }
 ADDRESS_SPACE = "converts between mismatching address spaces"
 
