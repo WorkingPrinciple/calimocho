@@ -117,4 +117,3 @@ environment found everything consistent:
 So a LUID mismatch is ruled out too. The trace doesn't show the data
 FH6 got back, so the next step would be a relay trace of `RegGetValueW`
 in the game process. REQ-120 stays parked.
-
