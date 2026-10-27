@@ -1,0 +1,68 @@
+# ADR-0085: SDL controller bus in winebus.sys
+
+Status: Accepted (source); in-game check pending (REQ-126)
+Date: 2026-10-27
+
+## Context
+
+Calimocho engines up to -07 build `winebus.sys` without SDL. Wine's
+configure never found SDL2, so `winebus.so` says "SDL support not
+compiled in!" and the IOHID bus is the only controller path.
+Patches 0004, 0015 and 0016 were needed just to make the owner's
+Xbox One S pad (045e:0b20, Bluetooth LE) usable on that path, and no
+in-game check has passed yet.
+
+Every other macOS Wine distribution we checked uses SDL for
+controllers: CrossOver 26.3 (SDL2 2.30.12), Highball (SDL2 2.32.10),
+gcenx builds (`--with-sdl`) and the Wineskin/Sikarugir engines. SDL
+handles Bluetooth Xbox pads with its HIDAPI driver (including rumble)
+and wired first-party pads through Apple's GameController framework.
+This is the FOSS path CodeWeavers already ships, so
+[ADR-0017](0017-follow-when-foss-exists-lead-when-only-paid-exists.md)
+says we follow it.
+
+The research behind this decision is REQ-126 note
+`req126-controller-research.md` (dragos-core ledger).
+
+## Decision
+
+1. `tools/build_sdl.py` builds SDL2 2.32.10 from its release tarball,
+   pinned in `versions.json` (`sdl_source`, sha256 `5f5993c5...`, the
+   GitHub release digest). x86_64, shared only. Joystick, haptic,
+   HIDAPI and the MFi (GameController) driver stay on. Static, X11,
+   libusb and libiconv are off. The build fails if the library links
+   anything outside `/usr/lib` and `/System/Library`, or if
+   GameController is not linked.
+2. We use monolithic SDL2, not SDL3 with sdl2-compat. That matches
+   CrossOver and avoids the failure Highball hit with sdl2-compat
+   (wrong `libSDL3` file name, a hidden error dialog in `winedevice`,
+   no controller at all).
+3. `tools/release_engine.py` passes `--sdl`, configures Wine with
+   `--with-sdl` (configure now fails if SDL2 is missing) and pins
+   `SONAME_LIBSDL2` to `@rpath/libSDL2-2.0.0.dylib`. After install it
+   refuses a `winebus.so` that still lacks the SDL bus. Assembly
+   bundles `libSDL2-2.0.0.dylib` next to the other dependencies with an
+   `@rpath` id, and copies SDL's `LICENSE.txt` (zlib).
+4. Patch 0004 stays. When SDL loads, upstream logic drops IOHID
+   gamepads, so there are no duplicate pads. When SDL fails to load,
+   0004 keeps the IOHID gamepads, and 0015/0016 still apply to them.
+5. Patch 0017 adds 045e:0b21 (Adaptive) and 045e:0b22 (Elite 2), the
+   other Bluetooth LE Xbox pads in SDL's `usb_ids.h`, to
+   `is_xbox_gamepad` for the IOHID fallback path.
+
+## Consequences
+
+- The engine grows by one zlib-licensed dylib (about 1.7 MB before stripping). The
+  `release_engine.py` commands now need `--sdl`.
+- Controller bugs on the SDL path match CrossOver's, so they can be
+  routed upstream (SDL or WineHQ) instead of to our own patches.
+- Rumble over Bluetooth should work through SDL HIDAPI. Wired
+  first-party pads go through GameController, which cannot rumble on
+  macOS (SDL issue #14800).
+- GameInput is still a stub in Wine, CrossOver and Calimocho. Titles
+  that only read GameInput (possibly Forza Horizon 6) still see no
+  pad. That needs its own decision.
+- Not done: the descriptor-driven remap (research R3), third-party
+  wired GIP pads (R4) and GameInput (R5).
+- Acceptance needs the owner's in-game check with a real pad. A
+  build and these unit tests do not prove the pad works in a game.

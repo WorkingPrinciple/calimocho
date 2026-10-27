@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dragos Hont <dragos79@gmail.com>
+Date: Tue, 27 Oct 2026 14:30:00 +0200
+Subject: [PATCH] winebus.sys: Classify the Bluetooth LE Adaptive and Elite 2
+ pads as Xbox.
+
+045e:0b21 (Xbox Adaptive Controller) and 045e:0b22 (Xbox Elite Series 2)
+are the Bluetooth LE siblings of 0b20 on current Microsoft firmware. SDL
+lists them in usb_ids.h; without them the IOHID path gives these pads no
+XInput compatible id.
+---
+ dlls/winebus.sys/unixlib.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/dlls/winebus.sys/unixlib.h b/dlls/winebus.sys/unixlib.h
+index 9a2628e..622f057 100644
+--- a/dlls/winebus.sys/unixlib.h
++++ b/dlls/winebus.sys/unixlib.h
+@@ -187,6 +187,8 @@ static inline BOOL is_xbox_gamepad(WORD vid, WORD pid)
+     if (pid == 0x0b12) return TRUE; /* Xbox Series */
+     if (pid == 0x0b13) return TRUE; /* Xbox Series Wireless */
+     if (pid == 0x0b20) return TRUE; /* Xbox One S Controller (Bluetooth LE) */
++    if (pid == 0x0b21) return TRUE; /* Xbox Adaptive Controller (Bluetooth LE) */
++    if (pid == 0x0b22) return TRUE; /* Xbox Elite Series 2 (Bluetooth LE) */
+     if (pid == 0x0719) return TRUE; /* Xbox 360 Wireless Adapter */
+     return FALSE;
+ }

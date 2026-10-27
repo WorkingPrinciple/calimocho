@@ -209,6 +209,7 @@ def build(args):
         raise ValueError("Wine source archive checksum differs from versions.json")
     freetype = Path(args.freetype).resolve(strict=True)
     tls = Path(args.tls).resolve(strict=True)
+    sdl = Path(args.sdl).resolve(strict=True)
     moltenvk = moltenvk_library(Path(args.moltenvk).resolve(strict=True), pin)
     work.mkdir(parents=True, exist_ok=False)
     tools = toolchain()
@@ -257,32 +258,35 @@ def build(args):
         # computes over the image is deterministic too (ADR-0081).
         CROSSLDFLAGS=PE_LDFLAGS,
         LC_ALL="C", CONFIG_SITE="/dev/null",
-        PKG_CONFIG_LIBDIR=f"{tls / 'lib/pkgconfig'}:{freetype / 'lib/pkgconfig'}",
+        PKG_CONFIG_LIBDIR=f"{tls / 'lib/pkgconfig'}:{freetype / 'lib/pkgconfig'}:{sdl / 'lib/pkgconfig'}",
         CPPFLAGS=f"-I{freetype / 'include/freetype2'}",
         # Link-time search paths only; runtime resolution is @rpath -> @loader_path/.
-        LDFLAGS=(f"-L{moltenvk.parent} -L{tls / 'lib'} -L{freetype / 'lib'} "
+        LDFLAGS=(f"-L{moltenvk.parent} -L{tls / 'lib'} -L{freetype / 'lib'} -L{sdl / 'lib'} "
                  "-Wl,-rpath,@loader_path/"),
         ac_cv_lib_soname_MoltenVK="@rpath/libMoltenVK.dylib",
         ac_cv_lib_soname_gnutls="@rpath/libgnutls.30.dylib",
         ac_cv_lib_soname_freetype="@rpath/libfreetype.6.dylib",
-        DYLD_FALLBACK_LIBRARY_PATH=f"{moltenvk.parent}:{tls / 'lib'}:{freetype / 'lib'}:/usr/lib",
+        # winebus.sys dlopens SDL2 for its SDL bus (ADR-0085); patch 0004 keeps IOHID if it fails.
+        ac_cv_lib_soname_SDL2="@rpath/libSDL2-2.0.0.dylib",
+        DYLD_FALLBACK_LIBRARY_PATH=f"{moltenvk.parent}:{tls / 'lib'}:{freetype / 'lib'}:{sdl / 'lib'}:/usr/lib",
     )
     receipt["environment"] = {k: environment[k] for k in (
         "CC", "CXX", "CFLAGS", "CROSSCFLAGS", "CROSSLDFLAGS", "CPPFLAGS", "LDFLAGS",
         "PKG_CONFIG_LIBDIR", "ac_cv_lib_soname_MoltenVK", "ac_cv_lib_soname_gnutls",
-        "ac_cv_lib_soname_freetype")}
-    receipt["inputs"] = {"freetype_prefix": str(freetype), "tls_prefix": str(tls),
+        "ac_cv_lib_soname_freetype", "ac_cv_lib_soname_SDL2")}
+    receipt["inputs"] = {"freetype_prefix": str(freetype), "tls_prefix": str(tls), "sdl_prefix": str(sdl),
+                         "sdl_sha256": sha256(sdl / "lib/libSDL2-2.0.0.dylib"),
                          "moltenvk_library": str(moltenvk), "moltenvk_sha256": sha256(moltenvk)}
     jobs = str(args.jobs)
     configure = [str(source / "configure"), "--host=x86_64-apple-darwin",
                  "--enable-archs=x86_64,i386", "--disable-tests", "--without-x",
-                 "--with-freetype", "--with-coreaudio", "--with-gnutls", "--with-vulkan",
+                 "--with-freetype", "--with-coreaudio", "--with-gnutls", "--with-vulkan", "--with-sdl",
                  f"--prefix={pin['configure_prefix']}"]
     nice = ["/usr/bin/nice", "-n", "10"]
     steps = [("configure", configure, 1800), ("compile", nice + ["/usr/bin/make", f"-j{jobs}"], 4 * 3600)]
     # The FreeType and TLS libraries carry install names under the fixed dependency prefix;
     # Wine's build tools (sfnt2fon) and configure tests load them from there (ADR-0081).
-    with fixed_install_prefixes({"freetype": freetype, "tls": tls}):
+    with fixed_install_prefixes({"freetype": freetype, "tls": tls, "sdl": sdl}):
         for label, command, timeout in steps:
             started = time.monotonic()
             run(command, cwd=directory, env=environment, log=work / f"{label}.log", timeout=timeout)
@@ -317,6 +321,9 @@ def build(args):
         run(["/usr/bin/make", "install-lib", f"DESTDIR={destdir}"], cwd=directory,
             env=environment, log=work / "install.log", timeout=3600)
     stage = destdir / pin["configure_prefix"].lstrip("/")
+    winebus = (stage / "lib/wine/x86_64-unix/winebus.so").read_bytes()
+    if b"SDL support not compiled in" in winebus or b"@rpath/libSDL2-2.0.0.dylib" not in winebus:
+        raise ValueError("winebus.so was built without the SDL bus")
     shutil.copy2(helper, stage / "lib/wine/x86_64-unix/libnative-gs-localtime.dylib")
     receipt["stage"] = str(stage)
     receipt["status"] = "built"
@@ -353,9 +360,12 @@ def rewrite_dependency(path, local_names):
 def bundled_dependencies(args, pin, moltenvk):
     tls = Path(args.tls).resolve(strict=True) / "lib"
     freetype = Path(args.freetype).resolve(strict=True) / "lib"
+    sdl = Path(args.sdl).resolve(strict=True) / "lib"
     result = {}
     for name in pin["bundled_dylibs"]:
         source = (freetype / name) if name.startswith("libfreetype") else (tls / name)
+        if name.startswith("libSDL2"):
+            source = sdl / name
         if name == "libMoltenVK.dylib":
             source = moltenvk
         result[name] = source.resolve(strict=True)
@@ -503,7 +513,7 @@ def assemble(args):
     (root / "SOURCE.md").write_text(source_document(pin))
     strip_debug_symbols(root)
     scan_for_build_paths(root, [str(work), str(REPO), str(Path(args.freetype).resolve()),
-                                str(Path(args.tls).resolve())])
+                                str(Path(args.tls).resolve()), str(Path(args.sdl).resolve())])
     leaks = []
     for path in macho_files(root):
         if (root / "lib/external") in path.parents:
@@ -662,6 +672,7 @@ def write_engine_manifest(pin, root, receipt, release=None):
                                "binary_sha256": apple["files"][apple["binary"]]},
             "freetype": {"version": next(d["version"] for d in pin["dependency_sources"] if d["name"] == "freetype")},
             "gnutls": {"version": next(d["version"] for d in pin["dependency_sources"] if d["name"] == "gnutls")},
+            "sdl": {"version": next(d["version"] for d in pin["dependency_sources"] if d["name"] == "sdl")},
             "moltenvk": {"tag": pin["moltenvk"]["tag"], "commit": pin["moltenvk"]["commit"],
                          "metal_private_api": pin["moltenvk"]["metal_private_api"]},
         },
@@ -753,7 +764,7 @@ BINARY_PINS = ("wine", "patches", "dependency_sources", "moltenvk", "tsshim", "n
                "toolchain", "cw_donor", "signing", "environment", "opt_ins", "freetype_credit_years")
 BINARY_INPUTS = ("patches", "tools/nvapi_stub", "tools/dxgi_umd", "tools/port_d3dmetal.py", "tools/native_gs_localtime.c",
                  "tools/build_freetype.py", "tools/build_tls.py", "tools/build_moltenvk.py",
-                 "scripts/entitlements")
+                 "tools/build_sdl.py", "scripts/entitlements")
 RELEASE_DOCUMENTS = ("NOTICE", "TRADEMARKS.md", "LICENSE", "COPYING.LIB")
 
 
@@ -932,6 +943,7 @@ def main():
     common_inputs = argparse.ArgumentParser(add_help=False)
     common_inputs.add_argument("--freetype", required=True, help="source-built FreeType prefix")
     common_inputs.add_argument("--tls", required=True, help="source-built GnuTLS stack prefix")
+    common_inputs.add_argument("--sdl", required=True, help="tools/build_sdl.py prefix (ADR-0085)")
     common_inputs.add_argument("--moltenvk", required=True, help="tools/build_moltenvk.py output directory")
     p = commands.add_parser("build", parents=[common_inputs])
     p.add_argument("--work", required=True)

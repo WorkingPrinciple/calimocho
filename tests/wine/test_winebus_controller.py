@@ -97,6 +97,10 @@ int main(void)
     assert(is_xbox_gamepad(0x045e, 0x0b20));
     assert(is_xbox_gamepad(0x045e, 0x028e));
     assert(is_xbox_gamepad(0x045e, 0x0b13));
+    /* REQ-126 R1: the other Bluetooth LE Xbox pads in SDL's usb_ids.h. */
+    assert(is_xbox_gamepad(0x045e, 0x0b21)); /* Xbox Adaptive Controller (BLE) */
+    assert(is_xbox_gamepad(0x045e, 0x0b22)); /* Xbox Elite Series 2 (BLE) */
+    assert(!is_xbox_gamepad(0x054c, 0x0b22));
     assert(!is_xbox_gamepad(0x054c, 0x0b20));
     assert(!is_xbox_gamepad(0x045e, 0xffff));
     return 0;
