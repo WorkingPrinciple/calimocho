@@ -112,7 +112,9 @@ Calimocho already answers.
    normal message wait 30 seconds in, and `WM_CLOSE` ends the game
    about three seconds later. Halls of Torment still runs. Brotato
    crashes in its own shutdown code on both plain -07 and 0018, with
-   the current runtime build, so that crash is unrelated to 0018.
+   the current runtime build, so that crash is unrelated to 0018. L12
+   traced it to the runtime's legacy DLL, which lacks a save-game
+   interface Brotato asks for (runtime-side; not a Calimocho change).
 3. `tools/monodump/` is kept as a diagnostic tool (LGPL, our own
    source). It loads into a running Unity Mono game, copies each
    thread's registers and stack while the thread is briefly suspended,
