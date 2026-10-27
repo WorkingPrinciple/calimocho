@@ -102,4 +102,3 @@ traced: registry reads (`+reg`) and version resources. The run asked for
 classic one: the display Class key has no `UserModeDriverName`, so a
 game that reads the version resource of the user-mode driver DLL finds
 none.
-
