@@ -74,7 +74,20 @@ Calimocho already answers.
      window-system call, `RegisterClassExW` →
      `NtUserRegisterClassExWOW`, on the Unix side.
   Dredge's `GameManager.OnApplicationQuit` (which kills the process) is
-  never reached. The Unix-side blocker is not yet identified.
+  never reached.
+- A macOS `sample` taken 30 seconds in, before any quit, shows XInput's
+  update thread already stuck:
+  `RegisterClassExW` → win32u `get_desktop_window` →
+  winemac `macdrv_SetDesktopWindow` → `pthread_once(app_icon_once)`.
+  That once runs `set_app_icon`, which makes a user-mode callback into
+  the PE side of winemac to read the game's icon. No thread was still
+  inside the once, so it was entered and never completed. Every thread's
+  first desktop-window lookup runs this code, so every later thread's
+  first window call waits forever. How the first thread left the once
+  is not known (`sample` cannot unwind through PE frames).
+- The quit hang itself is not deterministic. In one of four runs,
+  `WM_CLOSE` ended the game. Probably it depends on whether the input
+  plugin's thread has entered XInput before the quit.
 
 ## Decision
 
@@ -88,8 +101,12 @@ Calimocho already answers.
    without the override, RV reaches "Press any button to continue",
    and the FH6 and EDC checks show no regression.
 2. Dredge: there is no start-up defect to fix. The quit defect is a
-   Wine deadlock in XInput's update-thread start-up. It is fixed in
-   Calimocho (patch 0018) once native stacks identify the blocker.
+   Wine deadlock: winemac makes every thread wait for the one-time
+   app-icon set-up, and that set-up never finishes. Calimocho patch 0018
+   replaces the `pthread_once` with a compare-and-swap flag. The first
+   thread still sets the icon; no other thread waits for it. The icon
+   is cosmetic, so a lost icon is the worst case. Not opt-in: it only
+   removes a wait, and Wine behaves the same when the set-up finishes.
 3. `tools/monodump/` is kept as a diagnostic tool (LGPL, our own
    source). It loads into a running Unity Mono game, copies each
    thread's registers and stack while the thread is briefly suspended,

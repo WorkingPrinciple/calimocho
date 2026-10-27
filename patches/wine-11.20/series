@@ -14,3 +14,4 @@
 0014-windows.web-Implement-IVector-IJsonValue-and-IIterab.patch
 0015-winebus.sys-Normalize-the-Xbox-One-S-Bluetooth-LE-in.patch
 0016-winebus.sys-Recognize-the-spaced-Bluetooth-Low-Energ.patch
+0018-winemac.drv-Never-block-a-thread-on-the-app-icon-set.patch
