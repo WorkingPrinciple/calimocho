@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: calimocho <calimocho@local>
+From: Dragos Hont <dragos79@gmail.com>
 Date: Tue, 27 Oct 2026 15:00:00 +0200
-Subject: [PATCH 18/18] winemac.drv: Never block a thread on the app icon set-up
+Subject: [PATCH] winemac.drv: Never block a thread on the app icon set-up.
 
 macdrv_SetDesktopWindow runs for every thread's first desktop-window
 lookup and used pthread_once for the process-wide app icon. Under
@@ -9,13 +9,16 @@ Dredge, the once was entered and never completed, so every later
 thread's first window call (XInput's update thread, in RegisterClassExW)
 waited forever, and the game's input plugin then hung on quit. The icon
 is cosmetic: the first thread still sets it, and no other thread waits.
+The first caller can still hang if set_app_icon itself never returns.
 ---
  dlls/winemac.drv/window.c | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
 
+diff --git a/dlls/winemac.drv/window.c b/dlls/winemac.drv/window.c
+index 618322e..f540903 100644
 --- a/dlls/winemac.drv/window.c
 +++ b/dlls/winemac.drv/window.c
-@@ -1190,7 +1190,11 @@
+@@ -1190,7 +1190,11 @@ bool macdrv_client_surface_acquire_metal_swapchain(struct macdrv_client_surface
   */
  void macdrv_SetDesktopWindow(HWND hwnd)
  {
@@ -28,7 +31,7 @@ is cosmetic: the first thread still sets it, and no other thread waits.
      unsigned int width, height;
  
      TRACE("%p\n", hwnd);
-@@ -1225,7 +1229,7 @@
+@@ -1225,7 +1229,7 @@ void macdrv_SetDesktopWindow(HWND hwnd)
          SERVER_END_REQ;
      }
  
@@ -37,3 +40,6 @@ is cosmetic: the first thread still sets it, and no other thread waits.
  }
  
  #define WM_WINE_NOTIFY_ACTIVITY WM_USER
+-- 
+2.56.0
+
