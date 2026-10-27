@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: calimocho <calimocho@local>
+Date: Tue, 27 Oct 2026 15:00:00 +0200
+Subject: [PATCH 18/18] winemac.drv: Never block a thread on the app icon set-up
+
+macdrv_SetDesktopWindow runs for every thread's first desktop-window
+lookup and used pthread_once for the process-wide app icon. Under
+Dredge, the once was entered and never completed, so every later
+thread's first window call (XInput's update thread, in RegisterClassExW)
+waited forever, and the game's input plugin then hung on quit. The icon
+is cosmetic: the first thread still sets it, and no other thread waits.
+---
+ dlls/winemac.drv/window.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+--- a/dlls/winemac.drv/window.c
++++ b/dlls/winemac.drv/window.c
+@@ -1190,7 +1190,11 @@
+  */
+ void macdrv_SetDesktopWindow(HWND hwnd)
+ {
+-    static pthread_once_t app_icon_once = PTHREAD_ONCE_INIT;
++    /* 0: not started, 1: started by some thread. Never wait for the other
++     * thread: the icon is cosmetic, and if its set-up never returns (for
++     * example a user-mode callback left by an exception), a wait here would
++     * hang every later thread's first window call (RegisterClassExW etc.). */
++    static LONG app_icon_started;
+     unsigned int width, height;
+ 
+     TRACE("%p\n", hwnd);
+@@ -1225,7 +1229,7 @@
+         SERVER_END_REQ;
+     }
+ 
+-    pthread_once(&app_icon_once, set_app_icon);
++    if (!InterlockedCompareExchange(&app_icon_started, 1, 0)) set_app_icon();
+ }
+ 
+ #define WM_WINE_NOTIFY_ACTIVITY WM_USER
