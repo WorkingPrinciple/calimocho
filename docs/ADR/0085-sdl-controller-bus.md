@@ -66,3 +66,25 @@ The research behind this decision is REQ-126 note
   wired GIP pads (R4) and GameInput (R5).
 - Acceptance needs the owner's in-game check with a real pad. A
   build and these unit tests do not prove the pad works in a game.
+
+## Result (local build, 2026-10-27)
+
+- `-07-pad` was built from commit `32c9776`: Wine 11.20 with patches
+  0001 to 0018, plus SDL2 2.32.10. Configure selected
+  `SONAME_LIBSDL2 "@rpath/libSDL2-2.0.0.dylib"`. `winebus.so` imports
+  the SDL calls and no longer says "SDL support not compiled in".
+- Hashes: the built `libSDL2-2.0.0.dylib` (before stripping and
+  signing) is `58bb0307...`. The shipped, signed copy is
+  `658aeb57ad29f736540d2e6bcc34c4351635f1ac9524ab0b48c5e72ef93192ed`.
+  `calimocho-engine.json` is written before signing, so it records
+  the SDL version only. The signed hash of every shipped file,
+  including this dylib, goes into `MANIFEST.sha256` at `package` time
+  and into the release notes.
+- With SDL loaded, the owner's pad uses the SDL bus. Patches 0015,
+  0016 and 0017 now apply only on the IOHID fallback path.
+- Follow-up for the next engine build (review `fe009cf0`, LOW): turn
+  off SDL video, render and audio in `sdl_source.configure_flags`,
+  then check that HIDAPI and the MFi driver still link
+  (GameController in `otool -L`) and that a pad still enumerates.
+  This is not done here, because changing the pins would no longer
+  describe the `-07-pad` artifact.
