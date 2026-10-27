@@ -102,3 +102,19 @@ traced: registry reads (`+reg`) and version resources. The run asked for
 classic one: the display Class key has no `UserModeDriverName`, so a
 game that reads the version resource of the user-mode driver DLL finds
 none.
+
+A second trace (L12, run `e5cb3b80`, with `+reg,+ver`) found what FH6
+reads just before the dialog. It opens `HKLM\SOFTWARE\Microsoft\DirectX`,
+enumerates the first adapter subkey and reads its `AdapterLuid` and
+`DriverVersion` (both as QWORD). A probe in an FH6 prefix with the FH6
+environment found everything consistent:
+
+- DXGI adapter LUID `0x3f7`;
+- D3D12 device `GetAdapterLuid` `0x3f7`;
+- registry `AdapterLuid` `0x3f7`, `DriverVersion` 32.0.16.1656,
+  `VendorId` `10de`, `DeviceId` `2786`.
+
+So a LUID mismatch is ruled out too. The trace doesn't show the data
+FH6 got back, so the next step would be a relay trace of `RegGetValueW`
+in the game process. REQ-120 stays parked.
+
