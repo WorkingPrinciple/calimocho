@@ -107,6 +107,12 @@ Calimocho already answers.
    thread still sets the icon; no other thread waits for it. The icon
    is cosmetic, so a lost icon is the worst case. Not opt-in: it only
    removes a wait, and Wine behaves the same when the set-up finishes.
+   Local A/B (a copy of -07 with only the patched `winemac.so`,
+   ad-hoc signed): in two Dredge runs, XInput's update thread is in its
+   normal message wait 30 seconds in, and `WM_CLOSE` ends the game
+   about three seconds later. Halls of Torment still runs. Brotato
+   crashes in its own shutdown code on both plain -07 and 0018, with
+   the current runtime build, so that crash is unrelated to 0018.
 3. `tools/monodump/` is kept as a diagnostic tool (LGPL, our own
    source). It loads into a running Unity Mono game, copies each
    thread's registers and stack while the thread is briefly suspended,
