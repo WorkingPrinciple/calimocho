@@ -28,8 +28,11 @@ step, so a game could get 26100 from one API and 19045 from another.
 
 Calimocho patch 0019 adds a `win11-24h2` profile to both tables:
 
-- ntdll: Windows 10.0 build 26100, workstation, no service pack. So
-  `RtlGetVersion`, `GetVersionEx` and the PEB report 10.0.26100.
+- ntdll: Windows 10.0 build 26100, workstation, no service pack. This
+  table is only used when a prefix or program names the version (the
+  `Version` value or an `AppDefaults` entry). With the `winecfg /v` route
+  below, ntdll reads the version from the registry values instead, so
+  both routes report 10.0.26100 from `RtlGetVersion` and the PEB.
 - winecfg: the same version, plus the registry values real Windows 11
   24H2 has: `CurrentBuild` and `CurrentBuildNumber` "26100", `UBR` 4652,
   `DisplayVersion` "24H2", `ReleaseId` "2009", and `ProductName`
@@ -55,6 +58,15 @@ CLI (COR-318, backend lane) uses this route and checks
 `tests/wine/test_windows_version_profile.py` compiles the real ntdll and
 winecfg tables and winecfg's registry writer from a Wine source tree. It
 fails on unpatched Wine 11.20 and passes with the series applied.
+
+As on Windows, `GetVersionEx` gives a program without a Windows 10/11
+compatibility manifest version 6.2 build 9200. That is expected, not a
+defect, and the A/B does not count it as one. The A/B evidence uses a
+small probe that calls `RtlGetVersion` inside the test prefix.
+
+This follows AGENTS rule 4 ("we follow when a FOSS path exists"): it uses
+Wine's existing version-profile mechanism and adds a newer Windows build
+to it, by owner decision COR-324. It adds no CrossOver-only behaviour.
 
 ## Consequences
 
