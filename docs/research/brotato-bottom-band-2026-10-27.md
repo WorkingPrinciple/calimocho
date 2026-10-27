@@ -1,6 +1,6 @@
 # Brotato bottom band on Calimocho 0.1120.4.6, 2026-10-27
 
-Status: analysis from L14's run evidence. Not reproduced or fixed yet.
+Status: reproduced and traced (2026-10-27). Cause narrowed, not fixed.
 Priority low (coordinator).
 
 ## Observation
@@ -55,3 +55,32 @@ winemac.drv's mode emulation: scale the drawable, or don't offer
 non-native fullscreen modes. If no mode change and no final `WM_SIZE`
 appear, candidate 2 holds. A run in windowed mode (Brotato's own
 setting) is a cheap control: the band should go away.
+
+## Trace result (2026-10-27)
+
+One run with the diagnostic CLI (`--diagnostic-wine-debug
++pid,+timestamp,+macdrv,+system`, run `fe9dbaef`), fresh prefix, no
+input. The band reproduced on the main menu at the same row (pixel 1700
+of 1964, RGB 77, 77, 77).
+
+- **Candidate 1 is ruled out.** Brotato never calls
+  `ChangeDisplaySettingsEx`. Its only display call is
+  `EnumDisplaySettings` with `ENUM_CURRENT_SETTINGS`.
+- **The window resize works.** The game window starts as a windowed
+  1280 × 720 client area (16:9). Twelve seconds later Godot switches it
+  to a borderless popup, and winemac.drv applies the full
+  (0,0)-(1512,982) rectangle (`WindowPosChanged`, Cocoa frame
+  1512 × 982, not macOS fullscreen).
+- So Wine gives the game a correct 1512 × 982 window. The 16:9 picture
+  drawn from the top must come from the swap chain or the game: either
+  Godot keeps its 16:9 render size and anchors it at the top, or the
+  D3D12 swap chain buffers aren't resized and D3DMetal presents them
+  top-left. winemac.drv is not the cause; this is not a Calimocho engine
+  patch target.
+- Quit: in this run, `WM_CLOSE` ended Brotato normally (CLI exit 0,
+  Wine exit 0, 16 s after the message). L14's failure was Cmd-Q while
+  the game was not frontmost, plus a different harness.
+
+Next discriminator, if anyone needs it: the same title on CrossOver
+26.3 (same D3DMetal, different Wine) in the foreground. If it shows the
+same band, the cause is D3DMetal or Godot, not Wine.
