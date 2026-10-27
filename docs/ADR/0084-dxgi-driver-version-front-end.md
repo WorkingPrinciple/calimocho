@@ -90,3 +90,16 @@ be started outside the CLI. The CLI's popup record of the A/B run also
 shows the FH302 dialog closing by itself after a few seconds with no
 button pressed. The title screen follows either way, so the warning is
 cosmetic. REQ-120 is parked with this evidence.
+
+L12's diagnostic trace (2026-10-27, run `25ef635a`, channels including
+`+setupapi,+wbemprox,+d3dkmt,+plugplay`) gives negative evidence. Between
+the executable starting and the FH302 dialog, FH6 made no WMI query, no
+SetupAPI device-property call and no D3DKMT driver-version query. The
+only D3DKMT calls came from Streamline: `KMTQAITYPE_WDDM_2_7_CAPS` (70,
+not handled by Wine) and two NGX registry lookups. Two paths were not
+traced: registry reads (`+reg`) and version resources. The run asked for
+`+version`, but Wine's channel is `ver`. The remaining lead is the
+classic one: the display Class key has no `UserModeDriverName`, so a
+game that reads the version resource of the user-mode driver DLL finds
+none.
+
