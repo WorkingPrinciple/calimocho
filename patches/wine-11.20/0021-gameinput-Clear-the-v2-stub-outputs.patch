@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dragos Hont <dragos79@gmail.com>
+Date: Tue, 27 Oct 2026 22:40:00 +0200
+Subject: [PATCH] gameinput: Clear the v2 reading and token outputs in the
+ stubs.
+
+The v2 GetCurrentReading and RegisterDeviceCallback stubs returned
+E_NOTIMPL without writing *reading or *token, unlike their v0 and v1
+counterparts. A caller that ignores the HRESULT then reads an
+uninitialised pointer or token.
+---
+ dlls/gameinput/gameinput.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/dlls/gameinput/gameinput.c b/dlls/gameinput/gameinput.c
+index 4452cb2..27d5fb2 100644
+--- a/dlls/gameinput/gameinput.c
++++ b/dlls/gameinput/gameinput.c
+@@ -459,7 +459,7 @@ static HRESULT WINAPI game_input2_GetCurrentReading( v2_IGameInput *iface, GameI
+                                                    v2_IGameInputDevice *device, v2_IGameInputReading **reading )
+ {
+     FIXME( "iface %p kind %d device %p reading %p\n", iface, kind, device, reading );
+-
++    if (reading) *reading = NULL;
+     return E_NOTIMPL;
+ }
+ 
+@@ -497,7 +497,7 @@ static HRESULT WINAPI game_input2_RegisterDeviceCallback( v2_IGameInput *iface,
+                                                          v2_GameInputDeviceCallback callback, GameInputCallbackToken *token )
+ {
+     FIXME( "iface %p, device %p, kind %#x, filter %#x, enum_kind %d, context %p, callback %p, token %p semi-stub!\n", iface, device, kind, filter, enum_kind, context, callback, token );
+-
++    if (token) *token = (GameInputCallbackToken)0;
+     return E_NOTIMPL;
+ }
+ 

@@ -30,18 +30,38 @@ says we follow it rather than write our own.
 
 1. Patch 0020 is wine!10258 as published (its three commits, authors
    and messages unchanged). It applies cleanly after 0001 to 0019.
-2. `tests/wine/test_gameinput.py` compiles the real `gameinput.c` on
-   the host and checks that `GameInputCreate` returns `S_OK` and a
-   shared object, that reference counting and `QueryInterface` work,
-   and that unimplemented methods fail safely. It fails on stock Wine
-   11.20 and passes with 0020.
-3. A patch 0021 with Calimocho's own behaviour (for example
+2. Patch 0021 (ours, two lines) makes the v2 `GetCurrentReading` and
+   `RegisterDeviceCallback` stubs clear `*reading` and `*token`. In
+   wine!10258 they return `E_NOTIMPL` without writing them, unlike the
+   v0 and v1 versions of the same methods (review `c2a68496`, F1). It
+   is pinned in `versions.json` (sha256 `ba6c63fd...`) but **not in
+   `series`**. It goes into a build only if L20's `+gameinput` trace
+   shows Witcher 3 using the v2 interface. The same fix is drafted as
+   review feedback for the merge request.
+3. `tests/wine/test_gameinput.py` compiles the real `gameinput.c` on
+   the host and calls it. It defines the GameInput IIDs itself, so
+   stock Wine links and fails on behaviour.
+   - `GameInputCreate` returns `S_OK` and one shared object; reference
+     counting and `QueryInterface` work; unknown IIDs give
+     `E_NOINTERFACE`.
+   - v0 `GetCurrentReading` fails and leaves the reading `NULL`.
+   - The v2 test checks that the two v2 stubs clear their outputs. It
+     fails with 0020 alone (pass `--without-0021` to mark it an
+     expected failure) and passes with 0021.
+
+   Results: stock 11.20 fails 3/3 on assertions; 0001-0020 passes 2/3
+   (v2 test red); 0001-0021 passes 3/3.
+4. Other Calimocho behaviour (for example
    `GAMEINPUT_E_READING_NOT_FOUND` from reading calls, or callbacks
    that register cleanly) is added only if Witcher 3 still fails with
-   0020 alone.
+   0020 (and 0021 if needed).
 
 ## Consequences
 
+- With 0020 the v0 and v1 stubs return `E_NOTIMPL` and clear their
+  output arguments. Only with 0021 do the v2 stubs do the same. That
+  does not make every method safe: a caller that ignores the `HRESULT`
+  and uses a cleared reading or device still dereferences `NULL`.
 - Games that only need a non-`NULL` GameInput object get one. Games that
   need devices or readings still get no controller input through
   GameInput.
