@@ -7,9 +7,10 @@ Date: 2026-10-27
 
 Witcher 3 crashes on Calimocho with a read at address 0x118 right
 after it loads `GameInput.dll` (REQ-140, L20 evidence). Wine 11.20's
-`GameInputCreate` returns `E_NOTIMPL` and leaves the output pointer
-`NULL`. The most likely cause is that the game ignores that HRESULT and
-calls through the `NULL` pointer. L20's two discriminator runs decide
+`GameInputCreate` returns `E_NOTIMPL` and never writes the output
+pointer, so it stays whatever the caller put there (`NULL` if the
+caller zero-initialised it). The most likely cause is that the game
+ignores that HRESULT and calls through the unwritten pointer. L20's two discriminator runs decide
 whether GameInput is really the cause.
 
 We checked other implementations on 2026-10-27:
@@ -47,6 +48,12 @@ says we follow it rather than write our own.
 - The patch only touches `configure.ac` for its test directory. The
   shipped `configure` is not regenerated, and the engine is built with
   `--disable-tests`, so the conformance test is not built in-tree.
+- Known limitations of wine!10258, kept as published (rule #4, follow
+  upstream): the shared object is not synchronised. Two first calls at
+  the same time can create two objects (one leaks), and a `Release` to
+  zero racing a `GameInputCreate` `AddRef` is a use-after-free. `out`
+  is not checked for `NULL`. These are candidates for review feedback
+  on the merge request, not a local change.
 - When wine!10258 lands in a Wine release we rebase on, patch 0020 is
   dropped.
 - Wiring GameInput to real pads (SDL or winebus) would follow Proton's

@@ -47,8 +47,8 @@ class GameInputTests(unittest.TestCase):
             subprocess.run([str(executable)], check=True)
 
     def test_create_returns_a_shared_object(self):
-        # REQ-158: stock Wine returns E_NOTIMPL and leaves *out NULL; Witcher 3 then
-        # dereferences that NULL. A caller must get S_OK and a usable object.
+        # REQ-158: stock Wine returns E_NOTIMPL and never writes *out; Witcher 3 then
+        # calls through the unwritten pointer. A caller must get S_OK and a usable object.
         self.compile_run(r"""
 int main(void)
 {
