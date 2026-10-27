@@ -1,0 +1,91 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dragos Hont <dragos79@gmail.com>
+Date: Tue, 27 Oct 2026 21:40:00 +0200
+Subject: [PATCH] ntdll, winecfg: Add a Windows 11 24H2 version profile
+ (win11-24h2).
+
+Reports build 10.0.26100 from RtlGetVersion and GetVersionEx, and
+`winecfg /v win11-24h2` writes CurrentBuild, CurrentBuildNumber,
+UBR 4652, DisplayVersion 24H2, ReleaseId 2009 and the ProductName that
+real Windows 11 uses ("Windows 10 Pro"). Other profiles stop writing
+DisplayVersion and ReleaseId. Nothing changes for existing prefixes:
+the profile is only used when a prefix selects it.
+---
+ dlls/ntdll/version.c           |  7 +++++++
+ programs/winecfg/appdefaults.c | 17 +++++++++++++++--
+ 2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/dlls/ntdll/version.c b/dlls/ntdll/version.c
+index c58fa2f..f17ec35 100644
+--- a/dlls/ntdll/version.c
++++ b/dlls/ntdll/version.c
+@@ -55,6 +55,7 @@ typedef enum
+     WIN81,   /* Windows 8.1 */
+     WIN10,   /* Windows 10 */
+     WIN11,   /* Windows 11 */
++    WIN11_24H2, /* Windows 11 24H2 */
+     NB_WINDOWS_VERSIONS
+ } WINDOWS_VERSION;
+ 
+@@ -175,6 +176,11 @@ static const RTL_OSVERSIONINFOEXW VersionData[NB_WINDOWS_VERSIONS] =
+         sizeof(RTL_OSVERSIONINFOEXW), 10, 0, 22000, VER_PLATFORM_WIN32_NT,
+         L"", 0, 0, VER_SUITE_SINGLEUSERTS, VER_NT_WORKSTATION, 0
+     },
++    /* WIN11_24H2 */
++    {
++        sizeof(RTL_OSVERSIONINFOEXW), 10, 0, 26100, VER_PLATFORM_WIN32_NT,
++        L"", 0, 0, VER_SUITE_SINGLEUSERTS, VER_NT_WORKSTATION, 0
++    },
+ };
+ 
+ static const struct { WCHAR name[12]; WINDOWS_VERSION ver; } version_names[] =
+@@ -206,6 +212,7 @@ static const struct { WCHAR name[12]; WINDOWS_VERSION ver; } version_names[] =
+     { L"win81", WIN81 },
+     { L"win10", WIN10 },
+     { L"win11", WIN11 },
++    { L"win11-24h2", WIN11_24H2 },
+ };
+ 
+ 
+diff --git a/programs/winecfg/appdefaults.c b/programs/winecfg/appdefaults.c
+index 586b72a..b98a544 100644
+--- a/programs/winecfg/appdefaults.c
++++ b/programs/winecfg/appdefaults.c
+@@ -46,10 +46,15 @@ struct win_version
+     WORD         wServicePackMajor;
+     WORD         wServicePackMinor;
+     const WCHAR *szProductType;
++    const WCHAR *szProductName;    /* NULL: "Microsoft <szDescription>" */
++    const WCHAR *szDisplayVersion; /* NULL: remove DisplayVersion and ReleaseId */
+ };
+ 
+ static const struct win_version win_versions[] =
+ {
++    /* Real Windows 11 still reports ProductName "Windows 10 Pro" and ReleaseId "2009". */
++    { L"win11-24h2", L"Windows 11 24H2", L"6.3", 10,  0, 26100, 4652, VER_PLATFORM_WIN32_NT, L"", 0, 0, L"WinNT",
++      L"Windows 10 Pro", L"24H2"},
+     { L"win11",     L"Windows 11",      L"6.3", 10,  0, 22000,  588, VER_PLATFORM_WIN32_NT, L"", 0, 0, L"WinNT"},
+     { L"win10",     L"Windows 10",      L"6.3", 10,  0, 19045, 5796, VER_PLATFORM_WIN32_NT, L"", 0, 0, L"WinNT"},
+     { L"win81",     L"Windows 8.1",     NULL,    6,  3,  9600,    0, VER_PLATFORM_WIN32_NT, L"", 0, 0, L"WinNT"},
+@@ -461,8 +466,16 @@ static void set_winver(const struct win_version *version)
+             swprintf(buffer, ARRAY_SIZE(buffer), L"%d", version->dwBuildNumber);
+             set_reg_key(HKEY_LOCAL_MACHINE, szKeyNT, L"CurrentBuild", buffer);
+             set_reg_key(HKEY_LOCAL_MACHINE, szKeyNT, L"CurrentBuildNumber", buffer);
+-            swprintf(buffer, ARRAY_SIZE(buffer), L"Microsoft %s", version->szDescription);
+-            set_reg_key(HKEY_LOCAL_MACHINE, szKeyNT, L"ProductName", buffer);
++            if (version->szProductName)
++                set_reg_key(HKEY_LOCAL_MACHINE, szKeyNT, L"ProductName", version->szProductName);
++            else
++            {
++                swprintf(buffer, ARRAY_SIZE(buffer), L"Microsoft %s", version->szDescription);
++                set_reg_key(HKEY_LOCAL_MACHINE, szKeyNT, L"ProductName", buffer);
++            }
++            set_reg_key(HKEY_LOCAL_MACHINE, szKeyNT, L"DisplayVersion", version->szDisplayVersion);
++            set_reg_key(HKEY_LOCAL_MACHINE, szKeyNT, L"ReleaseId",
++                        version->szDisplayVersion ? L"2009" : NULL);
+             set_reg_key(HKEY_LOCAL_MACHINE, szKeyProdNT, L"ProductType", version->szProductType);
+             set_reg_key_dword(HKEY_LOCAL_MACHINE, szKeyWindNT, L"CSDVersion",
+                                 MAKEWORD( version->wServicePackMinor,
+-- 
+2.56.0
+

@@ -16,3 +16,4 @@
 0016-winebus.sys-Recognize-the-spaced-Bluetooth-Low-Energ.patch
 0017-winebus.sys-Classify-the-Bluetooth-LE-Adaptive-and-E.patch
 0018-winemac.drv-Never-block-a-thread-on-the-app-icon-set.patch
+0019-ntdll-winecfg-Add-a-Windows-11-24H2-version-profile-w.patch
