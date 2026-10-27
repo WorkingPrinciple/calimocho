@@ -1573,6 +1573,11 @@ define D. Nothing is built yet. The plan:
    sampler warning, zero address-space errors, zero
    `VK_ERROR_INITIALIZATION_FAILED` lines, and the owner judges it smooth.
 
+4. Standing rule REQ-145 (owner, COR-291): before D is called done or
+   staged, Halls of Torment, Brotato, Vampire Survivors and Well Dweller
+   (plus FH6 and NMS when installed) must each reach their title or menu
+   on D, with saves hashed before and after.
+
 The 128-02 build (the push path plus PR 2719) was rejected for stutter,
 but it was judged on a cold cache. Warm C shows the push path itself is
 smooth. If D stutters when warm, PR 2719's thread-local copy of the output
