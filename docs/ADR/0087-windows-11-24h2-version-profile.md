@@ -68,6 +68,16 @@ This follows AGENTS rule 4 ("we follow when a FOSS path exists"): it uses
 Wine's existing version-profile mechanism and adds a newer Windows build
 to it, by owner decision COR-324. It adds no CrossOver-only behaviour.
 
+The profile only changes values under `Windows NT\CurrentVersion`. It
+never writes `ProgramFilesDir`, `CommonFilesDir` or the `W6432` values
+under `Windows\CurrentVersion`; `wine.inf` writes those as `REG_SZ`. A
+prefix where they showed up as `REG_EXPAND_SZ` `%SystemDrive%\...` (REQ-140
+evidence) was one whose 64-bit `wine.inf` install had not finished. Its
+native `Windows\CurrentVersion` key held only shell32's lazy defaults
+(4 of 9 values), while four prefixes the CLI created with this profile
+have the normal `REG_SZ` values. The unit test asserts the profile writer
+does not touch them.
+
 ## Consequences
 
 - Before this becomes the default for new title prefixes, it is A/B

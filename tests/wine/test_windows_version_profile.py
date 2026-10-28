@@ -141,8 +141,11 @@ static HKEY config_key = (HKEY)2;
 static const WCHAR *keypath(const WCHAR *p) { return p; }
 static struct { WCHAR name[64]; WCHAR value[64]; DWORD dword; int kind; } values[64];
 static unsigned count;
+static int touched_program_files;
 static void record(const WCHAR *key, const WCHAR *name, const WCHAR *value, DWORD dword, int kind)
 {
+    if (name && wcsstr(name, L"FilesDir")) touched_program_files = 1;
+    if (name && wcsstr(name, L"W6432")) touched_program_files = 1;
     if (wcscmp(key, szKeyNT)) return;
     for (unsigned i = 0; i < count; i++)
         if (!wcscmp(values[i].name, name)) { count--; values[i] = values[count]; break; }
@@ -191,6 +194,9 @@ int main(void)
     assert(dword(L"UBR", &value) && value == 4652);
     assert(dword(L"CurrentMajorVersionNumber", &value) && value == 10);
     assert(dword(L"CurrentMinorVersionNumber", &value) && value == 0);
+    /* The profile never writes ProgramFilesDir, CommonFilesDir or the W6432 values;
+       wine.inf owns them as REG_SZ (REQ-155 review, COR-352 evidence). */
+    assert(!touched_program_files);
     set_winver(find(L"win10"));
     assert(!wcscmp(string(L"CurrentBuildNumber"), L"19045"));
     assert(!string(L"DisplayVersion") && !string(L"ReleaseId"));
