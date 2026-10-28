@@ -29,10 +29,28 @@ Calimocho does not exist without the work of others. Credit goes to:
   are NOT covered by the LGPL, and may only be distributed for
   non-commercial purposes.
 - KhronosGroup and the MoltenVK contributors (Apache-2.0), plus the
-  SPIRV-Cross, SPIRV-Tools, Vulkan-Headers, cereal and Volk projects it
-  builds on.
+  projects compiled into libMoltenVK.dylib: SPIRV-Cross (Apache-2.0),
+  SPIRV-Tools (Apache-2.0), SPIRV-Headers (MIT-style Khronos licence),
+  Vulkan-Headers (Apache-2.0 or MIT), Vulkan-Tools (Apache-2.0), Volk
+  (MIT, Arseny Kapoulkine) and cereal
+  (BSD-3-Clause, Copyright Randolph Voorhies and Shane Grant). Their
+  licence texts are in licenses/moltenvk/ inside the engine.
+- The SDL project (https://www.libsdl.org/), Copyright Sam Lantinga.
+  libSDL2 is bundled for game controllers (winebus.sys SDL bus) under
+  the zlib licence (licenses/sdl/LICENSE.txt).
+- Highball (https://github.com/gauthierpiarrette/highball), whose
+  d3d12 timestamp shim (d3d12_tsshim.dll) is bundled under GPL-3.0 with
+  its source (licenses/highball-tsshim/).
 - The FreeType project (FTL or GPL-2.0), and the GnuTLS, nettle, GMP
   and libtasn1 projects (LGPL).
+- xxHash (BSD-2-Clause, Yann Collet), compiled into Apple's D3DMetal;
+  Apple ships its licence, copied to licenses/xxhash/.
+
+Calimocho's own components, all LGPL-2.1-or-later with source in this
+repository: the NVAPI stub nvapi64.dll (tools/nvapi_stub/, ADR-0083),
+the DXGI driver-version front end dxgi.dll (tools/dxgi_umd/, ADR-0084),
+both under lib/calimocho/, and libnative-gs-localtime.dylib
+(tools/native_gs_localtime.c).
 - gcenx (https://github.com/Gcenx), who maintains the macOS Wine
   packaging ecosystem.
 - Isaac Marovitz and the Whisky community, for showing that a friendly
