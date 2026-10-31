@@ -186,17 +186,39 @@ to install software whose licenses are their own; nothing in this repo
 includes or redistributes binaries from any of the projects credited
 above.
 
-## Where the engine work went
+## Where the engine work went: The Lineage to XOde
 
-The previous incarnation of this project tried to build its own Wine
-engine + D3DMetal shim. It produced a working `out/engine/` directory,
-a SwiftUI menubar app, a CI pipeline, and ~3 months of investigation
-documented in the ADR chain. None of that ships anymore. The git
-history is the record.
+The early incarnation of Calimocho built a Wine engine + Apple D3DMetal shim specifically to run Subnautica 2. It produced a working engine, a SwiftUI menubar app, and months of documented runtime investigations in the ADR chain. 
 
-The investigation produced one genuinely useful artifact for anyone
-trying to do similar work:
-[`docs/handover-2026-06-01-end-of-day.md`](docs/handover-2026-06-01-end-of-day.md)
-is the postmortem of why building a competing Wine engine was the
-wrong call when Sikarugir + PK already exist. The detailed reasoning
-is in [ADR-0020](docs/ADR/0020-pivot-from-engine-to-recipe-archive.md).
+When Porting Kit and Sikarugir emerged with an already working, free community stack for Subnautica 2, Calimocho archived its standalone engine per [ADR-0020](docs/ADR/0020-pivot-from-engine-to-recipe-archive.md) to avoid duplicating effort.
+
+However, the lessons learned from Calimocho (Wine 11 configuration, Apple D3DMetal bridging, and DirectX 12 translation on Apple Silicon) became the technical foundation for a much broader initiative: **XOde Backend (`xode-backend`)** and **XOde App (`xode-app`)**, bringing genuine Xbox PC Game Pass titles to macOS.
+
+### The Ecosystem Relationship
+
+```mermaid
+flowchart TD
+    subgraph Roots["Foundations & Upstream"]
+        OG["xodus-gaming/xodus\n(Upstream Linux CLI & MSIXVC crypto math)"]
+        CALI["calimocho\n(Apple Silicon Wine 11 & D3DMetal proof of concept)\n[Archived, SN2 Recipe]"]
+    end
+
+    subgraph Xode["XOde Platform"]
+        APP["xode-app\n(Native SwiftUI Desktop UI)"]
+        subgraph Backend["xode-backend (Engine Repository)"]
+            CLI["xode-cli / xodus-cli\n(Lifecycle, Supervisors & Title Recipes)"]
+            CONTROL["xode-control\n(Control Plane: Staging, Catalog & Protocol)"]
+            DATAPLANE["xode-dataplane\n(Guest Data Plane: In-Game Licensing Daemon)"]
+        end
+    end
+
+    OG -->|"MSIXVC / XVD container math"| CLI
+    CALI -.->|"Wine 11 + D3DMetal runtime lessons"| CLI
+    APP <-->|"JSONL Management Protocol"| CONTROL
+    CONTROL --> CLI
+    CLI --> DATAPLANE
+```
+
+* **Calimocho**: The original stopgap experiment for Subnautica 2. It proved that DirectX 12 titles can run on Apple Silicon using free tools. It remains archived and strictly SN2-scoped.
+* **XOde Backend (`xode-backend`)**: The macOS-native engine and CLI backend, housing the hardware Keychain vault, process supervisor, in-game licensing daemon (`xode-dataplane`), Control Plane (`xode-control`), and declarative Title Recipes.
+* **XOde App (`xode-app`)**: The native SwiftUI desktop companion that lets Mac gamers discover, install, and launch PC Game Pass games seamlessly.
