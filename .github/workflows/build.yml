@@ -27,7 +27,7 @@ permissions:
 jobs:
   build:
     name: Build engine (x86_64 under Rosetta, macOS arm64 runner)
-    runs-on: macos-15
+    runs-on: ${{ vars.CI_MACOS_RUNNER && fromJSON(vars.CI_MACOS_RUNNER) || 'macos-15' }}
     timeout-minutes: 90
     env:
       # Match the layout scripts/fetch-sources.sh defaults to. Putting

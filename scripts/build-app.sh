@@ -75,12 +75,33 @@ cp "$INFO_PLIST" "$OUT_APP/Contents/Info.plist"
 echo "[build-app] Bundling Wine engine..."
 rsync -a --delete "$ENGINE_SRC/" "$OUT_APP/Contents/Resources/Engine/"
 
-# Sign the app bundle (ad-hoc with entitlements)
+# Sign the app bundle (Developer ID if present, otherwise ad-hoc)
 echo "[build-app] Signing Calimocho.app..."
+DEFAULT_DEV_ID="Developer ID Application: Dragos Hont (M62Z4M5EUY)"
+SIGN_IDENTITY="${CODESIGN_IDENTITY:-}"
+TIMESTAMP_ARG="--timestamp=none"
+
+if [[ -z "$SIGN_IDENTITY" ]]; then
+    if security find-identity -v -p codesigning 2>/dev/null | grep -q "$DEFAULT_DEV_ID"; then
+        SIGN_IDENTITY="$DEFAULT_DEV_ID"
+        TIMESTAMP_ARG="--timestamp"
+        echo "[build-app] Signing with detected Apple Developer ID: $SIGN_IDENTITY"
+    else
+        SIGN_IDENTITY="-"
+        echo "[build-app] Signing ad-hoc (-)"
+    fi
+else
+    if [[ "$SIGN_IDENTITY" != "-" ]]; then
+        TIMESTAMP_ARG="--timestamp"
+    fi
+    echo "[build-app] Signing with specified identity: $SIGN_IDENTITY"
+fi
+
 codesign \
     --force \
     --deep \
-    --sign - \
+    --sign "$SIGN_IDENTITY" \
+    $TIMESTAMP_ARG \
     --options runtime \
     --entitlements "$ENTITLEMENTS" \
     "$OUT_APP"
