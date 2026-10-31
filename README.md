@@ -188,7 +188,7 @@ above.
 
 ## Where the engine work went: The Lineage to XOde
 
-The early incarnation of Calimocho built a Wine engine + Apple D3DMetal shim specifically to run Subnautica 2. It produced a working engine, a SwiftUI menubar app, and months of documented runtime investigations in the ADR chain. 
+The early incarnation of Calimocho built a Wine engine + Apple D3DMetal shim specifically to run Subnautica 2. It produced a working engine, a SwiftUI menubar app, and months of documented runtime investigations in the ADR chain.
 
 When Porting Kit and Sikarugir emerged with an already working, free community stack for Subnautica 2, Calimocho archived its standalone engine per [ADR-0020](docs/ADR/0020-pivot-from-engine-to-recipe-archive.md) to avoid duplicating effort.
 
