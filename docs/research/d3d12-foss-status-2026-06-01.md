@@ -218,11 +218,11 @@ MoltenVK
 made significant bindless improvements:
 
 > **Improvements to bindless resources and descriptor indexing:**
->   • Add support for Metal 3 argument buffers.
->   • Support argument buffers on all platforms, when Metal 3 is available.
->   • Use Metal argument buffers by default when they are available.
->   • Support multiplanar images in Metal argument buffers.
->   • **Update max number of bindless buffers and textures per stage to 1M**, per Apple Docs.
+> • Add support for Metal 3 argument buffers.
+> • Support argument buffers on all platforms, when Metal 3 is available.
+> • Use Metal argument buffers by default when they are available.
+> • Support multiplanar images in Metal argument buffers.
+> • **Update max number of bindless buffers and textures per stage to 1M**, per Apple Docs.
 
 This was almost two years ago at time of writing. The 1M-bindless
 gap vkd3d-proton's K0bin cited in [#1889](https://github.com/HansKristian-Work/vkd3d-proton/issues/1889)

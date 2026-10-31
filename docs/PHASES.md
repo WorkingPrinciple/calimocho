@@ -4,7 +4,7 @@
 > [ADR-0020](ADR/0020-pivot-from-engine-to-recipe-archive.md).**
 > The recipe in the [README](../README.md) supersedes Phases 1-6.
 > The history below is preserved as the record of what was planned.
-
+>
 > Six phases, each independently shippable. Each phase has explicit
 > acceptance criteria (see SPECS.md sections A0-A5). Phase N cannot
 > start until Phase N-1's acceptance criteria are all green.
