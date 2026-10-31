@@ -89,11 +89,18 @@ if [[ -x "$X86_BREW" ]]; then
   log "x86_64 Homebrew already installed at $X86_BREW"
 else
   log "installing x86_64 Homebrew at /usr/local/ (requires sudo)"
-  # Use the official installer under Rosetta. Cannot use NONINTERACTIVE=1
-  # because that disables the sudo password prompt that we still need
-  # in CI's first run.
-  arch -x86_64 /bin/bash -c \
-    "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  # The official install.sh now rejects Rosetta 2 execution on Apple Silicon.
+  # Directly clone Homebrew into /usr/local/Homebrew as officially documented
+  # for alternate installations.
+  if [[ ! -d "/usr/local/Homebrew" ]]; then
+    sudo mkdir -p /usr/local/Homebrew /usr/local/bin /usr/local/Cellar /usr/local/opt
+    sudo chown -R "$(id -un):$(id -gn)" /usr/local/Homebrew /usr/local/Cellar /usr/local/opt 2>/dev/null || true
+    git clone --depth=1 https://github.com/Homebrew/brew /usr/local/Homebrew
+  fi
+  if [[ ! -L "$X86_BREW" && ! -f "$X86_BREW" ]]; then
+    sudo ln -sf /usr/local/Homebrew/bin/brew /usr/local/bin/brew
+  fi
+  arch -x86_64 "$X86_BREW" update --force --quiet 2>/dev/null || true
 fi
 log "x86_64 Homebrew: $(arch -x86_64 $X86_BREW --version | head -1)"
 
