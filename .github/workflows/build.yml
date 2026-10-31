@@ -25,32 +25,9 @@ permissions:
   contents: read
 
 jobs:
-  preflight:
-    name: Route runner
-    runs-on: ubuntu-latest
-    outputs:
-      macos_runner: ${{ steps.route.outputs.macos_runner }}
-    steps:
-      - name: Detect available runners
-        id: route
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          RUNNERS_JSON=$(gh api orgs/WorkingPrinciple/actions/runners 2>/dev/null || echo '{"runners":[]}')
-          MAC_ONLINE=$(echo "$RUNNERS_JSON" | jq -r '.runners[] | select(.status=="online" and (.labels[].name=="local-mac")) | .name' | head -n 1)
-
-          if [ -n "$MAC_ONLINE" ]; then
-            echo "Found active local Mac runner: $MAC_ONLINE"
-            echo 'macos_runner=["self-hosted", "macos", "local-mac"]' >> "$GITHUB_OUTPUT"
-          else
-            echo "No local Mac runner active. Falling back to cloud macos-15."
-            echo 'macos_runner="macos-15"' >> "$GITHUB_OUTPUT"
-          fi
-
   build:
-    needs: preflight
     name: Build engine (x86_64 under Rosetta, macOS arm64 runner)
-    runs-on: ${{ fromJSON(needs.preflight.outputs.macos_runner) }}
+    runs-on: ${{ vars.CI_MACOS_RUNNER && fromJSON(vars.CI_MACOS_RUNNER) || 'macos-15' }}
     timeout-minutes: 90
     env:
       # Match the layout scripts/fetch-sources.sh defaults to. Putting
