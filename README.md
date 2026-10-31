@@ -208,7 +208,8 @@ flowchart TD
         subgraph Backend["xode-backend (Engine Repository)"]
             CLI["xode-cli / xodus-cli\n(Lifecycle, Supervisors & Title Recipes)"]
             CONTROL["xode-control\n(Control Plane: Staging, Catalog & Protocol)"]
-            DATAPLANE["xode-dataplane\n(Guest Data Plane: In-Game Licensing Daemon)"]
+            DATAPLANE["xode-dataplane\n(Host Data Plane: In-Game Licensing Daemon)"]
+            GUEST_DP["guest-dataplane\n(Guest Data Plane: Windows GDK Shims)"]
         end
     end
 
@@ -217,8 +218,9 @@ flowchart TD
     APP <-->|"JSONL Management Protocol"| CONTROL
     CONTROL --> CLI
     CLI --> DATAPLANE
+    GUEST_DP -.->|"Socket Bridge"| DATAPLANE
 ```
 
 * **Calimocho**: The original stopgap experiment for Subnautica 2. It proved that DirectX 12 titles can run on Apple Silicon using free tools. It remains archived and strictly SN2-scoped.
-* **XOde Backend (`xode-backend`)**: The macOS-native engine and CLI backend, housing the hardware Keychain vault, process supervisor, in-game licensing daemon (`xode-dataplane`), Control Plane (`xode-control`), and declarative Title Recipes.
+* **XOde Backend (`xode-backend`)**: The macOS-native engine and CLI backend, housing the hardware Keychain vault, process supervisor, Host Data Plane daemon (`xode-dataplane`), Guest Data Plane shims (`guest-dataplane`), Control Plane (`xode-control`), and declarative Title Recipes.
 * **XOde App (`xode-app`)**: The native SwiftUI desktop companion that lets Mac gamers discover, install, and launch PC Game Pass games seamlessly.
