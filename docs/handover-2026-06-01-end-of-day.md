@@ -6,7 +6,7 @@ After 6 sessions, today's research and tests produced a sharp
 re-anchoring of what works:
 
 | Stack | Steam UI | SN2 launch | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | CrossOver 26 (proprietary `d3d12.so`) | ✅ | ✅ | The maintainer has this working. Trial expires. EULA forbids redistribution. |
 | **PK DXVK** variant (vanilla) | ✅ | ❌ | Steam UI works. SN2 D3D12 init fails (vkd3d-proton + MoltenVK FOSS gap). |
 | **PK Direct3D** variant (vanilla) | ✅ | ❌ | Steam UI works. SN2 gated by "Microsoft VC++ 2015-2022 Redistributable required". Apple D3DMetal-backed d3d12 path. |

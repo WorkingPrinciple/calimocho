@@ -36,7 +36,7 @@ detail, no actionable error. Apple has not documented this policy.
 Independent survey of what other Wine-on-Mac stacks actually ship:
 
 | Stack | Host arch | Verified by |
-|---|---|---|
+| --- | --- | --- |
 | Whisky's bundled Wine 11.9-staging (current) | **x86_64 only** | `file ~/Library/.../Whisky/Libraries/Wine/lib/wine/x86_64-unix/wine` |
 | Whisky's prior Wine 7.7 (Apr 2023) | **x86_64 only** | `Libraries.bak-wine7/` |
 | CrossOver 26 | **x86_64 only**, runs under Rosetta 2 | CodeWeavers release notes |

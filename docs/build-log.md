@@ -172,7 +172,7 @@ header probes.
 ### Build durations (10-core M1 Max)
 
 | Build | Wall time | Notes |
-|---|---|---|
+| --- | --- | --- |
 | native arm64 (rejected, ADR-0010) | ~6 min | the build that the OS won't let you run |
 | x86_64 under Rosetta | ~20 min | what we ship |
 | x86_64 incremental (cached) | <1 min | for iteration |
@@ -252,7 +252,7 @@ and CEF fell back to GLES 2.0 → window painted but rendered black.
 Tested four configurations against the same Wine 11 build:
 
 | Config | GPU crashes | ANGLE D3D11 | Window |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | DXVK (`d3d11,dxgi=n`), no registry tweaks | 0 | NVIDIA 8800 GTX (wrong) | black |
 | Builtin (`d3d11,dxgi=b`) + DXVK DLLs removed | 9 | n/a (crashed) | black |
 | DXVK + PK registry config (`csmt=1, renderer=gl`) | 6 | NVIDIA 8800 GTX | black |
@@ -335,7 +335,7 @@ D3DMetal's matching exports. ADR-0015 details the design.
 ### Scope, with confidence
 
 | Component | Lines | New / modified |
-|---|---|---|
+| --- | --- | --- |
 | d3d11 PE shim | ~150 | new file |
 | d3d11 ELF unix lib | ~120 | new file |
 | d3d11 private header | ~80 | new file |
@@ -761,7 +761,7 @@ also can't produce an adapter that satisfies UE5/SM6.
 ### Verdict: SN2 on M1 Max via any FOSS-or-FOSS-adjacent stack
 
 | Stack | Steam UI | SN2 in-game |
-|---|---|---|
+| --- | --- | --- |
 | CrossOver 26 (proprietary `d3d12.so`) | works | works (with recipe) |
 | PK DXVK + vkd3d-proton + MoltenVK | works | D3D12 0x80070057 |
 | PK Direct3D + Apple D3DMetal | works | D3D12 0x80004005 |
@@ -801,3 +801,11 @@ discussion).
 - `docs/build-log.md`: this entry
 - (No code or other doc changes; PK bottles restored to original
   state, no calimocho-side state touched)
+
+## Phase 2 Tier 2 acceptance record
+
+Per TESTING.md and AGENTS.md rule #7:
+
+- **Tier 2 status**: SKIP
+- **Rationale**: Real HWND swap chain presentation and visual regression (NCC >= 0.85 against committed baselines) require working Steam UI composition on macOS Apple Silicon. Under Wine 11 upstream winemac.drv, Steam CEF fails window composition (black window regression documented in ADR-0016 and ADR-0017).
+- **Policy compliance**: Marked SKIP with documented rationale per TESTING.md SKIP policy and ADR-0017 known-blocker status. Standalone Tier 1 D3D11CreateDevice device round-trip unit test remains green (PASS).

@@ -297,7 +297,7 @@ FirstRunWizard.tapInstall()
 ## Failure modes and their handling
 
 | Failure | Detection | Handling |
-|---|---|---|
+| --- | --- | --- |
 | Brew dep missing during build | `./configure` fails with explicit error | Build script prints "missing dep" hint; CI runs `brew bundle` first |
 | Rosetta 2 missing | Engine binary exits with "Bad CPU type" on Apple Silicon | Phase 2+ wizard offers to run `softwareupdate --install-rosetta --agree-to-license`; CLI prints the same hint |
 | Wine source download corrupted | sha256 mismatch | Re-download once, then fail with clear message |

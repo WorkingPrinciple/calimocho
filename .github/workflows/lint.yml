@@ -51,7 +51,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install markdownlint-cli2
-        run: npm install -g markdownlint-cli2@0.13.0
+        run: npm install -g markdownlint-cli2@0.24.0
       - name: Run markdownlint
         run: |
           set -euo pipefail

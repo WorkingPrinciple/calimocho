@@ -198,7 +198,7 @@ calimocho uninstall           # remove bottle data + (optionally) /Applications/
 ### Phase 2 exit codes
 
 | Code | Meaning |
-|---|---|
+| --- | --- |
 | 0 | success |
 | 1 | general failure (see stderr or log) |
 | 2 | usage error (bad flag, missing required arg) |

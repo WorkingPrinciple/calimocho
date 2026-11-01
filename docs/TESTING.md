@@ -8,7 +8,7 @@
 ## Five tiers
 
 | Tier | Scope | Where it runs | When |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 0 | Lint and structural sanity | Locally + every PR | Every push |
 | 1 | Engine smoke (wine --version, wineboot, prefix init) | macos-15 arm runner | Every PR |
 | 2 | Application smoke (notepad.exe, basic window) | macos-15 arm runner | Every PR |
@@ -248,7 +248,7 @@ weekly. We never drop Tier 0-2.
 ## Test failure handling
 
 | Tier failing | Severity | Response |
-|---|---|---|
+| --- | --- | --- |
 | 0 | Block PR | Fix in same PR |
 | 1 | Block PR | Build issue; fix in same PR or revert offending change |
 | 2 | Block PR | Investigate; may indicate Wine regression. File against `tests/known-flaky.md` if it passes on retry |

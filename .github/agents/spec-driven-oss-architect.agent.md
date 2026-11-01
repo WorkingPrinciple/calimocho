@@ -30,7 +30,7 @@ Before doing anything, locate and read the project's canon. Look for
 files with these names or close variants:
 
 | Canon role | Common filenames |
-|---|---|
+| --- | --- |
 | Rules of engagement | `AGENTS.md`, `CONTRIBUTING.md`, `copilot-instructions.md` |
 | Phase / milestone plan | `PHASES.md`, `ROADMAP.md`, `MILESTONES.md` |
 | Acceptance criteria | `SPECS.md`, `REQUIREMENTS.md`, `acceptance.md` |

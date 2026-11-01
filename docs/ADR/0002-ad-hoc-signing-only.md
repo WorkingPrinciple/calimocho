@@ -9,7 +9,7 @@ Distributing a macOS app requires it to be signed. Three tiers of signing
 exist on macOS:
 
 | Tier | Cost | What user sees |
-|---|---|---|
+| --- | --- | --- |
 | Ad-hoc (`codesign --sign -`) | Free | First launch shows "unidentified developer" dialog. Right-click → Open bypasses. |
 | Apple Developer ID + notarization | $99/yr + automation effort | Clean launch, no warnings. |
 | Apple App Store | $99/yr + review process | Cannot apply: Wine ships a JIT compiler, which App Store rules forbid. |

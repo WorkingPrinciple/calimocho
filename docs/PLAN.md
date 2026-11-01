@@ -55,7 +55,7 @@ Six phases, strict ordering, each independently shippable.
 See [PHASES.md](PHASES.md) for full breakdown. Summary:
 
 | Phase | Title | Trigger to start |
-|---|---|---|
+| --- | --- | --- |
 | 0 | Foundation | (done) |
 | 1 | Engine | foundation acceptance green |
 | 2 | App shell | A1.x green |
@@ -88,7 +88,7 @@ and we do not maintain a notarization workflow.
 ## 5. Distribution channels
 
 | Phase | Channel | Notes |
-|---|---|---|
+| --- | --- | --- |
 | 2+ | Drag .app from repo `out/` to /Applications | Developer/internal use |
 | 4+ | GitHub Releases DMG | Primary user-facing distribution |
 | 5+ | Sparkle auto-update from EdDSA-signed appcast | Default for installed users |
@@ -115,7 +115,7 @@ If any hard-rule test fails, the release is blocked.
 ## 7. Risks & mitigations
 
 | Risk | Probability | Impact | Mitigation |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | CW changes their source license or withdraws publication | Very low | Catastrophic | Mirror tarballs in our own GH releases as evidence-of-state under fair use |
 | Apple GPTK license changes | Low | Catastrophic for DX12 path | Document a Vulkan-only fallback (vkd3d-proton + DXVK + MoltenVK) in build-log; slower but works |
 | Build breaks on next macOS version | Medium | Medium | macOS-version-matrixed weekly CI catches it before users see it |
@@ -135,7 +135,7 @@ happens.
 ### License landscape (verified from actual EULAs, 2026-05-31)
 
 | Component | License | Distribution permitted? |
-|---|---|---|
+| --- | --- | --- |
 | Wine 11.0 (upstream) | LGPL 2.1+ | ✅ Yes, any use including modification |
 | CodeWeavers Wine patches | LGPL 2.1+ (CW's LGPL compliance source) | ✅ Yes, any use including modification |
 | vkd3d / DXVK / MoltenVK | LGPL / zlib / Apache 2.0 | ✅ Yes |

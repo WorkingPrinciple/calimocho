@@ -11,7 +11,7 @@ It is a small personal list, published in case it helps.
 ## The list
 
 | Game | Why I miss it | API | Status | Hardware tested | Date |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | **Subnautica 2** (Early Access) | I bought the first two Subnautica games on Mac. The third should also run on Mac. | DX12 | Working (using CrossOver-equivalent stack) | M1 Max, macOS 26.5 | 2026-06 |
 | **They Are Billions** | Steampunk colony defense game I loved on Windows years ago. No Mac build. | DX11 | Wishlist (not tested yet) | n/a | n/a |
 | **Hogwarts Legacy** | The kind of game my kid would love to play with me. No Mac build. | DX12 | Wishlist (not tested yet) | n/a | n/a |

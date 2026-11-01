@@ -14,7 +14,7 @@
 ## Phase summary
 
 | Phase | Title | Goal | Demo |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **0** | Foundation | Repo, docs, rules, license, build deps. Reproducible source download with sha256 pin. | `git clone` works. `docs/PLAN.md` is current. `scripts/fetch-sources.sh` produces a verified Wine source tarball. |
 | **1** | Engine | Build CodeWeavers Wine 11 from source. CLI-only validation: `wine notepad.exe` shows a window. `wine steam.exe` reaches the Steam login UI. No GUI yet. | Maintainer runs `./scripts/build-wine.sh`, then `./scripts/test-engine.sh`, sees Steam login window without black-window bug. |
 | **1.5** | CI + GPTK re-hosting | GitHub Actions build pipeline; calimocho-hosted GPTK Redistributables tarball; `versions.json` as single source of truth. Brought forward from Phase 5 per ADR-0011. | Push to any branch runs full pipeline; first PR run on `phase1-engine` passes A1.1–A1.5 end-to-end in CI. |
@@ -364,7 +364,7 @@ for any reason, same procedure but trigger is different.
 ## Phase status snapshot
 
 | Phase | Status | Started | Acceptance green |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 0 Foundation | DONE | 2026-05-30 | 2026-05-31 |
 | 1 Engine | DONE | 2026-05-31 | 2026-06-01 (A1.1, A1.2, A1.3, A1.5, A1.6 green; A1.4 deferred to Phase 2/3 — needs Steam-installed bottle) |
 | 1.5 CI + GPTK re-hosting | IN PROGRESS | 2026-06-01 | A1.5.1–A1.5.6 green locally; A1.5.7 pending first green CI run on phase1-engine PR |

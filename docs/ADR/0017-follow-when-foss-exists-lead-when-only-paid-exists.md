@@ -111,7 +111,7 @@ unblocks the FOSS path.
 ## Compatibility with existing levers
 
 | Lever | Status under ADR-0017 |
-|---|---|
+| --- | --- |
 | 1. Visibly worse by honesty | unchanged |
 | 2. Pre-purchase funnel | unchanged |
 | 3. Co-promotion in release notes | unchanged |

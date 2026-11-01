@@ -26,7 +26,7 @@ calimocho's scope is **Windows games the maintainer personally misses on
 his Mac**. The current list:
 
 | Game | Status |
-|---|---|
+| --- | --- |
 | Subnautica 2 | The reason this exists. Working. |
 | They Are Billions | Wishlist (not tested) |
 | Hogwarts Legacy | Wishlist (not tested) |

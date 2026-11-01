@@ -37,7 +37,7 @@ That is the entire menu in normal mode. Three lines.
 ### State-aware variations
 
 | Engine state | Top menu item |
-|---|---|
+| --- | --- |
 | Steam not installed yet | `▶ Install Steam` |
 | Steam installed, not running | `▶ Open Steam for Windows` |
 | Steam launching | `⌛ Starting Steam...` (disabled) |
