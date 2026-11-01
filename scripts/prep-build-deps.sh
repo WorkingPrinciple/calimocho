@@ -93,8 +93,8 @@ else
   # Directly clone Homebrew into /usr/local/Homebrew as officially documented
   # for alternate installations.
   if [[ ! -d "/usr/local/Homebrew" ]]; then
-    sudo mkdir -p /usr/local/Homebrew /usr/local/bin /usr/local/Cellar /usr/local/opt
-    sudo chown -R "$(id -un):$(id -gn)" /usr/local/Homebrew /usr/local/Cellar /usr/local/opt 2>/dev/null || true
+    sudo mkdir -p /usr/local/Homebrew /usr/local/bin /usr/local/Cellar /usr/local/opt /usr/local/var /usr/local/etc /usr/local/share
+    sudo chown -R "$(id -un):$(id -gn)" /usr/local/Homebrew /usr/local/Cellar /usr/local/opt /usr/local/var /usr/local/etc /usr/local/share 2>/dev/null || true
     git clone --depth=1 https://github.com/Homebrew/brew /usr/local/Homebrew
   fi
   if [[ ! -L "$X86_BREW" && ! -f "$X86_BREW" ]]; then
@@ -102,6 +102,14 @@ else
   fi
   arch -x86_64 "$X86_BREW" update --force --quiet 2>/dev/null || true
 fi
+for d in /usr/local/var /usr/local/etc /usr/local/share /usr/local/include /usr/local/lib; do
+  if [[ ! -d "$d" ]]; then
+    sudo mkdir -p "$d" 2>/dev/null || true
+  fi
+  if [[ ! -w "$d" ]]; then
+    sudo chown -R "$(id -un):$(id -gn)" "$d" 2>/dev/null || true
+  fi
+done
 log "x86_64 Homebrew: $(arch -x86_64 $X86_BREW --version | head -1)"
 
 # --- 4. x86_64 build deps -----------------------------------------------------
