@@ -888,13 +888,47 @@ CodeWeavers archive contains the corresponding behavior at
 `event.c:512-538` and `window.c:1218-1235`. Neither finding proves that
 the reported child-process problem is resolved.
 
-Issue #24 remains open with its runtime result unobserved. A meaningful
-future comparison would require a provenance-matching existing Wine
-installation, an isolated disposable prefix, and consent to open a GUI
-application under the same logged-in macOS user through direct and
-noninteractive-child launch paths. Logs and process samples would need
-to distinguish early initialization failure from a later event-loop
-hang. No such matching installation was established by this evaluation.
-This is not a request to rebuild the retired engine. No Wine launch,
-GUI/input, account access, screenshot, or runtime acceptance was
-performed for either issue.
+That source evaluation alone left the runtime result unobserved and
+performed no Wine launch, screenshot, or runtime acceptance.
+
+### 2026-11-03: Issue #24 runtime comparison
+
+Runtime used: gcenx `macOS_Wine_builds` release `11.0_1`, asset
+`wine-stable-11.0_1-osx64.tar.xz`, SHA-256
+`b50dc50ec7f41d58b115a6b685d4d1315ba3c797bd3aa0f49213f2703cb82388`
+(verified before extraction). `wine --version` reports `wine-11.0`; the
+binaries are x86_64 and ran under Rosetta 2 on Apple Silicon. It was
+installed outside the repository in a disposable cache directory, for
+diagnosis only. Nothing was bundled or shipped, and no CrossOver or
+Whisky binary was used.
+
+A fresh disposable prefix was created with `wineboot -i` (exit 0 in
+about 8 seconds, `system.reg` contains `#arch=win64`). `wine notepad`
+was then launched three ways under the logged-in macOS user:
+
+| Launch path | First on-screen Notepad window | Hang |
+| --- | --- | --- |
+| Direct child of the shell | 1.3 s | No |
+| Detached child: new session, stdin `/dev/null`, no TTY | 1.3 s | No |
+| Detached child with `DISPLAY=:0` | 1.3 s | No |
+
+Each window was found through `CGWindowListCopyWindowInfo` (named
+"Untitled - Notepad", on screen) and captured with
+`screencapture -l <window id>`. All three captures render the full
+Notepad UI (title bar, menu, edit area, status bar) and are
+byte-identical (SHA-256
+`a22ada22a2db0cde86eedab79b0f154265f7a977c014577f2e52e9cffdc3d1de`).
+No log contained `err:`, timeout, or deadlock text. Cleanup used
+`wineserver -k` for the disposable prefix only; no process was left.
+
+Conclusion: with stock Wine 11.0, `winemac.drv` does not deadlock when
+a GUI program is spawned from a noninteractive, detached child, as long
+as that child runs inside the user's graphical (Aqua) session. Headless
+screenshot capture works in that context through window-ID capture.
+`DISPLAY` makes no difference, as the source review predicted. A process
+outside any WindowServer session (for example an SSH login or a
+LaunchDaemon) is a different case: `sessionHasGraphicAccess` fails there
+and winemac cannot start, which no `DISPLAY` or Xvfb shim can fix. CI
+GUI checks therefore need a runner logged into a GUI session. The
+retired engine (ADR-0020) was not rebuilt, and no A1.4 or A2.4 rendering
+PASS follows from this result.
