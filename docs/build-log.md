@@ -809,3 +809,92 @@ Per TESTING.md and AGENTS.md rule #7:
 - **Tier 2 status**: SKIP
 - **Rationale**: Real HWND swap chain presentation and visual regression (NCC >= 0.85 against committed baselines) require working Steam UI composition on macOS Apple Silicon. Under Wine 11 upstream winemac.drv, Steam CEF fails window composition (black window regression documented in ADR-0016 and ADR-0017).
 - **Policy compliance**: Marked SKIP with documented rationale per TESTING.md SKIP policy and ADR-0017 known-blocker status. Standalone Tier 1 D3D11CreateDevice device round-trip unit test remains green (PASS).
+
+## 2026-11-02: Retired-engine issue #23 and #24 source evaluation
+
+This is a source and historical-record evaluation, not a new engine or
+Steam runtime result. Accepted
+[ADR-0020](ADR/0020-pivot-from-engine-to-recipe-archive.md) stops the
+engine work and replaces it with the Porting Kit recipe.
+
+### Issue #23: graphics pipeline proposal
+
+Issue [#23](https://github.com/WorkingPrinciple/calimocho/issues/23)
+proposed adopting DXVK, MoltenVK, and `renderer=gl`. ADR-0020 retired
+the engine and deleted proposed ADR-0018. The issue's NOT_PLANNED
+disposition reflects that project decision, not a rendering fix.
+
+The June 1 investigation recorded black Steam windows for Wine 11
+configurations including DXVK with `renderer=gl` and `renderer=vulkan`.
+A later Porting Kit note recorded a visible Steam UI under Wine 10
+Sikarugir with DXVK 2.x and MoltenVK. These are historical reports from
+different configurations, not a controlled comparison. The earlier note
+described Porting Kit's D3D11 DLL as wine-private wined3d, while the
+later inventory described DXVK. This discrepancy is not resolved by
+the records inspected here.
+
+At Wine 11.0 commit
+[`db11d0f`](https://gitlab.winehq.org/wine/wine/-/blob/db11d0fe6a169c457e23d007e20404643d067aa8/dlls/wined3d/wined3d_main.c#L443-460),
+`renderer=gl` selects wined3d's OpenGL backend; `renderer=vulkan`
+selects its Vulkan backend. DXVK 2.5.3
+[`c707d90`](https://github.com/doitsujin/dxvk/blob/c707d9026f33b6ab89639f154b6ac5f6326fa037/README.md)
+describes its own Vulkan-based Direct3D translation layer. MoltenVK
+1.2.10
+[`edbdcf0`](https://github.com/KhronosGroup/MoltenVK/blob/edbdcf054b2be9c84430f719ae99e78f9e845350/README.md)
+maps Vulkan capabilities to Metal. Thus `renderer=gl` is not a DXVK
+renderer selector. These upstream references identify component
+behavior, not the exact versions of the historical Porting Kit DLLs.
+
+Neither the source nor the nonidentical historical stacks establishes
+the cause of the black window. There is no tracked `tests/visual/`
+baseline at main commit `60f9ed0a30cac02a55fb91707b1dbbc46fcef5f9`,
+and no NCC measurement was made in this evaluation. No A1.4 or A2.4
+rendering PASS follows from it.
+
+### Issue #24: Cocoa startup and event dispatch
+
+Issue [#24](https://github.com/WorkingPrinciple/calimocho/issues/24)
+describes a headless-child event-dispatch deadlock. That diagnosis is
+not established by the available source evidence. The existing Tier 2
+SKIP record concerns black-window composition, not a demonstrated
+Cocoa startup deadlock.
+
+`versions.json` pins CodeWeavers `crossover-sources-26.1.0.tar.gz`
+(Wine 11.0), SHA-256
+`e4ec87d5821a009dd1f1d2e36ffe2e24b8fcbae9516375ea42f95a16928ab8fa`.
+That hash was verified before inspecting the archive. Its
+`dlls/winemac.drv/macdrv_main.c:455-467` requires
+`sessionHasGraphicAccess` before Cocoa startup. In
+`cocoa_main.m:141-163`, the secondary thread schedules and wakes a
+callback on the main run loop and waits for a condition signal with a
+five-second deadline. The callback signals startup before entering
+`[NSApp run]` (`cocoa_main.m:90-104`). These are distinct early failure
+paths, not proof of an indefinite startup wait or of a later deadlock.
+
+The build configures `--without-x`; the inspected native macOS driver
+has no direct `DISPLAY` lookup or X11 connection. The separate
+[`winex11.drv`](https://gitlab.winehq.org/wine/wine/-/blob/db11d0fe6a169c457e23d007e20404643d067aa8/dlls/winex11.drv/x11drv_main.c)
+uses `XOpenDisplay(NULL)` and diagnoses `$DISPLAY`. Setting DISPLAY or
+running Xvfb does not supply an AppKit/WindowServer session to winemac.
+
+Upstream
+[`b3291a2`](https://gitlab.winehq.org/wine/wine/-/commit/b3291a27544ed6f6844722f76cc2a951cd184a31)
+restricts event-pipe drained-state handling to `QS_ALLINPUT`, and
+[`6bb2b21`](https://gitlab.winehq.org/wine/wine/-/commit/6bb2b21dc386eb504af2a602cee45cc92a0c17c0)
+removes a window lock around client-view creation. GitLab merge-base
+queries confirmed both are ancestors of the Wine 11.0 release commit
+`db11d0fe6a169c457e23d007e20404643d067aa8`. The separate pinned
+CodeWeavers archive contains the corresponding behavior at
+`event.c:512-538` and `window.c:1218-1235`. Neither finding proves that
+the reported child-process problem is resolved.
+
+Issue #24 remains open with its runtime result unobserved. A meaningful
+future comparison would require a provenance-matching existing Wine
+installation, an isolated disposable prefix, and consent to open a GUI
+application under the same logged-in macOS user through direct and
+noninteractive-child launch paths. Logs and process samples would need
+to distinguish early initialization failure from a later event-loop
+hang. No such matching installation was established by this evaluation.
+This is not a request to rebuild the retired engine. No Wine launch,
+GUI/input, account access, screenshot, or runtime acceptance was
+performed for either issue.
