@@ -319,7 +319,46 @@ If you are an AI agent reading this to help with the project:
 - Always check `docs/PHASES.md` before starting work to make sure the
   current phase scope matches the task
 - Update the todo list when scope shifts mid-session
-- When in doubt, write a question to the user rather than guessing
+- When in doubt, write a question to the user rather than guessing, except
+  for work covered by an explicit autonomous backlog delegation below.
+
+### Autonomous backlog delegation
+
+When the owner assigns a backlog and asks the agent to proceed autonomously,
+that is authorization to make routine implementation and policy choices within
+the assigned scope, run the needed checks, commit completed changes, and record
+requested findings or progress in the linked issues. Do not pause to ask for
+routine decisions, commit permission, or approval of an in-scope issue update.
+Choose the narrowest reasonable option consistent with this file and the
+project's documented requirements.
+
+This authorization does not permit expanding the backlog, violating a hard
+rule, deleting user data, handling credentials or MFA on the owner's behalf, or
+performing unrelated or irreversible external actions. Ask only when one of
+those boundaries is genuinely reached or the work cannot proceed without an
+owner decision.
+
+### Ode development-machine recovery authorization
+
+The owner explicitly authorizes routine Ode recovery on this development
+machine without repeated approval requests:
+
+- Restart Ode and its owned helpers. Prefer normal quit; if hung, terminate
+  only verified Ode-owned process IDs and restart.
+- Re-sign Ode using the existing persisted signing identity when available.
+  Do not export keys, change Keychain permissions, or weaken signing checks.
+- Re-download verified application artifacts, remove or replace the specific
+  Ode app bundle and disposable build/install artifacts, and reinstall.
+- An uncertain or stalled account save does not by itself block an authorized
+  restart. Record the uncertainty and reconcile account status afterward;
+  never claim that termination rolled back a write or completed sign-in.
+
+This authorization does not include deleting saved credentials, games, saves,
+bottles, unrelated files, or other applications. Preserve that data and retain
+an app backup when replacing a candidate. Microsoft credentials, MFA and
+consent remain owner actions. Existing provenance checks still apply.
+This permission is scoped to Ode development recovery, not calimocho release
+signing or redistribution policy.
 
 ### Pre-PR self-review checklist (recurring mistake catcher)
 
